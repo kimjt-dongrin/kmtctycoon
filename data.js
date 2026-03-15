@@ -1147,16 +1147,16 @@ const INVESTMENTS = {
 
 // Milestones
 const MILESTONES = [
-    { id:'M01', name:'첫 수주', titleJa:'初受注', desc:'첫 번째 화물을 수주하세요', descJa:'最初の貨物を受注しましょう', check: s => s.stats.totBookings >= 1, reward:1000, icon:'🎉' },
-    { id:'M02', name:'첫 항차', titleJa:'初航海', desc:'첫 번째 항차를 완료하세요', descJa:'最初の航海を完了しましょう', check: s => s.stats.totVoy >= 1, reward:2000, icon:'🚢' },
-    { id:'M03', name:'흑자 전환', titleJa:'黒字転換', desc:'항차 수익이 흑자를 기록하세요', descJa:'航海収益を黒字にしましょう', check: s => s.stats.lastProfit > 0, reward:3000, icon:'💰' },
-    { id:'M04', name:'적재율 80%', titleJa:'積載率80%', desc:'적재율 80% 이상 달성', descJa:'積載率80%以上を達成', check: s => s.stats.lastLoadFactor >= 80, reward:5000, icon:'📦' },
-    { id:'M05', name:'매출 $100K', titleJa:'売上$100K', desc:'누적 매출 $100,000 달성', descJa:'累計売上$100,000達成', check: s => s.stats.totRev >= 100000, reward:5000, icon:'📈' },
-    { id:'M06', name:'영업팀 확장', titleJa:'営業チーム拡大', desc:'영업사원 5명 이상 보유', descJa:'営業担当者5名以上保有', check: s => s.salesTeam.length >= 5, reward:8000, icon:'👥' },
-    { id:'M07', name:'매출 $500K', titleJa:'売上$500K', desc:'누적 매출 $500,000 달성', descJa:'累計売上$500,000達成', check: s => s.stats.totRev >= 500000, reward:10000, icon:'💎' },
-    { id:'M08', name:'선박 업그레이드', titleJa:'船舶アップグレード', desc:'200TEU 선박 도입', descJa:'200TEU船舶導入', check: s => s.ship.capacity >= 200, reward:15000, icon:'🚢' },
-    { id:'M09', name:'매출 $1M', titleJa:'売上$1M', desc:'누적 매출 $1,000,000 달성', descJa:'累計売上$1,000,000達成', check: s => s.stats.totRev >= 1000000, reward:20000, icon:'👑' },
-    { id:'M10', name:'신규 항로', titleJa:'新規航路', desc:'두 번째 항로를 개설하세요', descJa:'2番目の航路を開設しましょう', check: s => s.routes && s.routes.length >= 2, reward:30000, icon:'🌏' },
+    { id:'M01', name:'첫 수주', nameJa:'初受注', desc:'첫 번째 화물을 수주하세요', descJa:'最初の貨物を受注しましょう', check: s => s.stats.totBookings >= 1, reward:1000, icon:'🎉' },
+    { id:'M02', name:'첫 항차', nameJa:'初航海', desc:'첫 번째 항차를 완료하세요', descJa:'最初の航海を完了しましょう', check: s => s.stats.totVoy >= 1, reward:2000, icon:'🚢' },
+    { id:'M03', name:'흑자 전환', nameJa:'黒字転換', desc:'항차 수익이 흑자를 기록하세요', descJa:'航海収益を黒字にしましょう', check: s => s.stats.lastProfit > 0, reward:3000, icon:'💰' },
+    { id:'M04', name:'적재율 80%', nameJa:'積載率80%', desc:'적재율 80% 이상 달성', descJa:'積載率80%以上を達成', check: s => s.stats.lastLoadFactor >= 80, reward:5000, icon:'📦' },
+    { id:'M05', name:'매출 $100K', nameJa:'売上$100K', desc:'누적 매출 $100,000 달성', descJa:'累計売上$100,000達成', check: s => s.stats.totRev >= 100000, reward:5000, icon:'📈' },
+    { id:'M06', name:'영업팀 확장', nameJa:'営業チーム拡大', desc:'영업사원 5명 이상 보유', descJa:'営業担当者5名以上保有', check: s => s.salesTeam.length >= 5, reward:8000, icon:'👥' },
+    { id:'M07', name:'매출 $500K', nameJa:'売上$500K', desc:'누적 매출 $500,000 달성', descJa:'累計売上$500,000達成', check: s => s.stats.totRev >= 500000, reward:10000, icon:'💎' },
+    { id:'M08', name:'선박 업그레이드', nameJa:'船舶アップグレード', desc:'200TEU 선박 도입', descJa:'200TEU船舶導入', check: s => s.ship.capacity >= 200, reward:15000, icon:'🚢' },
+    { id:'M09', name:'매출 $1M', nameJa:'売上$1M', desc:'누적 매출 $1,000,000 달성', descJa:'累計売上$1,000,000達成', check: s => s.stats.totRev >= 1000000, reward:20000, icon:'👑' },
+    { id:'M10', name:'신규 항로', nameJa:'新規航路', desc:'두 번째 항로를 개설하세요', descJa:'2番目の航路を開設しましょう', check: s => s.routes && s.routes.length >= 2, reward:30000, icon:'🌏' },
 ];
 
 // Voyage events - choices show clear consequences
@@ -1216,50 +1216,50 @@ const INSURANCE_RATES = {
 const VOYAGE_EVENTS = [
     { title:'🌀 태풍 접근!', titleJa:'🌀 台風接近！', desc:'항로 전방에 태풍이 접근 중입니다.', descJa:'航路前方に台風が接近中です。', prob:0.12,
       choices:[
-        { text:'우회 항해 (-$5,000, 안전)', textJa:'迂回航海 (-$5,000、安全)', detail:'연료비 추가 발생하지만 선박과 화물 안전', effect:{ cost:5000 } },
-        { text:'직진 통과 (위험!)', textJa:'直進通過（危険！）', detail:'선체 손상 -15% → 입항 후 수리비 증가, 화물 파손 위험', effect:{ condLoss:15, cargoRisk:0.1 } },
+        { text:'우회 항해 (-$5,000, 안전)', textJa:'迂回航海 (-$5,000、安全)', detail:'연료비 추가 발생하지만 선박과 화물 안전', detailJa:'燃料費追加だが船舶と貨物は安全', effect:{ cost:5000 } },
+        { text:'직진 통과 (위험!)', textJa:'直進通過（危険！）', detail:'선체 손상 -15% → 입항 후 수리비 증가, 화물 파손 위험', detailJa:'船体損傷 -15% → 入港後修理費増加、貨物破損リスク', effect:{ condLoss:15, cargoRisk:0.1 } },
       ] },
     { title:'☀️ 순항!', titleJa:'☀️ 順風満帆！', desc:'좋은 날씨로 연료가 절약됩니다.', descJa:'好天により燃料が節約されます。', prob:0.25,
-      choices:[{ text:'좋습니다! (+$3,000 절약)', textJa:'素晴らしい！(+$3,000節約)', detail:'연료 절감으로 비용 절약', effect:{ save:3000 } }] },
+      choices:[{ text:'좋습니다! (+$3,000 절약)', textJa:'素晴らしい！(+$3,000節約)', detail:'연료 절감으로 비용 절약', detailJa:'燃料節減によるコスト削減', effect:{ save:3000 } }] },
     { title:'⚡ 해류 지원!', titleJa:'⚡ 海流に乗る！', desc:'순류를 타고 예상보다 빠르게 항해 중입니다.', descJa:'順流に乗り予想より速く航海中です。', prob:0.15,
-      choices:[{ text:'좋은 조류! (+$2,000 연료 절약)', textJa:'良い潮流！(+$2,000燃料節約)', detail:'해류 덕분에 연료 소모 감소', effect:{ save:2000 } }] },
+      choices:[{ text:'좋은 조류! (+$2,000 연료 절약)', textJa:'良い潮流！(+$2,000燃料節約)', detail:'해류 덕분에 연료 소모 감소', detailJa:'海流のおかげで燃料消費減少', effect:{ save:2000 } }] },
     { title:'🤝 공동 배선 제안!', titleJa:'🤝 共同配船提案！', desc:'타 선사로부터 슬롯 교환 제안이 왔습니다.', descJa:'他船社からスロット交換の提案が来ました。', prob:0.08,
       choices:[
-        { text:'수락! (+$8,000)', textJa:'受諾！(+$8,000)', detail:'빈 슬롯에 타사 화물을 적재하여 추가 수익 발생', effect:{ save:8000 } },
-        { text:'거절', textJa:'拒否', detail:'자사 화물 공간을 유지합니다', effect:{} },
+        { text:'수락! (+$8,000)', textJa:'受諾！(+$8,000)', detail:'빈 슬롯에 타사 화물을 적재하여 추가 수익 발생', detailJa:'空きスロットに他社貨物を積載して追加収益', effect:{ save:8000 } },
+        { text:'거절', textJa:'拒否', detail:'자사 화물 공간을 유지합니다', detailJa:'自社貨物スペースを維持', effect:{} },
       ] },
     { title:'📦 환적 화물 발생!', titleJa:'📦 トランシップ貨物発生！', desc:'환적항에서 추가 화물 의뢰가 들어왔습니다.', descJa:'トランシップ港で追加貨物の依頼が入りました。', prob:0.12,
-      choices:[{ text:'적재! (+$4,000)', textJa:'積載！(+$4,000)', detail:'환적 화물로 추가 수익 발생', effect:{ save:4000 } }] },
+      choices:[{ text:'적재! (+$4,000)', textJa:'積載！(+$4,000)', detail:'환적 화물로 추가 수익 발생', detailJa:'トランシップ貨物で追加収益', effect:{ save:4000 } }] },
     { title:'🏆 해운 안전 대상!', titleJa:'🏆 海運安全大賞！', desc:'안전 운항 실적이 인정되어 해운 안전 대상을 수상했습니다!', descJa:'安全運航実績が認められ海運安全大賞を受賞しました！', prob:0.05,
-      choices:[{ text:'수상 (+$15,000 포상금)', textJa:'受賞(+$15,000報奨金)', detail:'정부 포상금 + 회사 명성 대폭 상승', effect:{ save:15000, loyaltyAll:8 } }] },
+      choices:[{ text:'수상 (+$15,000 포상금)', textJa:'受賞(+$15,000報奨金)', detail:'정부 포상금 + 회사 명성 대폭 상승', detailJa:'政府報奨金 + 会社名声大幅上昇', effect:{ save:15000, loyaltyAll:8 } }] },
     { title:'🔧 엔진 이상!', titleJa:'🔧 エンジン異常！', desc:'항해 중 엔진 이상이 감지되었습니다.', descJa:'航海中にエンジン異常が検知されました。', prob:0.08,
       choices:[
-        { text:'긴급 수리 (-$8,000)', textJa:'緊急修理 (-$8,000)', detail:'즉시 수리하여 선박 상태 유지. 안전하게 운항 지속', effect:{ cost:8000 } },
-        { text:'다음 항구까지 운항', textJa:'次の港まで航行', detail:'⚠️ 선체 상태 -20%, 2차 고장 위험 30%, 입항 후 수리비 2배 증가', effect:{ condLoss:20, breakdownRisk:0.3 } },
+        { text:'긴급 수리 (-$8,000)', textJa:'緊急修理 (-$8,000)', detail:'즉시 수리하여 선박 상태 유지. 안전하게 운항 지속', detailJa:'即時修理で船舶状態維持。安全に運航継続', effect:{ cost:8000 } },
+        { text:'다음 항구까지 운항', textJa:'次の港まで航行', detail:'⚠️ 선체 상태 -20%, 2차 고장 위험 30%, 입항 후 수리비 2배 증가', detailJa:'⚠️ 船体状態 -20%、二次故障リスク30%、入港後修理費2倍', effect:{ condLoss:20, breakdownRisk:0.3 } },
       ] },
     { title:'🏗️ 항구 혼잡!', titleJa:'🏗️ 港湾混雑！', desc:'도착 항구가 혼잡합니다. 대기하거나 강행할 수 있습니다.', descJa:'到着港が混雑しています。待機か強行入港を選べます。', prob:0.12,
       choices:[
-        { text:'대기 (-$3,000)', textJa:'待機 (-$3,000)', detail:'안전하게 대기. 체선료 발생하지만 화물 안전', effect:{ cost:3000 } },
-        { text:'강행 입항', textJa:'強行入港', detail:'⚠️ 접안 사고 위험 → 선체 -5%, 하역 지연으로 화주 신뢰도 하락', effect:{ condLoss:5, loyaltyLoss:3 } },
+        { text:'대기 (-$3,000)', textJa:'待機 (-$3,000)', detail:'안전하게 대기. 체선료 발생하지만 화물 안전', detailJa:'安全に待機。滞船料発生だが貨物安全', effect:{ cost:3000 } },
+        { text:'강행 입항', textJa:'強行入港', detail:'⚠️ 접안 사고 위험 → 선체 -5%, 하역 지연으로 화주 신뢰도 하락', detailJa:'⚠️ 接岸事故リスク → 船体 -5%、荷役遅延で荷主信頼度低下', effect:{ condLoss:5, loyaltyLoss:3 } },
       ] },
     { title:'🔥 2차 고장 발생!', titleJa:'🔥 二次故障発生！', desc:'응급 조치한 엔진에서 추가 고장이 발생했습니다!', descJa:'応急処置したエンジンで追加故障が発生しました！', prob:0, isChained:true,
       choices:[
-        { text:'비상 수리 (-$15,000)', textJa:'緊急修理 (-$15,000)', detail:'고가의 긴급 수리. 다음 항구까지는 운항 가능', effect:{ cost:15000 } },
-        { text:'최저 속도로 운항', textJa:'最低速度で航行', detail:'⚠️ 선체 -30%, 도착 지연으로 프리타임 초과 위험', effect:{ condLoss:30 } },
+        { text:'비상 수리 (-$15,000)', textJa:'緊急修理 (-$15,000)', detail:'고가의 긴급 수리. 다음 항구까지는 운항 가능', detailJa:'高額の緊急修理。次の港までは運航可能', effect:{ cost:15000 } },
+        { text:'최저 속도로 운항', textJa:'最低速度で航行', detail:'⚠️ 선체 -30%, 도착 지연으로 프리타임 초과 위험', detailJa:'⚠️ 船体 -30%、到着遅延でフリータイム超過リスク', effect:{ condLoss:30 } },
       ] },
     { title:'🆘 해상 인명 구조!', titleJa:'🆘 海上人命救助！', desc:'표류 중인 선박에서 조난 신호를 수신했습니다!', descJa:'漂流中の船舶から遭難信号を受信しました！', prob:0.08,
       choices:[
-        { text:'즉시 구조 출동! (+$10,000 포상금)', textJa:'即座に救助出動！(+$10,000報奨金)', detail:'인명 구조 성공! 해양 당국에서 포상금 지급 + 회사 명성 상승', effect:{ save:10000, loyaltyAll:5 } },
-        { text:'신고 후 항해 계속', textJa:'通報後航海続行', detail:'해경에 신고하고 항해를 계속합니다. 포상금 없음', effect:{} },
+        { text:'즉시 구조 출동! (+$10,000 포상금)', textJa:'即座に救助出動！(+$10,000報奨金)', detail:'인명 구조 성공! 해양 당국에서 포상금 지급 + 회사 명성 상승', detailJa:'人命救助成功！海洋当局から報奨金支給 + 会社名声上昇', effect:{ save:10000, loyaltyAll:5 } },
+        { text:'신고 후 항해 계속', textJa:'通報後航海続行', detail:'해경에 신고하고 항해를 계속합니다. 포상금 없음', detailJa:'海上保安庁に通報し航海を続行。報奨金なし', effect:{} },
       ] },
     { title:'🐋 고래 무리 발견!', titleJa:'🐋 クジラの群れ発見！', desc:'항로 전방에 대형 고래 무리가 이동 중입니다.', descJa:'航路前方に大型クジラの群れが移動中です。', prob:0.06,
       choices:[
-        { text:'감속 우회 (-$2,000)', textJa:'減速迂回 (-$2,000)', detail:'안전하게 우회. 연료비 소폭 증가', effect:{ cost:2000 } },
-        { text:'서행 통과', textJa:'徐行通過', detail:'조심스럽게 통과. 약간의 지연 발생', effect:{} },
+        { text:'감속 우회 (-$2,000)', textJa:'減速迂回 (-$2,000)', detail:'안전하게 우회. 연료비 소폭 증가', detailJa:'安全に迂回。燃料費小幅増加', effect:{ cost:2000 } },
+        { text:'서행 통과', textJa:'徐行通過', detail:'조심스럽게 통과. 약간의 지연 발생', detailJa:'慎重に通過。若干の遅延発生', effect:{} },
       ] },
     { title:'🎁 화주 감사 선물!', titleJa:'🎁 荷主からの感謝！', desc:'오래 거래해온 화주가 감사의 표시로 추가 물량을 제공합니다.', descJa:'長年取引してきた荷主が感謝の印に追加物量を提供します。', prob:0.10,
       choices:[
-        { text:'감사합니다! (+$5,000 보너스 물량)', textJa:'ありがとうございます！(+$5,000ボーナス物量)', detail:'추가 물량 확보! 매출 증가', effect:{ save:5000 } },
+        { text:'감사합니다! (+$5,000 보너스 물량)', textJa:'ありがとうございます！(+$5,000ボーナス物量)', detail:'추가 물량 확보! 매출 증가', detailJa:'追加物量確保！売上増加', effect:{ save:5000 } },
       ] },
 ];
 

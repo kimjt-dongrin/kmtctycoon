@@ -938,14 +938,26 @@ const SALES_ACTIVITIES = [
 // Company investments
 const INVESTMENTS = {
     training: [
-        { level:1, name:'기본 영업교육', cost:5000, effect:'영업 성공률 +5%', icon:'📚' },
-        { level:2, name:'고급 영업교육', cost:20000, effect:'영업 성공률 +10%, 고난도 화주 접근', icon:'🎓' },
-        { level:3, name:'전문가 과정', cost:50000, effect:'영업 성공률 +15%, ⭐⭐⭐ 화주 공략', icon:'🏆' },
+        { level:1, name:'기본 영업교육', cost:5000, effect:'전체 영업 성공률 +5%', icon:'📚' },
+        { level:2, name:'고급 영업교육', cost:20000, effect:'전체 영업 성공률 +10%, 고난도 화주 접근', icon:'🎓' },
+        { level:3, name:'전문가 과정', cost:50000, effect:'전체 영업 성공률 +15%, ⭐⭐⭐ 화주 공략', icon:'🏆' },
+        { level:4, name:'해운 MBA', cost:120000, effect:'전체 영업 성공률 +20%, BSA 협상력 강화', icon:'🎖️' },
+        { level:5, name:'글로벌 리더십', cost:250000, effect:'전체 영업 성공률 +25%, 대형 화주 전담 가능', icon:'👑' },
     ],
-    it: [
-        { level:1, name:'견적 자동화', cost:8000, effect:'메일 영업 효율 2배', icon:'💻' },
-        { level:2, name:'CRM 도입', cost:25000, effect:'고객 관리 효율 증가, ⭐⭐⭐⭐ 화주 접근', icon:'📊' },
-        { level:3, name:'AI 분석 시스템', cost:60000, effect:'시장 예측, 최적 운임 제안', icon:'🤖' },
+    personalTraining: [
+        { level:1, name:'실전 코칭', cost:3000, effect:'개인 성공률 +8%, 스킬 +0.3', skillBoost:0.3, icon:'🎯' },
+        { level:2, name:'전문 분야 특화', cost:8000, effect:'개인 성공률 +15%, 스킬 +0.5, 활동 효율↑', skillBoost:0.5, icon:'⭐' },
+        { level:3, name:'핵심 인재 육성', cost:20000, effect:'개인 성공률 +22%, 스킬 +0.8, 고난도 화주 전담', skillBoost:0.8, icon:'💎' },
+        { level:4, name:'임원 코스', cost:50000, effect:'개인 성공률 +30%, 스킬 +1.0, VIP 고객 관리', skillBoost:1.0, icon:'🏅' },
+    ],
+    systems: [
+        { level:1, name:'견적 자동화', cost:8000, effect:'메일 영업 효율 2배', category:'IT', icon:'💻' },
+        { level:2, name:'CRM 도입', cost:25000, effect:'고객 관리 효율↑, ⭐⭐⭐⭐ 화주 접근', category:'IT', icon:'📊' },
+        { level:3, name:'운임 분석 시스템', cost:60000, effect:'시장 운임 예측, 최적 견적 자동 제안', category:'IT', icon:'🤖' },
+        { level:4, name:'실시간 추적 시스템', cost:100000, effect:'화물 추적 서비스 → 고객 만족도↑, 충성도+5', category:'물류', icon:'📡' },
+        { level:5, name:'자동 부킹 플랫폼', cost:180000, effect:'온라인 부킹 → 소형 화주 자동 수주 확률↑', category:'IT', icon:'🌐' },
+        { level:6, name:'통합 ERP', cost:300000, effect:'전사 업무 자동화 → 고정비 -10%, 효율 극대화', category:'경영', icon:'🏗️' },
+        { level:7, name:'글로벌 디지털 전환', cost:500000, effect:'전 부문 디지털화 → 성공률+10%, 비용-15%', category:'경영', icon:'🚀' },
     ],
     office: [
         { port:'NBO', name:'닝보 지사', cost:15000, effect:'닝보 영업 효율 +30%', icon:'🏢' },

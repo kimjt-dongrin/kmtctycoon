@@ -479,19 +479,24 @@ const Game = {
 
     calcSuccessRate(st, cust, act, port) {
         const s = this.state;
-        let rate = act.successBase + st.skill * 0.07 + s.infra.training * 0.06;
+        const sysLv = s.infra.systems || s.infra.it || 0;
+        const ptLv = st.personalTraining || 0;
+        let rate = act.successBase + st.skill * 0.07 + s.infra.training * 0.06 + ptLv * 0.06;
         // Trait bonus
         const traitKey = TRAIT_ACTIVITY_MAP[act.id];
         if (traitKey && st.traits) rate += (st.traits[traitKey] || 0) * 0.05;
-        if (s.infra.it >= 1 && act.id === 'email') rate *= 1.8;
+        if (sysLv >= 1 && act.id === 'email') rate *= 1.8;
+        if (sysLv >= 3) rate += 0.05; // 운임 분석 시스템
+        if (sysLv >= 5) rate += 0.05; // 자동 부킹 플랫폼
+        if (sysLv >= 7) rate += 0.10; // 글로벌 디지털 전환
         if (s.infra.offices[port]) rate *= 1.3;
         // Difficulty penalty: gradual scaling instead of harsh cliff
-        const diffGap = cust.difficulty - (st.skill + s.infra.training);
+        const diffGap = cust.difficulty - (st.skill + s.infra.training + ptLv * 0.5);
         if (diffGap > 2) rate *= 0.4;
         else if (diffGap > 1) rate *= 0.6;
         else if (diffGap > 0) rate *= 0.8;
         // Loyalty bonus: repeat customers are easier
-        rate += cust.loyalty * 0.002;
+        rate += cust.loyalty * (sysLv >= 4 ? 0.003 : 0.002); // tracking system boosts loyalty effect
         // Promo boost
         rate += this.getActivePromoBoost();
         // Customer booster success boost
@@ -543,7 +548,7 @@ const Game = {
             if (!allSalesPorts[port]) continue;
             const canAccess = true;
             s.custs[port].forEach(c => {
-                const accessible = c.difficulty <= (s.infra.training + 1 + (s.infra.it >= 2 ? 1 : 0));
+                const accessible = c.difficulty <= (s.infra.training + 1 + ((s.infra.systems || s.infra.it || 0) >= 2 ? 1 : 0));
                 if (!accessible) return;
                 if (plan.strategy === 'port-focus' && plan.focusPort && port !== plan.focusPort) return;
                 allCusts.push({ cust: c, port });
@@ -757,7 +762,7 @@ const Game = {
         let successRate = act.successBase + st.skill * 0.07 + s.infra.training * 0.05;
         const traitKey = TRAIT_ACTIVITY_MAP[act.id];
         if (traitKey && st.traits) successRate += (st.traits[traitKey] || 0) * 0.05;
-        if (s.infra.it >= 2) successRate += 0.08; // CRM helps find prospects
+        if ((s.infra.systems || s.infra.it || 0) >= 2) successRate += 0.08; // CRM helps find prospects
         successRate = Math.min(0.65, Math.max(0.08, successRate));
 
         const pool = s.prospectPool[port] || [];
@@ -945,7 +950,7 @@ const Game = {
         const recs = [];
         const hasOffice = s.infra.offices && s.infra.offices[port];
         const trainingLv = s.infra.training || 0;
-        const itLv = s.infra.it || 0;
+        const itLv = s.infra.systems || s.infra.it || 0;
 
         // 1. Dedicated salesperson booster
         const hasDedicated = (c.boosts || []).some(b => b.id === 'dedicated' && b.daysLeft > 0);
@@ -1184,7 +1189,7 @@ const Game = {
         // Win probability based on reputation, discount, difficulty
         let winRate = 0.50 + rep * 0.003 - difficulty * 0.12;
         if (discountLevel === 1) winRate += 0.20; // discount bid improves odds
-        winRate += s.infra.training * 0.03 + s.infra.it * 0.02;
+        winRate += s.infra.training * 0.03 + (s.infra.systems || s.infra.it || 0) * 0.02;
         winRate = Math.max(0.10, Math.min(0.90, winRate));
 
         const won = Math.random() < winRate;
@@ -1688,10 +1693,12 @@ const Game = {
             }
         });
 
-        // Weekly fixed costs
-        s.cash -= r.weeklyFixedCost;
-        v.voyExp += r.weeklyFixedCost;
-        s.stats.totExp += r.weeklyFixedCost;
+        // Weekly fixed costs (ERP Lv6: -10%, Digital Lv7: -15%)
+        const erpDiscount = (s.infra.systems || 0) >= 7 ? 0.85 : (s.infra.systems || 0) >= 6 ? 0.90 : 1.0;
+        const fixedCost = Math.round(r.weeklyFixedCost * erpDiscount);
+        s.cash -= fixedCost;
+        v.voyExp += fixedCost;
+        s.stats.totExp += fixedCost;
 
         // Debt interest + repayment
         const interest = Math.round(s.debt * 0.005);
@@ -2132,7 +2139,7 @@ const Game = {
             html += `<h4 style="font-size:12px;color:var(--t2);margin:8px 0 4px">📍 ${portName} ${isSlot ? '<span style="font-size:9px;color:var(--accent2)">슬롯</span>' : ''}</h4>`;
             html += custs.map(c => {
                 const diffStars = '⭐'.repeat(c.difficulty);
-                const canAccess = c.difficulty <= (s.infra.training + 1 + (s.infra.it >= 2 ? 1 : 0));
+                const canAccess = c.difficulty <= (s.infra.training + 1 + ((s.infra.systems || s.infra.it || 0) >= 2 ? 1 : 0));
                 const hasBoost = c.boosts && c.boosts.some(b => b.daysLeft > 0);
                 const erosion = this.getErosionStatus(c);
 
@@ -2183,7 +2190,7 @@ const Game = {
         const c = custs?.find(x => x.id === custId);
         if (!c) return;
 
-        const canAccess = c.difficulty <= (s.infra.training + 1 + (s.infra.it >= 2 ? 1 : 0));
+        const canAccess = c.difficulty <= (s.infra.training + 1 + ((s.infra.systems || s.infra.it || 0) >= 2 ? 1 : 0));
         const shareColor = c.share > 50 ? 'var(--green)' : (c.share > 20 ? 'var(--yellow)' : 'var(--t3)');
         const allSalesPorts = this.getAllSalesPorts();
         const validDests = allSalesPorts[port]?.sellTo || [];
@@ -2624,29 +2631,66 @@ const Game = {
         const s = this.state;
         let html = '';
 
-        // Training
+        // Company Training (전체)
         const afford = (c) => this.canAfford(c);
-        html += '<div class="invest-section"><h4>📚 영업 교육</h4>';
+        html += '<div class="invest-section"><h4>📚 전사 영업 교육 <span style="font-size:10px;color:var(--t3)">(전 직원 적용)</span></h4>';
         INVESTMENTS.training.forEach(inv => {
             const done = s.infra.training >= inv.level;
             const canBuy = !done && s.infra.training >= inv.level - 1 && afford(inv.cost);
             html += `<div class="invest-item ${done ? 'done' : (!canBuy ? 'locked' : '')}">
                 <div class="invest-icon">${inv.icon}</div>
-                <div class="invest-info"><div class="invest-name">${inv.name} ${done ? '✅' : ''}</div><div class="invest-effect">${inv.effect}</div></div>
+                <div class="invest-info"><div class="invest-name">${inv.name} ${done ? '✅' : `<span style="font-size:9px;color:var(--t3)">Lv.${inv.level}</span>`}</div><div class="invest-effect">${inv.effect}</div></div>
                 ${done ? '' : `<div class="invest-cost">$${inv.cost.toLocaleString()}</div><button class="invest-btn" onclick="Game.invest('training',${inv.level},${inv.cost})" ${canBuy ? '' : 'disabled'}>투자</button>`}
             </div>`;
         });
         html += '</div>';
 
-        // IT
-        html += '<div class="invest-section"><h4>💻 IT 시스템</h4>';
-        INVESTMENTS.it.forEach(inv => {
-            const done = s.infra.it >= inv.level;
-            const canBuy = !done && s.infra.it >= inv.level - 1 && afford(inv.cost);
+        // Personal Training (영업사원 개인별)
+        html += '<div class="invest-section"><h4>🎯 개인별 특화 교육 <span style="font-size:10px;color:var(--t3)">(영업사원별 구매)</span></h4>';
+        html += '<div style="font-size:10px;color:var(--t3);padding:4px 8px">각 영업사원에게 개별 교육을 제공하여 능력을 강화합니다.</div>';
+        s.salesTeam.forEach((sp, idx) => {
+            const ptLv = sp.personalTraining || 0;
+            const nextPt = INVESTMENTS.personalTraining.find(p => p.level === ptLv + 1);
+            const maxed = ptLv >= INVESTMENTS.personalTraining.length;
+            const canBuyPt = nextPt && afford(nextPt.cost);
+            html += `<div class="invest-item" style="flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:8px;width:100%">
+                    <div class="invest-icon">${sp.avatar || '👤'}</div>
+                    <div class="invest-info" style="flex:1;min-width:0">
+                        <div class="invest-name">${sp.name} <span style="font-size:9px;color:var(--accent)">스킬 ${(sp.skill || 1).toFixed(1)}</span></div>
+                        <div class="invest-effect" style="display:flex;gap:4px;flex-wrap:wrap">
+                            ${INVESTMENTS.personalTraining.map((pt, i) => {
+                                const done2 = ptLv >= pt.level;
+                                return `<span style="font-size:9px;padding:1px 4px;border-radius:3px;${done2 ? 'background:var(--green);color:#000' : 'background:var(--card2);color:var(--t3)'}">${pt.icon} Lv.${pt.level}</span>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0">
+                        ${maxed ? '<span style="font-size:10px;color:var(--green)">MAX</span>' :
+                          nextPt ? `<div class="invest-cost" style="font-size:11px">$${nextPt.cost.toLocaleString()}</div>
+                          <button class="invest-btn" onclick="Game.investPersonalTraining(${idx},${nextPt.level},${nextPt.cost})" ${canBuyPt ? '' : 'disabled'} style="font-size:10px;padding:3px 8px">${nextPt.icon} ${nextPt.name}</button>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+
+        // Systems (통합 경영 시스템)
+        const sysLv = s.infra.systems || s.infra.it || 0;
+        if (!s.infra.systems && s.infra.it) s.infra.systems = s.infra.it; // migrate
+        html += '<div class="invest-section"><h4>🏗️ 경영 시스템 <span style="font-size:10px;color:var(--t3)">(IT · 물류 · 경영 인프라)</span></h4>';
+        INVESTMENTS.systems.forEach(inv => {
+            const done = sysLv >= inv.level;
+            const canBuy = !done && sysLv >= inv.level - 1 && afford(inv.cost);
             html += `<div class="invest-item ${done ? 'done' : (!canBuy ? 'locked' : '')}">
                 <div class="invest-icon">${inv.icon}</div>
-                <div class="invest-info"><div class="invest-name">${inv.name} ${done ? '✅' : ''}</div><div class="invest-effect">${inv.effect}</div></div>
-                ${done ? '' : `<div class="invest-cost">$${inv.cost.toLocaleString()}</div><button class="invest-btn" onclick="Game.invest('it',${inv.level},${inv.cost})" ${canBuy ? '' : 'disabled'}>투자</button>`}
+                <div class="invest-info" style="min-width:0">
+                    <div class="invest-name">${inv.name} ${done ? '✅' : `<span style="font-size:9px;color:var(--t3)">Lv.${inv.level}</span>`}
+                        <span style="font-size:8px;padding:1px 4px;border-radius:3px;background:var(--card2);color:var(--t3);margin-left:4px">${inv.category}</span>
+                    </div>
+                    <div class="invest-effect" style="word-break:break-word">${inv.effect}</div>
+                </div>
+                ${done ? '' : `<div class="invest-cost">$${inv.cost.toLocaleString()}</div><button class="invest-btn" onclick="Game.invest('systems',${inv.level},${inv.cost})" ${canBuy ? '' : 'disabled'}>투자</button>`}
             </div>`;
         });
         html += '</div>';
@@ -3273,10 +3317,26 @@ const Game = {
         if (!this.canAfford(cost)) { this.toast('부채 한도 초과!', 'err'); return; }
         s.cash -= cost; s.stats.totExp += cost;
         s.infra[type] = level;
-        this.toast(`${type === 'training' ? '영업 교육' : 'IT 시스템'} Lv.${level} 완료!`, 'ok');
-        this.addFeed(`🏗️ ${type === 'training' ? '영업 교육' : 'IT 시스템'} 레벨 ${level} 투자 완료!`, 'alert');
+        const labels = { training: '영업 교육', systems: '경영 시스템', it: 'IT 시스템' };
+        this.toast(`${labels[type] || type} Lv.${level} 완료!`, 'ok');
+        this.addFeed(`🏗️ ${labels[type] || type} 레벨 ${level} 투자 완료!`, 'alert');
         this.renderInvestments();
         this.updateHUD();
+    },
+
+    investPersonalTraining(spIdx, level, cost) {
+        const s = this.state;
+        if (!this.canAfford(cost)) { this.toast('부채 한도 초과!', 'err'); return; }
+        const sp = s.salesTeam[spIdx];
+        if (!sp) return;
+        s.cash -= cost; s.stats.totExp += cost;
+        if (!sp.personalTraining) sp.personalTraining = 0;
+        sp.personalTraining = level;
+        const ptDef = INVESTMENTS.personalTraining.find(p => p.level === level);
+        if (ptDef && ptDef.skillBoost) sp.skill = Math.min(10, (sp.skill || 1) + ptDef.skillBoost);
+        this.toast(`${sp.name} — ${ptDef ? ptDef.name : '교육'} 완료! (스킬 ${sp.skill.toFixed(1)})`, 'ok');
+        this.addFeed(`🎯 ${sp.name} 개인교육 Lv.${level} 완료 → 스킬 ${sp.skill.toFixed(1)}`, 'alert');
+        this.renderInvestments();
     },
 
     investOffice(port, cost) {
@@ -3680,7 +3740,7 @@ const Game = {
         if (s.infra.training === 0 && s.cash >= 5000) {
             items.push({ text: '📚 [투자] 탭 → "기본 영업교육" 클릭 ($5,000) → 전 영업사원 성공률 +5%', cls: 'info' });
         }
-        if (s.infra.it === 0 && s.cash >= 8000 && s.stats.totVoy >= 2) {
+        if ((s.infra.systems || s.infra.it || 0) === 0 && s.cash >= 8000 && s.stats.totVoy >= 2) {
             items.push({ text: '💻 [투자] 탭 → "견적 자동화" 클릭 ($8,000) → 메일/온라인 영업 시간 -50%', cls: 'info' });
         }
 
@@ -3901,6 +3961,8 @@ const Game = {
             if (!s.alerts) s.alerts = [];
             if (!s.startedAt) s.startedAt = Date.now();
             if (!s.loans) s.loans = [];
+            if (!s.infra.systems && s.infra.it) s.infra.systems = s.infra.it;
+            s.salesTeam.forEach(sp => { if (sp.personalTraining === undefined) sp.personalTraining = 0; });
             if (!s.spotOffers) s.spotOffers = [];
             if (!s.bsaContracts) s.bsaContracts = [];
             if (!s.benchPool) s.benchPool = [];

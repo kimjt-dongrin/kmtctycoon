@@ -7,21 +7,37 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- TITLE -->
-    <div id="screen-title" class="screen active">
+    <!-- LANGUAGE SELECT (shown before title if first visit) -->
+    <div id="screen-lang" class="screen active">
         <div class="title-bg"><div class="ocean-wave"></div><div class="ocean-wave wave2"></div></div>
         <div class="title-content">
             <div class="kmtc-logo">KMTC</div>
             <h1>SHIPPING TYCOON</h1>
-            <p class="subtitle">해운왕의 길</p>
+            <p class="subtitle" style="margin-bottom:24px">🌐 언어를 선택하세요 / 言語を選択してください</p>
+            <button class="btn-primary btn-pulse" onclick="setLanguage('ko');Game.goToTitle()" style="width:220px;font-size:16px">🇰🇷 한국어</button>
+            <button class="btn-primary" onclick="setLanguage('ja');Game.goToTitle()" style="margin-top:10px;width:220px;font-size:16px;background:#C62828">🇯🇵 日本語</button>
+        </div>
+    </div>
+
+    <!-- TITLE -->
+    <div id="screen-title" class="screen">
+        <div class="title-bg"><div class="ocean-wave"></div><div class="ocean-wave wave2"></div></div>
+        <div class="title-content">
+            <div class="kmtc-logo">KMTC</div>
+            <h1>SHIPPING TYCOON</h1>
+            <p class="subtitle" id="title-subtitle">해운왕의 길</p>
             <div class="title-ship-wrap"><div class="title-ship"></div></div>
-            <button class="btn-primary btn-pulse" onclick="Game.showScreen('screen-route');Game.renderRoutes()">🚢 새 회사 설립</button>
+            <button class="btn-primary btn-pulse" id="title-new-btn" onclick="Game.showScreen('screen-route');Game.renderRoutes()">🚢 새 회사 설립</button>
             <button class="btn-primary" onclick="Game.loadGame()" id="btn-load" style="display:none;margin-top:8px;background:var(--card2)">📂 이어하기</button>
-            <button class="btn-primary" onclick="Game.showCloudLoadUI()" style="margin-top:8px;background:#1565C0">☁️ 클라우드 불러오기</button>
+            <button class="btn-primary" id="title-cloud-btn" onclick="Game.showCloudLoadUI()" style="margin-top:8px;background:#1565C0">☁️ 클라우드 불러오기</button>
             <div id="cloud-load-ui" style="display:none;margin-top:10px;text-align:center">
                 <input id="inp-cloud-co" placeholder="회사명 입력" maxlength="20" style="width:200px;padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:white;font-size:14px;text-align:center">
-                <button class="btn-primary" onclick="Game.cloudLoad(document.getElementById('inp-cloud-co').value.trim())" style="margin-top:6px;background:#1565C0;width:200px">불러오기</button>
-                <p style="font-size:10px;color:rgba(255,255,255,.5);margin-top:4px">PC에서 저장한 회사명을 정확히 입력하세요</p>
+                <button class="btn-primary" onclick="Game.cloudLoad(document.getElementById('inp-cloud-co').value.trim())" style="margin-top:6px;background:#1565C0;width:200px" id="title-cloud-load-btn">불러오기</button>
+                <p id="title-cloud-hint" style="font-size:10px;color:rgba(255,255,255,.5);margin-top:4px">PC에서 저장한 회사명을 정확히 입력하세요</p>
+            </div>
+            <div style="margin-top:12px">
+                <button class="btn-sm" onclick="setLanguage('ko');updateStaticTexts()" style="font-size:11px;padding:4px 10px;opacity:.7">🇰🇷 한국어</button>
+                <button class="btn-sm" onclick="setLanguage('ja');updateStaticTexts()" style="font-size:11px;padding:4px 10px;opacity:.7">🇯🇵 日本語</button>
             </div>
             <p class="ver">v5 — Market Competition</p>
         </div>
@@ -29,25 +45,25 @@
 
     <!-- ROUTE SELECT -->
     <div id="screen-route" class="screen">
-        <div class="screen-hdr"><h2>항로 선택</h2><p>첫 위클리 서비스를 선택하세요</p></div>
+        <div class="screen-hdr"><h2 id="route-title-h2">항로 선택</h2><p id="route-title-p">첫 위클리 서비스를 선택하세요</p></div>
         <div id="route-cards" class="route-cards"></div>
     </div>
 
     <!-- SETUP -->
     <div id="screen-setup" class="screen">
         <div class="setup-card">
-            <h2>회사 설립</h2>
+            <h2 id="setup-title-h2">회사 설립</h2>
             <div id="setup-info"></div>
             <div class="form-group"><label>회사명</label><input id="inp-company" placeholder="예: 동방해운" maxlength="20"></div>
             <div class="form-group"><label>대표이사</label><input id="inp-ceo" placeholder="예: 홍길동" maxlength="10"></div>
             <div class="form-group"><label>모선명</label><input id="inp-vessel" placeholder="예: KMTC BUSAN" maxlength="20"></div>
-            <button class="btn-primary" onclick="Game.showScreen('screen-draft');Game.renderDraft()">다음 →</button>
+            <button class="btn-primary" onclick="Game.showScreen('screen-draft');Game.renderDraft()" id="setup-next-btn">다음 →</button>
         </div>
     </div>
 
     <!-- TEAM DRAFT -->
     <div id="screen-draft" class="screen">
-        <div class="screen-hdr"><h2>영업팀 드래프트</h2><p>9명의 후보 중 5명을 선택하세요 — 나머지는 스카우트 풀로 이동</p></div>
+        <div class="screen-hdr"><h2 id="draft-title-h2">영업팀 드래프트</h2><p id="draft-title-p">9명의 후보 중 5명을 선택하세요 — 나머지는 스카우트 풀로 이동</p></div>
         <div id="draft-cards" class="draft-cards"></div>
         <div class="draft-footer">
             <div id="draft-selected" class="draft-selected"></div>
@@ -178,8 +194,8 @@
         <div class="modal-box" style="width:min(90vw,450px);text-align:left">
             <h3 id="assign-title">📋 업무 지시</h3>
             <div id="assign-body"></div>
-            <button class="btn-primary" onclick="Game.savePlanAndClose()" style="width:100%;margin-top:8px">💾 변경 내용 저장</button>
-            <button class="btn-sm" onclick="Game.closeModal('modal-assign')" style="width:100%;margin-top:6px;background:var(--card2)">닫기</button>
+            <button class="btn-primary" onclick="Game.savePlanAndClose()" style="width:100%;margin-top:8px" id="assign-save-btn">💾 변경 내용 저장</button>
+            <button class="btn-sm" onclick="Game.closeModal('modal-assign')" style="width:100%;margin-top:6px;background:var(--card2)" id="assign-close-btn">닫기</button>
         </div>
     </div>
 
@@ -222,7 +238,7 @@
     <!-- SAVE/EXIT MENU MODAL -->
     <div id="modal-savemenu" class="modal">
         <div class="modal-box" style="width:min(90vw,360px)">
-            <h3>☰ 메뉴</h3>
+            <h3>☰ メニュー</h3>
             <div id="savemenu-body"></div>
         </div>
     </div>
@@ -233,7 +249,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
     <script>
-        // Firebase 설정 — Firebase Console에서 복사한 값으로 교체하세요
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyBk142KpT0kWeKmgsni90ZxuehjUuCPMUM",
             authDomain: "kmtc-tycoon.firebaseapp.com",
@@ -253,7 +268,21 @@
         }
     </script>
 
-    <script src="data.js?v=5.3"></script>
-    <script src="game.js?v=5.3"></script>
+    <script src="lang.js?v=5.4"></script>
+    <script src="data.js?v=5.4"></script>
+    <script src="game.js?v=5.4"></script>
+    <script>
+        // Skip language screen if already selected
+        if (localStorage.getItem('kmtc_lang')) {
+            document.getElementById('screen-lang').classList.remove('active');
+            document.getElementById('screen-title').classList.add('active');
+            updateStaticTexts();
+        }
+        // Also show load button if save exists
+        if (localStorage.getItem('kmtc_save')) {
+            document.getElementById('btn-load').style.display = '';
+            document.getElementById('btn-load').textContent = T('title.loadGame');
+        }
+    </script>
 </body>
 </html>

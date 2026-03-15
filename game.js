@@ -14,6 +14,16 @@ const Game = {
         document.getElementById(id).classList.add('active');
     },
 
+    goToTitle() {
+        document.getElementById('screen-lang').classList.remove('active');
+        this.showScreen('screen-title');
+        updateStaticTexts();
+        if (localStorage.getItem('kmtc_save')) {
+            document.getElementById('btn-load').style.display = '';
+            document.getElementById('btn-load').textContent = T('title.loadGame');
+        }
+    },
+
     // ==================== ROUTE SELECTION ====================
     renderRoutes() {
         document.getElementById('route-cards').innerHTML = ROUTES.map(r => {
@@ -21,14 +31,14 @@ const Game = {
             const locked = r.unlockRevenue > 0;
             return `
             <div class="route-card ${locked ? 'locked' : ''}" onclick="${locked ? '' : `Game.pickRoute('${r.id}')`}" style="border-top:4px solid ${r.color};${locked ? 'opacity:.5;cursor:default' : ''}">
-                <div class="rc-hdr"><h3>${r.nameKo}</h3><span class="diff" style="background:${r.color}20;color:${r.color}">${r.difficulty}</span></div>
-                <p style="font-size:12px;color:var(--t2)">${r.description}</p>
-                <div class="rc-ports">${portStr}<span class="parr">→</span><span class="ptag">${r.portNames[r.ports[0]]}</span></div>
+                <div class="rc-hdr"><h3>${D(r,'name')}</h3><span class="diff" style="background:${r.color}20;color:${r.color}">${D(r,'difficulty')}</span></div>
+                <p style="font-size:12px;color:var(--t2)">${D(r,'description')}</p>
+                <div class="rc-ports">${portStr}<span class="parr">→</span><span class="ptag">${(CURRENT_LANG==='ja'&&r.portNamesJa?r.portNamesJa:r.portNames)[r.ports[0]]}</span></div>
                 <div class="rc-stats">
-                    <div class="rc-stat"><span>선박</span><span>${r.vesselSize} TEU</span></div>
-                    <div class="rc-stat"><span>항정</span><span>${r.rotationDays}일</span></div>
+                    <div class="rc-stat"><span>${T('setup.ship')}</span><span>${r.vesselSize} TEU</span></div>
+                    <div class="rc-stat"><span>${T('setup.schedule')}</span><span>${r.rotationDays}${T('route.days')}</span></div>
                 </div>
-                <div class="rc-foot"><div class="rc-cost">$${(r.investmentCost/1e3).toFixed(0)}K</div><div class="rc-cost-lbl">${locked ? `매출 $${(r.unlockRevenue/1e3).toFixed(0)}K 달성 시 해금` : '초기 투자'}</div></div>
+                <div class="rc-foot"><div class="rc-cost">$${(r.investmentCost/1e3).toFixed(0)}K</div><div class="rc-cost-lbl">${locked ? `${T('inv.unlockAt')} $${(r.unlockRevenue/1e3).toFixed(0)}K` : T('route.investment')}</div></div>
             </div>`;
         }).join('');
     },
@@ -37,8 +47,8 @@ const Game = {
         this._route = ROUTES.find(r => r.id === id);
         const r = this._route;
         document.getElementById('setup-info').innerHTML = [
-            ['항로', r.nameKo], ['선박', `${r.vesselSize} TEU`],
-            ['항정', `${r.rotationDays}일`], ['투자', `$${r.investmentCost.toLocaleString()}`],
+            [T('setup.route'), D(r,'name')], [T('setup.ship'), `${r.vesselSize} TEU`],
+            [T('setup.schedule'), `${r.rotationDays}${T('route.days')}`], [T('route.investment'), `$${r.investmentCost.toLocaleString()}`],
         ].map(([l, v]) => `<div class="info-row"><span class="lbl">${l}</span><span>${v}</span></div>`).join('');
         this.showScreen('screen-setup');
     },
@@ -54,10 +64,10 @@ const Game = {
         const html = this._draftPool.map(ch => {
             const totalStat = ch.traits.negotiation + ch.traits.faceToFace + ch.traits.digital + ch.traits.relationship;
             const statBars = [
-                { label: '협상', key: 'negotiation', icon: '🤝', color: '#E65100' },
-                { label: '대면', key: 'faceToFace', icon: '🚶', color: '#AD1457' },
-                { label: 'IT', key: 'digital', icon: '💻', color: '#1565C0' },
-                { label: '관계', key: 'relationship', icon: '💛', color: '#6A1B9A' },
+                { label: T('draft.negotiation'), key: 'negotiation', icon: '🤝', color: '#E65100' },
+                { label: T('draft.faceToFace'), key: 'faceToFace', icon: '🚶', color: '#AD1457' },
+                { label: T('draft.digital'), key: 'digital', icon: '💻', color: '#1565C0' },
+                { label: T('draft.relationship'), key: 'relationship', icon: '💛', color: '#6A1B9A' },
             ];
             const barsHtml = statBars.map(s => {
                 const val = ch.traits[s.key];
@@ -76,16 +86,16 @@ const Game = {
                     <div class="dc-avatar">${ch.avatar}</div>
                     <div class="dc-overall" style="background:${ch.cardColor}">${ch.overall}</div>
                 </div>
-                <div class="dc-name">${ch.name}</div>
-                <div class="dc-position" style="color:${ch.cardColor}">${ch.position}</div>
-                <div class="dc-salary">💰 $${ch.salary}/월</div>
+                <div class="dc-name">${D(ch,'name')}</div>
+                <div class="dc-position" style="color:${ch.cardColor}">${D(ch,'position')}</div>
+                <div class="dc-salary">💰 $${ch.salary}/${T('common.month')}</div>
                 <div class="dc-bars">${barsHtml}</div>
-                <div class="dc-desc">${ch.desc}</div>
+                <div class="dc-desc">${D(ch,'desc')}</div>
                 <div class="dc-sw">
-                    <div class="dc-str">💪 ${ch.strength}</div>
-                    <div class="dc-wk">⚠️ ${ch.weakness}</div>
+                    <div class="dc-str">💪 ${D(ch,'strength')}</div>
+                    <div class="dc-wk">⚠️ ${D(ch,'weakness')}</div>
                 </div>
-                <div class="dc-passive">⭐ ${ch.passive}</div>
+                <div class="dc-passive">⭐ ${D(ch,'passive')}</div>
             </div>`;
         }).join('');
         document.getElementById('draft-cards').innerHTML = html;
@@ -117,14 +127,14 @@ const Game = {
         // Update selected preview
         const selHtml = this._draftPicks.map(id => {
             const ch = ALL_SALES_CHARACTERS.find(c => c.id === id);
-            return `<div class="draft-pick-mini"><span>${ch.avatar}</span><span>${ch.name}</span><span style="color:${ch.cardColor};font-size:10px">${ch.position}</span></div>`;
+            return `<div class="draft-pick-mini"><span>${ch.avatar}</span><span>${D(ch,'name')}</span><span style="color:${ch.cardColor};font-size:10px">${D(ch,'position')}</span></div>`;
         }).join('');
         const remaining = 5 - this._draftPicks.length;
-        document.getElementById('draft-selected').innerHTML = selHtml + (remaining > 0 ? `<div class="draft-pick-empty">${remaining}명 더 선택</div>` : '');
+        document.getElementById('draft-selected').innerHTML = selHtml + (remaining > 0 ? `<div class="draft-pick-empty">${remaining}${T('draft.moreNeeded')}</div>` : '');
         // Enable/disable launch button
         const btn = document.getElementById('btn-draft-go');
         btn.disabled = this._draftPicks.length !== 5;
-        btn.textContent = this._draftPicks.length === 5 ? '🚀 이 팀으로 시작!' : `🚀 이 팀으로 시작 (${this._draftPicks.length}/5)`;
+        btn.textContent = this._draftPicks.length === 5 ? T('draft.go') : `${T('draft.select5')} (${this._draftPicks.length}/5)`;
     },
 
     // ==================== LAUNCH ====================
@@ -136,7 +146,7 @@ const Game = {
 
         // Company name is required (used for ranking)
         if (!co) {
-            this.toast('회사명을 입력해주세요! (랭킹에 표시됩니다)', 'err');
+            this.toast(T('save.companyRequired'), 'err');
             document.getElementById('inp-company').focus();
             document.getElementById('inp-company').style.border = '2px solid var(--red)';
             return;
@@ -213,11 +223,11 @@ const Game = {
         const vn = document.getElementById('vessel-name');
         if (vn) vn.textContent = s.vessel;
         const pl = document.getElementById('port-label');
-        if (pl) pl.textContent = `${s.route.portNames[s.route.ports[0]]}항`;
+        if (pl) pl.textContent = `${s.route.portNames[s.route.ports[0]]}${T('common.port')}`;
         this.updateAll();
         this.updateTicker();
         this.startTick();
-        this.addFeed('🏢 회사 설립 완료! 영업사원들이 활동을 시작합니다.', 'alert');
+        this.addFeed(T('save.launched'), 'alert');
     },
 
     // ==================== GAME TICK ====================
@@ -504,7 +514,7 @@ const Game = {
         }
 
         if (hoursSinceActive > 48 && s.gameDay % 7 === 0) {
-            this.addFeed(`⚠️ 장기간 영업관리 소홀! 경쟁사들이 화주를 빼앗아가고 있습니다!`, 'alert');
+            this.addFeed(T('market.neglectWarn'), 'alert');
         }
     },
 
@@ -538,7 +548,7 @@ const Game = {
         const isGlobal = stId === 'global';
         const st = isGlobal ? null : s.salesTeam.find(t => t.id === stId);
         const plan = isGlobal ? s.globalStrategy : st.plan;
-        const title = isGlobal ? '📋 전체 영업 전략' : `📋 ${st.avatar} ${st.name} 영업 계획`;
+        const title = isGlobal ? T('sales.globalStrategy') : `📋 ${st.avatar} ${st.name} ${T('sales.planFor')}`;
 
         let html = '';
 
@@ -549,20 +559,22 @@ const Game = {
                 <div style="font-size:13px;font-weight:600;margin-bottom:6px">${st.avatar} ${st.name} <span style="color:var(--t3)">⭐${st.skill}</span></div>
                 <div style="color:var(--t2);margin-bottom:6px">${st.desc || ''}</div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
-                    <span>🤝 협상 ${'■'.repeat(t.negotiation||1)}${'□'.repeat(5-(t.negotiation||1))}</span>
-                    <span>🚶 대면 ${'■'.repeat(t.faceToFace||1)}${'□'.repeat(5-(t.faceToFace||1))}</span>
-                    <span>💻 IT ${'■'.repeat(t.digital||1)}${'□'.repeat(5-(t.digital||1))}</span>
-                    <span>💛 관계 ${'■'.repeat(t.relationship||1)}${'□'.repeat(5-(t.relationship||1))}</span>
+                    <span>🤝 ${T('draft.negotiation')} ${'■'.repeat(t.negotiation||1)}${'□'.repeat(5-(t.negotiation||1))}</span>
+                    <span>🚶 ${T('draft.faceToFace')} ${'■'.repeat(t.faceToFace||1)}${'□'.repeat(5-(t.faceToFace||1))}</span>
+                    <span>💻 ${T('draft.digital')} ${'■'.repeat(t.digital||1)}${'□'.repeat(5-(t.digital||1))}</span>
+                    <span>💛 ${T('draft.relationship')} ${'■'.repeat(t.relationship||1)}${'□'.repeat(5-(t.relationship||1))}</span>
                 </div>
             </div>`;
         }
 
         // Strategy selection
-        html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t2);margin-bottom:4px">📍 타겟 전략</div>';
+        html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t2);margin-bottom:4px">' + T('sales.targetStrategy') + '</div>';
+        const _stratMap = {'lowest-share':'strategy.lowestShare','largest-first':'strategy.largestFirst','easiest-first':'strategy.easiestFirst','cheap-cargo':'strategy.cheapCargo','port-focus':'strategy.portFocus','steal-cargo':'strategy.stealCargo'};
         SALES_STRATEGIES.forEach(strat => {
             const selected = plan.strategy === strat.id;
+            const stratName = _stratMap[strat.id] ? T(_stratMap[strat.id]) : strat.name;
             html += `<div class="assign-cust ${selected ? 'selected' : ''}" onclick="Game.setPlan('${stId}','strategy','${strat.id}')">
-                <span>${strat.icon} ${strat.name}</span>
+                <span>${strat.icon} ${stratName}</span>
                 <span style="font-size:10px;color:var(--t3)">${strat.desc}</span>
             </div>`;
         });
@@ -570,7 +582,7 @@ const Game = {
 
         // Port focus (if port-focus strategy)
         if (plan.strategy === 'port-focus') {
-            html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t2);margin-bottom:4px">📍 집중 항구</div>';
+            html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t2);margin-bottom:4px">' + T('sales.focusPort') + '</div>';
             // Main route ports
             s.route.ports.forEach(p => {
                 const selected = plan.focusPort === p;
@@ -592,7 +604,7 @@ const Game = {
 
         // Target carrier (if steal-cargo strategy)
         if (plan.strategy === 'steal-cargo') {
-            html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t2);margin-bottom:4px">⚔️ 공략 대상 선사</div>';
+            html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t2);margin-bottom:4px">' + T('sales.targetCarrier') + '</div>';
             const carriers = this.getMarketCarriers();
             carriers.forEach(c => {
                 const selected = plan.targetCarrier === c.id;
@@ -603,22 +615,24 @@ const Game = {
                 const avgShare = laneCount > 0 ? Math.round(totalShare / laneCount) : 0;
                 if (avgShare <= 0 && c.id === 'OT') return; // skip empty 기타
                 html += `<div class="assign-cust ${selected ? 'selected' : ''}" onclick="Game.setPlan('${stId}','targetCarrier','${c.id}')" style="border-left:3px solid ${c.color}">
-                    <span>${c.name} <span style="font-size:10px;color:var(--t3)">점유율 ~${avgShare}%</span></span>
+                    <span>${c.name} <span style="font-size:10px;color:var(--t3)">${T('cust.share')} ~${avgShare}%</span></span>
                 </div>`;
             });
             html += '</div>';
         }
 
         // Activity preset
-        html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t2);margin-bottom:4px">📊 활동 배분 (8시간 근무)</div>';
+        html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t2);margin-bottom:4px">' + T('sales.activityDist') + '</div>';
+        const _presetMap = {'balanced':'preset.balanced','email-phone':'preset.emailPhone','visit-main':'preset.visitMain','entertain-main':'preset.entertainMain','pioneer':'preset.pioneer'};
         ACTIVITY_PRESETS.forEach(pre => {
             const selected = plan.actPreset === pre.id;
             const mixDesc = Object.entries(pre.mix).map(([k, v]) => {
                 const act = SALES_ACTIVITIES.find(a => a.id === k);
                 return `${act?.icon||''} ${Math.round(v*100)}%`;
             }).join(' ');
+            const preName = _presetMap[pre.id] ? T(_presetMap[pre.id]) : pre.name;
             html += `<div class="assign-cust ${selected ? 'selected' : ''}" onclick="Game.setPlan('${stId}','actPreset','${pre.id}')">
-                <span>${pre.icon} ${pre.name}</span>
+                <span>${pre.icon} ${preName}</span>
                 <span style="font-size:10px;color:var(--t3)">${mixDesc}</span>
             </div>`;
         });
@@ -650,7 +664,7 @@ const Game = {
 
     savePlanAndClose() {
         this.closeModal('modal-assign');
-        this.toast('💾 전략 변경 저장 완료!', 'ok');
+        this.toast(T('sales.strategySaved'), 'ok');
         this.renderSalesTeam();
     },
 
@@ -659,7 +673,7 @@ const Game = {
         const st = s.salesTeam.find(t => t.id === stId);
         if (st) st.plan = { ...s.globalStrategy };
         this.openPlanConfig(stId);
-        this.toast('전체 전략 적용 완료', 'ok');
+        this.toast(T('sales.globalApplied'), 'ok');
     },
 
     assignPortFocus(portCode, salesId) {
@@ -726,11 +740,26 @@ const Game = {
     // Get port name (main route + slot charters)
     getPortName(port) {
         const s = this.state, r = s.route;
+        const useJa = CURRENT_LANG === 'ja';
+        // Check main route
+        if (useJa && r.portNamesJa && r.portNamesJa[port]) return r.portNamesJa[port];
         if (r.portNames[port]) return r.portNames[port];
+        // Check slot charters
         if (s.slotCharters) {
             for (const charter of s.slotCharters) {
                 const sc = SLOT_CHARTERS.find(x => x.id === charter.id);
-                if (sc && sc.portNames[port]) return sc.portNames[port];
+                if (!sc) continue;
+                if (useJa && sc.portNamesJa && sc.portNamesJa[port]) return sc.portNamesJa[port];
+                if (sc.portNames[port]) return sc.portNames[port];
+            }
+        }
+        // Check owned routes
+        if (s.ownedRoutes) {
+            for (const or of s.ownedRoutes) {
+                const pkg = NEW_ROUTE_PACKAGES.find(x => x.id === or.id);
+                if (!pkg) continue;
+                if (useJa && pkg.portNamesJa && pkg.portNamesJa[port]) return pkg.portNamesJa[port];
+                if (pkg.portNames[port]) return pkg.portNames[port];
             }
         }
         return port;
@@ -940,7 +969,7 @@ const Game = {
         // Keep max 100 entries
         if (s.activityLog.length > 100) s.activityLog.shift();
 
-        this.addFeed(`${st.avatar} ${st.name}: ${custName} ${actName} ${success ? '✅ 성공!' : '❌ 실패'}`, success ? 'booking' : 'activity');
+        this.addFeed(`${st.avatar} ${st.name}: ${custName} ${actName} ${success ? T('feed.success') : T('feed.fail')}`, success ? 'booking' : 'activity');
 
         if (success) {
             // Generate booking!
@@ -997,7 +1026,7 @@ const Game = {
             // Check remaining prospects
             const totalLeft = Object.values(s.prospectPool).reduce((sum, arr) => sum + arr.length, 0);
             if (totalLeft === 0) {
-                this.addFeed('🏆 모든 잠재 화주를 발굴했습니다!', 'alert');
+                this.addFeed(T('market.allProspects'), 'alert');
             }
         } else {
             this.addFeed(`${st.avatar} ${st.name}: ${portName} 신규 개척 ❌ 유망 화주를 찾지 못했습니다`, 'activity');
@@ -1163,9 +1192,9 @@ const Game = {
 
         // Severity: warning (5-15%), danger (15-30%), critical (30%+)
         let severity, label;
-        if (erosionPct >= 30) { severity = 'critical'; label = '심각'; }
-        else if (erosionPct >= 15) { severity = 'danger'; label = '위험'; }
-        else { severity = 'warning'; label = '주의'; }
+        if (erosionPct >= 30) { severity = 'critical'; label = T('market.severe'); }
+        else if (erosionPct >= 15) { severity = 'danger'; label = T('market.danger'); }
+        else { severity = 'warning'; label = T('market.caution'); }
 
         // Erosion frequency (events in last 10 days)
         const recentEvents = (c.erosionLog || []).filter(e => e.day >= (this.state.gameDay - 10)).length;
@@ -1185,8 +1214,8 @@ const Game = {
         const hasDedicated = (c.boosts || []).some(b => b.id === 'dedicated' && b.daysLeft > 0);
         if (!hasDedicated) {
             recs.push({
-                icon: '👤', name: '전담 영업사원 배치',
-                desc: '성공률 +30%, 점유율 회복 2배',
+                icon: '👤', name: T('boost.dedicated'),
+                desc: T('boost.dedicatedEffect'),
                 cost: 8000, days: 21,
                 impact: '높음', priority: erosion.severity === 'critical' ? 1 : 2,
             });
@@ -1196,8 +1225,8 @@ const Game = {
         const hasPriority = (c.boosts || []).some(b => b.id === 'priority' && b.daysLeft > 0);
         if (!hasPriority) {
             recs.push({
-                icon: '🥇', name: '우선 선적 보장',
-                desc: '점유율 회복 3배 + 충성도 +10',
+                icon: '🥇', name: T('boost.priority'),
+                desc: T('boost.priorityEffect'),
                 cost: 5000, days: 14,
                 impact: '높음', priority: 1,
             });
@@ -1207,8 +1236,8 @@ const Game = {
         const hasDiscount = (c.boosts || []).some(b => b.id === 'discount' && b.daysLeft > 0);
         if (!hasDiscount) {
             recs.push({
-                icon: '🏷️', name: '특별 할인 오퍼',
-                desc: '성공률 +20%, 점유율 회복 2배',
+                icon: '🏷️', name: T('boost.discount'),
+                desc: T('boost.discountEffect'),
                 cost: 2000, days: 7,
                 impact: '중간', priority: 2,
             });
@@ -1218,8 +1247,8 @@ const Game = {
         const hasGift = (c.boosts || []).some(b => b.id === 'gift' && b.daysLeft > 0);
         if (!hasGift) {
             recs.push({
-                icon: '🎁', name: '선물/접대 강화',
-                desc: '충성도 +15, 성공률 +10%',
+                icon: '🎁', name: T('boost.gift'),
+                desc: T('boost.giftEffect'),
                 cost: 3000, days: 10,
                 impact: '중간', priority: 3,
             });
@@ -1229,7 +1258,7 @@ const Game = {
         if (!hasOffice) {
             const officeCost = 30000;
             recs.push({
-                icon: '🏢', name: `${this.getPortName(port)} 지사 설립`,
+                icon: '🏢', name: `${this.getPortName(port)} ${T('inv.establish')}`,
                 desc: '해당 항구 영업 효율 +30% (영구 효과)',
                 cost: officeCost, days: 0,
                 impact: '매우 높음 (장기)', priority: erosion.severity === 'critical' ? 1 : 3,
@@ -1326,7 +1355,7 @@ const Game = {
         // Check capacity
         const currentTEU = this.getTEU();
         if (currentTEU + offer.teu > s.ship.capacity) {
-            this.toast('❌ 선복 부족! 적재 공간이 없습니다.', 'fail');
+            this.toast(T('ctr.noSpace'), 'fail');
             s.spotOffers.push(offer); // put back
             this.closeModal('modal-event');
             this.startTick();
@@ -1356,7 +1385,7 @@ const Game = {
         const s = this.state;
         const idx = (s.spotOffers || []).findIndex(o => o.id === offerId);
         if (idx >= 0) s.spotOffers.splice(idx, 1);
-        this.addFeed('📋 스팟 물량 패스.', 'activity');
+        this.addFeed(T('feed.spotPass'), 'activity');
         this.closeModal('modal-event');
         this.startTick();
     },
@@ -1575,7 +1604,7 @@ const Game = {
     manualDepart() {
         if (this.state.voyage.status !== 'port') return;
         if (this.state.bookings.length === 0) {
-            this.toast('적재된 화물이 없습니다!', 'err');
+            this.toast(T('depart.noCargo'), 'err');
             return;
         }
         this.startVoyage();
@@ -1583,11 +1612,11 @@ const Game = {
 
     autoDepart() {
         if (this.state.bookings.length === 0) {
-            this.addFeed('⚠️ 출항일이지만 적재 화물이 없어 출항 연기!', 'alert');
+            this.addFeed(T('depart.postpone'), 'alert');
             this.state.voyage.daysSinceLast = Math.max(0, this.state.voyage.daysSinceLast - 1);
             return;
         }
-        this.addFeed('🚢 정기 출항 시간! 자동 출항합니다.', 'alert');
+        this.addFeed(T('depart.auto'), 'alert');
         this.startVoyage();
     },
 
@@ -1611,16 +1640,16 @@ const Game = {
             s.pendingRepos.forEach(rp => {
                 s.ctr[rp.to]['20'] += rp.q20;
                 s.ctr[rp.to]['40'] += rp.q40;
-                this.addFeed(`🚛 엠티 도착: ${s.route.portNames[rp.to]}에 20'×${rp.q20}+40'×${rp.q40} 배치 완료`, 'booking');
+                this.addFeed(`${T('ctr.arrived')} ${s.route.portNames[rp.to]} 20'×${rp.q20}+40'×${rp.q40} ${T('ctr.placed')}`, 'booking');
             });
             s.pendingRepos = [];
         }
 
         // Stay on game screen — update left panel to show sailing map
         const shipStatus = document.getElementById('ship-status');
-        if (shipStatus) shipStatus.textContent = '🚢 항해 중';
+        if (shipStatus) shipStatus.textContent = T('ship.sailing');
         document.getElementById('btn-depart').disabled = true;
-        document.getElementById('btn-depart').textContent = '🚢 항해 중...';
+        document.getElementById('btn-depart').textContent = T('depart.sailing');
         this.renderInlineSailMap();
     },
 
@@ -1654,7 +1683,7 @@ const Game = {
             s.stats.totExp += fuel + port;
             if (fuelMult > 1) {
                 const extra = Math.round(leg.seaDays * r.fuelCostPerDay * (fuelMult - 1));
-                this.addFeed(`${w.typhoon ? '🌀 태풍' : '🌊 높은 파도'} — 연료비 +$${extra.toLocaleString()} 추가`, 'alert');
+                this.addFeed(`${w.typhoon ? '🌀 ' + T('weather.typhoon') : '🌊 ' + T('weather.highWave')} — +$${extra.toLocaleString()}`, 'alert');
             }
 
             // Unload cargo at destination
@@ -1779,7 +1808,7 @@ const Game = {
             const ml1 = MAP_PORTS[midLeg.from], ml2 = MAP_PORTS[midLeg.to];
             if (ml1 && ml2) {
                 const lx = (ml1.x + ml2.x) / 2 + 15, ly = (ml1.y + ml2.y) / 2;
-                svg += `<text x="${lx}" y="${ly}" fill="${clr}" font-size="8" font-weight="700" opacity=".8">${scDef.nameKo.split('(')[0].trim()}</text>`;
+                svg += `<text x="${lx}" y="${ly}" fill="${clr}" font-size="8" font-weight="700" opacity=".8">${D(scDef,'name').split('(')[0].trim()}</text>`;
             }
             // Port markers for slot charter ports
             scDef.ports.forEach(p => {
@@ -1817,14 +1846,14 @@ const Game = {
                 const ox = op1.x + (op2.x - op1.x) * Math.min(orLegProg, 1);
                 const oy = op1.y + (op2.y - op1.y) * Math.min(orLegProg, 1);
                 svg += `<text x="${ox}" y="${oy}" text-anchor="middle" dominant-baseline="central" font-size="18">🚢</text>`;
-                svg += `<text x="${ox}" y="${oy + 14}" text-anchor="middle" fill="${clr}" font-size="7" font-weight="700">${pkg.nameKo.split('(')[1]?.replace(')','') || pkg.id}</text>`;
+                svg += `<text x="${ox}" y="${oy + 14}" text-anchor="middle" fill="${clr}" font-size="7" font-weight="700">${D(pkg,'name').split('(')[1]?.replace(')','') || pkg.id}</text>`;
             }
             // Route label
             const orMidLeg = pkg.legs[Math.floor(orTotalLegs / 2)];
             const oml1 = MAP_PORTS[orMidLeg.from], oml2 = MAP_PORTS[orMidLeg.to];
             if (oml1 && oml2) {
                 const olx = (oml1.x + oml2.x) / 2 + 15, oly = (oml1.y + oml2.y) / 2;
-                svg += `<text x="${olx}" y="${oly}" fill="${clr}" font-size="8" font-weight="700" opacity=".8">${pkg.nameKo.split('(')[0].trim()}</text>`;
+                svg += `<text x="${olx}" y="${oly}" fill="${clr}" font-size="8" font-weight="700" opacity=".8">${D(pkg,'name').split('(')[0].trim()}</text>`;
             }
             // Port markers
             pkg.ports.forEach(p => {
@@ -1891,12 +1920,12 @@ const Game = {
         activeSlots.forEach((sc, si) => {
             const scDef = SLOT_CHARTERS.find(d => d.id === sc.id);
             const clr = sc.color || scDef?.color || slotColors[si % slotColors.length];
-            legendItems.push({ name: (scDef ? scDef.nameKo.split('(')[1]?.replace(')','') || scDef.id : sc.id) + ' (슬롯)', color: clr });
+            legendItems.push({ name: (scDef ? D(scDef,'name').split('(')[1]?.replace(')','') || scDef.id : sc.id) + ' (슬롯)', color: clr });
         });
         activeOwned.forEach((or, oi) => {
             const pkg = NEW_ROUTE_PACKAGES.find(d => d.id === or.id);
             const clr = pkg?.color || ownedColors[oi % ownedColors.length];
-            legendItems.push({ name: (pkg ? pkg.nameKo.split('(')[1]?.replace(')','') || pkg.id : or.id) + ' (자사)', color: clr });
+            legendItems.push({ name: (pkg ? D(pkg,'name').split('(')[1]?.replace(')','') || pkg.id : or.id) + ' (자사)', color: clr });
         });
         if (legendItems.length > 0) {
             let ly = vbY + vbH - 10 - legendItems.length * 16;
@@ -1918,7 +1947,7 @@ const Game = {
 
         const gd = this.getGameDate();
         const destW = this.getWeather(to);
-        const waveDesc = destW.wave >= 4 ? '⚠ 거친 바다' : (destW.wave >= 3 ? '파도 높음' : '양호');
+        const waveDesc = destW.wave >= 4 ? T('weather.rough') : (destW.wave >= 3 ? T('weather.waveHigh') : T('weather.good'));
         const typhoonW = typhoon ? ` | 🌀 태풍 ${typhoon.name} 접근 중!` : '';
 
         scene.innerHTML = `
@@ -1926,7 +1955,7 @@ const Game = {
             <div style="position:absolute;bottom:0;left:0;right:0;z-index:11;background:rgba(0,10,20,.85);padding:6px 12px">
                 <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px">
                     <span>🚢 <strong>${s.vessel}</strong> V.${String(v.num).padStart(3,'0')}</span>
-                    <span>${fromN} → ${toN} (${leg.seaDays}일) | ${destW.icon} ${destW.desc} ${destW.temp}° | 파도 ${waveDesc}${typhoonW}${unloadInfo}</span>
+                    <span>${fromN} → ${toN} (${leg.seaDays}${T('common.day')}) | ${destW.icon} ${destW.desc} ${destW.temp}° | ${waveDesc}${typhoonW}${unloadInfo}</span>
                 </div>
                 <div style="height:5px;background:var(--card);border-radius:3px;overflow:hidden">
                     <div style="height:100%;width:${totalProgress}%;background:linear-gradient(90deg,var(--green),var(--accent));border-radius:3px;transition:width .3s"></div>
@@ -1936,7 +1965,7 @@ const Game = {
         // Update depart area to show voyage progress
         const departArea = document.querySelector('.depart-area');
         if (departArea) {
-            document.getElementById('depart-bookings').textContent = `🚢 항해 중 — ${fromN} → ${toN}`;
+            document.getElementById('depart-bookings').textContent = `${T('ship.sailing')} — ${fromN} → ${toN}`;
             document.getElementById('depart-countdown').textContent = `진행 ${Math.round(totalProgress)}%`;
             document.getElementById('btn-depart').style.display = 'none';
         }
@@ -1953,7 +1982,7 @@ const Game = {
             this.renderPortMapView();
         } else {
             scene.innerHTML = `
-                <div class="port-ground" id="port-ground"><div class="port-label" id="port-label">${s.route.portNames[s.route.ports[0]]}항</div></div>
+                <div class="port-ground" id="port-ground"><div class="port-label" id="port-label">${s.route.portNames[s.route.ports[0]]}${T('common.port')}</div></div>
                 <div class="crane" id="crane"><div class="crane-arm"></div><div class="crane-cable"></div><div class="crane-hook"></div></div>
                 <div class="game-ship" id="game-ship">
                     <div class="hull"></div>
@@ -1964,11 +1993,11 @@ const Game = {
                 </div>
                 <div class="sea-layer"></div>
                 <div class="cargo-info" id="cargo-info"><span id="cargo-teu">0/100 TEU</span><span id="cargo-pct">(0%)</span></div>
-                <div class="ship-status" id="ship-status">⚓ 정박 중</div>`;
+                <div class="ship-status" id="ship-status">${T('ship.docked')}</div>`;
         }
         document.getElementById('btn-depart').style.display = '';
         document.getElementById('btn-depart').disabled = false;
-        document.getElementById('btn-depart').textContent = '🚢 출항';
+        document.getElementById('btn-depart').textContent = T('depart.btn');
         if (!hasActiveSubRoutes) {
             this.updateBayGrid();
         }
@@ -2075,7 +2104,7 @@ const Game = {
                 const ox = op1.x + (op2.x - op1.x) * Math.min(olp, 1);
                 const oy = op1.y + (op2.y - op1.y) * Math.min(olp, 1);
                 svg += `<text x="${ox}" y="${oy}" text-anchor="middle" dominant-baseline="central" font-size="18">🚢</text>`;
-                svg += `<text x="${ox}" y="${oy + 14}" text-anchor="middle" fill="${clr}" font-size="7" font-weight="700">${pkg.nameKo.split('(')[1]?.replace(')','') || pkg.id}</text>`;
+                svg += `<text x="${ox}" y="${oy + 14}" text-anchor="middle" fill="${clr}" font-size="7" font-weight="700">${D(pkg,'name').split('(')[1]?.replace(')','') || pkg.id}</text>`;
             }
             pkg.ports.forEach(p => {
                 if (uniquePorts.includes(p)) return;
@@ -2099,16 +2128,16 @@ const Game = {
 
         // Legend
         const legendItems = [];
-        legendItems.push({ name: `${r.nameKo.split('(')[1]?.replace(')','') || r.id} (모선)`, color: '#4CAF50' });
+        legendItems.push({ name: `${D(r,'name').split('(')[1]?.replace(')','') || r.id} (모선)`, color: '#4CAF50' });
         activeSlots.forEach((sc, si) => {
             const scDef = SLOT_CHARTERS.find(d => d.id === sc.id);
             const clr = sc.color || scDef?.color || slotColors[si % slotColors.length];
-            legendItems.push({ name: (scDef ? scDef.nameKo.split('(')[1]?.replace(')','') || scDef.id : sc.id) + ' (슬롯)', color: clr });
+            legendItems.push({ name: (scDef ? D(scDef,'name').split('(')[1]?.replace(')','') || scDef.id : sc.id) + ' (슬롯)', color: clr });
         });
         activeOwned.forEach((or, oi) => {
             const pkg = NEW_ROUTE_PACKAGES.find(d => d.id === or.id);
             const clr = pkg?.color || ownedColors[oi % ownedColors.length];
-            legendItems.push({ name: (pkg ? pkg.nameKo.split('(')[1]?.replace(')','') || pkg.id : or.id) + ' (자사)', color: clr });
+            legendItems.push({ name: (pkg ? D(pkg,'name').split('(')[1]?.replace(')','') || pkg.id : or.id) + ' (자사)', color: clr });
         });
         let ly = vbY + vbH - 10 - legendItems.length * 16;
         svg += `<rect x="55" y="${ly - 5}" width="160" height="${legendItems.length * 16 + 10}" rx="4" fill="rgba(0,10,20,.7)" stroke="rgba(255,255,255,.15)" stroke-width="1"/>`;
@@ -2128,8 +2157,8 @@ const Game = {
             ${svg}
             <div style="position:absolute;bottom:0;left:0;right:0;z-index:11;background:rgba(0,10,20,.85);padding:6px 12px">
                 <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
-                    <span>⚓ <strong>${s.vessel}</strong> ${r.portNames[r.ports[0]]}항 정박 중 | 📦 ${teu}TEU | 자동출항 ${daysLeft}일 후</span>
-                    <span>🌏 운영 항로 ${routeCount}개 | 🚢 선박 ${routeCount}척 운항 중</span>
+                    <span>⚓ <strong>${s.vessel}</strong> ${r.portNames[r.ports[0]]}${T('common.port')} ${T('ship.docked')} | 📦 ${teu}TEU | ${T('depart.countdown')} ${daysLeft}${T('depart.daysLeft')}</span>
+                    <span>🌏 ${routeCount} | 🚢 ${routeCount}${T('common.ships')}</span>
                 </div>
             </div>`;
     },
@@ -2202,7 +2231,7 @@ const Game = {
 
         // Info
         let info = `<strong>🚢 ${s.vessel} — V.${String(v.num).padStart(3,'0')}</strong><br>`;
-        info += `${fromN} → ${toN} (${leg.seaDays}일 항해)`;
+        info += `${fromN} → ${toN} (${leg.seaDays}${T('common.day')})`;
         const lastUnload = v.unloads[v.unloads.length - 1];
         if (lastUnload && lastUnload.unRev > 0) {
             info += `<br>⬇️ ${r.portNames[lastUnload.port]} 하역: ${lastUnload.un20 + lastUnload.un40 * 2}TEU | $${lastUnload.unRev.toLocaleString()}`;
@@ -2318,8 +2347,8 @@ const Game = {
         // Show report modal
         document.getElementById('report-content').querySelector('button')?.remove(); // remove old "다음 항차" button
         this.openModal('modal-report');
-        this.addFeed(`📊 V.${String(v.num).padStart(3,'0')} 항차 완료! 수익 $${v.voyRev.toLocaleString()} / 비용 $${v.voyExp.toLocaleString()} / 손익 $${profit.toLocaleString()}`, profit >= 0 ? 'booking' : 'alert');
-        this.addFeed(`🏗️ V.${String(s.voyage.num).padStart(3,'0')} 영업 시작! 다음 출항까지 ${r.rotationDays}일`, 'alert');
+        this.addFeed(`📊 V.${String(v.num).padStart(3,'0')} ${T('voy.complete')} ${T('voy.revenue')} $${v.voyRev.toLocaleString()} / ${T('voy.expense')} $${v.voyExp.toLocaleString()} / ${T('fin.profit')} $${profit.toLocaleString()}`, profit >= 0 ? 'booking' : 'alert');
+        this.addFeed(`🏗️ V.${String(s.voyage.num).padStart(3,'0')} ${T('voy.salesStart')} ${r.rotationDays}${T('common.day')}`, 'alert');
     },
 
     renderReport(v, teu, profit, refuel, maint, repo, repoDetails) {
@@ -2354,25 +2383,25 @@ const Game = {
         }
 
         document.getElementById('report-content').innerHTML = `
-            <h3>📊 V.${String(v.num).padStart(3, '0')} 항차 보고서</h3>
+            <h3>📊 V.${String(v.num).padStart(3, '0')} ${T('voy.complete')}</h3>
             <div class="rpt-grid">
-                <div class="rpt-stat"><span class="v" style="color:var(--green)">$${v.voyRev.toLocaleString()}</span><span class="l">운임 수입</span></div>
-                <div class="rpt-stat"><span class="v" style="color:var(--red)">$${v.voyExp.toLocaleString()}</span><span class="l">총 비용</span></div>
-                <div class="rpt-stat"><span class="v" style="color:${profit >= 0 ? 'var(--green)' : 'var(--red)'}">$${profit.toLocaleString()}</span><span class="l">항차 손익</span></div>
-                <div class="rpt-stat"><span class="v">${lf}%</span><span class="l">적재율 (${teu}/${s.ship.capacity}TEU)</span></div>
+                <div class="rpt-stat"><span class="v" style="color:var(--green)">$${v.voyRev.toLocaleString()}</span><span class="l">${T('fin.freightRev')}</span></div>
+                <div class="rpt-stat"><span class="v" style="color:var(--red)">$${v.voyExp.toLocaleString()}</span><span class="l">${T('voy.expense')}</span></div>
+                <div class="rpt-stat"><span class="v" style="color:${profit >= 0 ? 'var(--green)' : 'var(--red)'}">$${profit.toLocaleString()}</span><span class="l">${T('fin.profit')}</span></div>
+                <div class="rpt-stat"><span class="v">${lf}%</span><span class="l">${T('fin.loadFactor')} (${teu}/${s.ship.capacity}TEU)</span></div>
             </div>
-            <div class="rpt-section"><h4>📦 구간별 실적</h4>
+            <div class="rpt-section"><h4>📦 ${T('fin.voyage')}</h4>
                 ${Object.entries(byLeg).map(([leg, d]) => {
                     const p = leg.split('-');
                     return `<div class="rpt-ctr">${r.portNames[p[0]] || p[0]}→${r.portNames[p[1]] || p[1]}: ${d.teu}TEU / $${d.rev.toLocaleString()}</div>`;
-                }).join('') || '<div class="rpt-ctr" style="color:var(--t3)">적재 화물 없음</div>'}
+                }).join('') || `<div class="rpt-ctr" style="color:var(--t3)">${T('voy.noCargo')}</div>`}
             </div>
             ${repoHtml}
-            <div class="rpt-section"><h4>📈 누적 실적</h4>
-                <div class="rpt-row"><span class="lbl">보유 현금</span><span class="${s.cash >= 0 ? 'pos' : 'neg'}">$${Math.round(s.cash).toLocaleString()}</span></div>
-                <div class="rpt-row"><span class="lbl">남은 부채</span><span class="neg">$${Math.round(s.debt).toLocaleString()}</span></div>
-                <div class="rpt-row"><span class="lbl">총 항차</span><span>${s.stats.totVoy}</span></div>
-                <div class="rpt-row"><span class="lbl">총 운송</span><span>${s.stats.totTEU} TEU</span></div>
+            <div class="rpt-section"><h4>📈 ${T('fin.cumProfit')}</h4>
+                <div class="rpt-row"><span class="lbl">${T('fin.cashLabel')}</span><span class="${s.cash >= 0 ? 'pos' : 'neg'}">$${Math.round(s.cash).toLocaleString()}</span></div>
+                <div class="rpt-row"><span class="lbl">${T('fin.debtLabel')}</span><span class="neg">$${Math.round(s.debt).toLocaleString()}</span></div>
+                <div class="rpt-row"><span class="lbl">${T('rank.voyages')}</span><span>${s.stats.totVoy}</span></div>
+                <div class="rpt-row"><span class="lbl">TEU</span><span>${s.stats.totTEU} TEU</span></div>
             </div>
             <div class="rpt-tip">${TIPS[Math.floor(Math.random() * TIPS.length)]}</div>
         `;
@@ -2388,7 +2417,7 @@ const Game = {
         this.showScreen('screen-game');
         this.updateAll();
         this.startTick();
-        this.addFeed(`🏗️ V.${String(s.voyage.num).padStart(3,'0')} 영업 시작! 다음 출항까지 ${s.route.rotationDays}일`, 'alert');
+        this.addFeed(`🏗️ V.${String(s.voyage.num).padStart(3,'0')} ${T('voy.salesStart')} ${s.route.rotationDays}${T('common.day')}`, 'alert');
     },
 
     // ==================== EVENTS ====================
@@ -2430,7 +2459,7 @@ const Game = {
                     if (c.share > 0) c.loyalty = Math.max(0, c.loyalty - eff.loyaltyLoss);
                 });
             }
-            this.toast('화주 신뢰도 하락!', 'warn');
+            this.toast(T('cust.trustDown'), 'warn');
         }
         // Loyalty boost to all customers (e.g., rescue events)
         if (eff.loyaltyAll) {
@@ -2439,7 +2468,7 @@ const Game = {
                     c.loyalty = Math.min(100, c.loyalty + eff.loyaltyAll);
                 });
             }
-            this.toast('전체 화주 신뢰도 상승!', 'ok');
+            this.toast(T('cust.trustUp'), 'ok');
         }
         // Chain event: breakdown risk
         if (eff.breakdownRisk && Math.random() < eff.breakdownRisk) {
@@ -2480,8 +2509,8 @@ const Game = {
         const gsStrat = SALES_STRATEGIES.find(x => x.id === gs.strategy);
         const gsPreset = ACTIVITY_PRESETS.find(x => x.id === gs.actPreset);
         let html = `<div style="margin-bottom:10px;padding:10px;background:var(--card2);border-radius:8px;border:1px solid var(--border);cursor:pointer" onclick="Game.openPlanConfig('global')">
-            <div style="font-size:12px;font-weight:600;margin-bottom:4px">📋 전체 영업 전략</div>
-            <div style="font-size:11px;color:var(--t2)">${gsStrat ? gsStrat.icon + ' ' + gsStrat.name : '미설정'} | ${gsPreset ? gsPreset.icon + ' ' + gsPreset.name : '균형'}</div>
+            <div style="font-size:12px;font-weight:600;margin-bottom:4px">${T('sales.globalStrategy')}</div>
+            <div style="font-size:11px;color:var(--t2)">${gsStrat ? gsStrat.icon + ' ' + ({'lowest-share':'strategy.lowestShare','largest-first':'strategy.largestFirst','easiest-first':'strategy.easiestFirst','cheap-cargo':'strategy.cheapCargo','port-focus':'strategy.portFocus','steal-cargo':'strategy.stealCargo'}[gsStrat.id] ? T({'lowest-share':'strategy.lowestShare','largest-first':'strategy.largestFirst','easiest-first':'strategy.easiestFirst','cheap-cargo':'strategy.cheapCargo','port-focus':'strategy.portFocus','steal-cargo':'strategy.stealCargo'}[gsStrat.id]) : gsStrat.name) : '-'} | ${gsPreset ? gsPreset.icon + ' ' + ({'balanced':'preset.balanced','email-phone':'preset.emailPhone','visit-main':'preset.visitMain','entertain-main':'preset.entertainMain','pioneer':'preset.pioneer'}[gsPreset.id] ? T({'balanced':'preset.balanced','email-phone':'preset.emailPhone','visit-main':'preset.visitMain','entertain-main':'preset.entertainMain','pioneer':'preset.pioneer'}[gsPreset.id]) : gsPreset.name) : T('preset.balanced')}</div>
         </div>`;
 
         html += s.salesTeam.map(st => {
@@ -2501,15 +2530,15 @@ const Game = {
                 <div class="sales-info">
                     <div class="sales-name">${st.name} <span class="skill-stars" style="font-size:10px">${stars}</span></div>
                     <div class="sales-stats">
-                        <span>💰 $${st.salary}/월</span>
+                        <span>💰 $${st.salary}/${T('common.month')}</span>
                         <span>⚡ ${Math.round(st.stamina)}%</span>
                         <span>📊 EXP ${st.exp}</span>
                     </div>
                     <div class="trait-mini">
-                        <span data-tip="협상력: 전화 영업 성공률 UP">🤝${t.negotiation||0}</span>
-                        <span data-tip="대면력: 고객 방문 성공률 UP">🚶${t.faceToFace||0}</span>
-                        <span data-tip="IT역량: 메일 발송 성공률 UP">💻${t.digital||0}</span>
-                        <span data-tip="관계력: 접대 성공률 UP">💛${t.relationship||0}</span>
+                        <span data-tip="${T('sales.negotiationTip')}">🤝${t.negotiation||0}</span>
+                        <span data-tip="${T('sales.faceTip')}">🚶${t.faceToFace||0}</span>
+                        <span data-tip="${T('sales.digitalTip')}">💻${t.digital||0}</span>
+                        <span data-tip="${T('sales.relationTip')}">💛${t.relationship||0}</span>
                     </div>
                     <div class="sales-bar"><div class="sales-bar-fill" style="width:${st.stamina}%;background:${st.stamina > 30 ? 'var(--green)' : 'var(--red)'}"></div></div>
                     ${actInfo ? `<div class="sales-bar" style="margin-top:2px"><div class="sales-bar-fill" style="width:${progressPct}%;background:var(--blue)"></div></div>` : ''}
@@ -2517,9 +2546,9 @@ const Game = {
                 </div>
                 <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
                     ${actInfo ? `<div class="sales-activity"><div class="dot"></div>${actInfo.icon} ${targetCust ? targetCust.name : ''}<br><span style="font-size:9px;color:var(--t3)">${progressPct}%</span></div>` :
-                      isResting ? '<div class="sales-activity" style="color:var(--yellow)">😴 휴식 중</div>' :
-                      '<div class="sales-activity" style="color:var(--accent)">⏳ 대기</div>'}
-                    <button class="btn-sm" onclick="event.stopPropagation();Game.openPlanConfig('${st.id}')">계획 수정</button>
+                      isResting ? '<div class="sales-activity" style="color:var(--yellow)">' + T('sales.resting') + '</div>' :
+                      '<div class="sales-activity" style="color:var(--accent)">' + T('sales.waiting') + '</div>'}
+                    <button class="btn-sm" onclick="event.stopPropagation();Game.openPlanConfig('${st.id}')">${T('sales.editPlan')}</button>
                 </div>
             </div>`;
         }).join('');
@@ -2531,8 +2560,8 @@ const Game = {
         const s = this.state;
         // Check bench pool (includes draft unpicked + fired + scout pool)
         let r = (s.benchPool || []).find(p => p.id === id);
-        if (!r || !this.canAfford(r.recruitCost)) { this.toast('부채 한도 초과!', 'err'); return; }
-        if (s.stats.totRev < (r.unlockRev || 0)) { this.toast('매출 조건 미달!', 'err'); return; }
+        if (!r || !this.canAfford(r.recruitCost)) { this.toast(T('inv.debtOver'), 'err'); return; }
+        if (s.stats.totRev < (r.unlockRev || 0)) { this.toast(T('inv.revNotMet'), 'err'); return; }
         s.cash -= r.recruitCost;
         s.stats.totExp += r.recruitCost;
         s.salesTeam.push({
@@ -2550,7 +2579,7 @@ const Game = {
     fireSales(stId) {
         const s = this.state;
         if (s.salesTeam.length <= 1) {
-            this.toast('최소 1명의 영업사원이 필요합니다!', 'err');
+            this.toast(T('sales.minRequired'), 'err');
             return;
         }
         const st = s.salesTeam.find(t => t.id === stId);
@@ -2580,8 +2609,8 @@ const Game = {
 
         // Find original data for strength/weakness
         const orig = [...(typeof ALL_SALES_CHARACTERS !== 'undefined' ? ALL_SALES_CHARACTERS : []), ...RECRUIT_POOL].find(x => x.id === stId);
-        const strength = st.strength || orig?.strength || '균형잡힌 능력';
-        const weakness = st.weakness || orig?.weakness || '특별한 약점 없음';
+        const strength = st.strength || orig?.strength || T('common.balanced').split('、')[0] || T('common.balanced');
+        const weakness = st.weakness || orig?.weakness || '';
 
         // Activity stats
         const logs = s.activityLog.filter(l => l.spName === st.name);
@@ -2595,7 +2624,7 @@ const Game = {
                 <div>
                     <div style="font-size:16px;font-weight:700">${st.name} <span style="font-size:12px">${stars}</span></div>
                     <div style="font-size:11px;color:var(--t2)">${st.desc || orig?.desc || ''}</div>
-                    <div style="font-size:11px;color:var(--t3);margin-top:2px">💰 $${st.salary}/월 | ⚡ 체력 ${Math.round(st.stamina)}% | 📊 EXP ${st.exp}</div>
+                    <div style="font-size:11px;color:var(--t3);margin-top:2px">💰 $${st.salary}/${T('common.month')} | ⚡ 체력 ${Math.round(st.stamina)}% | 📊 EXP ${st.exp}</div>
                 </div>
             </div>
             <div style="font-size:11px;color:var(--t2);margin-bottom:4px">📊 능력치</div>
@@ -2615,8 +2644,8 @@ const Game = {
             <div class="sp-sw wk">⚠️ <strong>약점:</strong> ${weakness}</div>
             <div style="font-size:11px;color:var(--t2);margin-top:10px">📈 실적 (이번 항차)</div>
             <div style="display:flex;gap:12px;font-size:12px;margin-top:4px">
-                <span>활동 ${total}건</span>
-                <span style="color:var(--green)">성공 ${successes}건 (${total > 0 ? Math.round(successes/total*100) : 0}%)</span>
+                <span>${total}${T('fin.cases')}</span>
+                <span style="color:var(--green)">${T('fin.successRate')} ${successes}${T('fin.cases')} (${total > 0 ? Math.round(successes/total*100) : 0}%)</span>
                 <span>수주 $${totalRev.toLocaleString()}</span>
             </div>
             <div class="sp-rename">
@@ -2627,19 +2656,19 @@ const Game = {
                 <button class="btn-sm" id="btn-fire-init"
                     onclick="document.getElementById('btn-fire-init').style.display='none';document.getElementById('fire-confirm').style.display='flex'"
                     style="width:100%;background:#6b2020;color:#ff8888;border:1px solid #ff4444;padding:10px">
-                    👋 해고 (퇴직금 $${Math.round(st.salary * 2).toLocaleString()})
+                    👋 ${T('sales.fire')} ($${Math.round(st.salary * 2).toLocaleString()})
                 </button>
                 <div id="fire-confirm" style="display:none;gap:8px;align-items:center">
-                    <span style="font-size:12px;color:#ff8888;flex:1">정말 해고하시겠습니까?</span>
+                    <span style="font-size:12px;color:#ff8888;flex:1">${T('sales.fireConfirm')}</span>
                     <button class="btn-sm" onclick="Game.fireSales('${st.id}')"
-                        style="background:#b71c1c;color:white;padding:8px 16px;border:1px solid #ff4444;font-weight:700">확인</button>
+                        style="background:#b71c1c;color:white;padding:8px 16px;border:1px solid #ff4444;font-weight:700">${T('common.ok')}</button>
                     <button class="btn-sm" onclick="document.getElementById('btn-fire-init').style.display='';document.getElementById('fire-confirm').style.display='none'"
-                        style="background:var(--card2);padding:8px 16px">취소</button>
+                        style="background:var(--card2);padding:8px 16px">${T('common.cancel')}</button>
                 </div>
             </div>
         </div>`;
 
-        document.getElementById('assign-title').textContent = `${st.avatar} ${st.name} 상세 정보`;
+        document.getElementById('assign-title').textContent = `${st.avatar} ${st.name}`;
         document.getElementById('assign-body').innerHTML = html;
         this.openModal('modal-assign');
     },
@@ -2651,7 +2680,7 @@ const Game = {
         const newName = input.value.trim();
         if (!newName) return;
         st.name = newName;
-        this.toast(`이름 변경: ${newName}`, 'ok');
+        this.toast(`${newName}`, 'ok');
         this.renderSalesTeam();
         this.closeModal('modal-assign');
     },
@@ -2672,7 +2701,7 @@ const Game = {
             if (!custs) return;
             const portName = this.getPortName(port);
             const isSlot = !r.ports.includes(port);
-            html += `<h4 style="font-size:12px;color:var(--t2);margin:8px 0 4px">📍 ${portName} ${isSlot ? '<span style="font-size:9px;color:var(--accent2)">슬롯</span>' : ''}</h4>`;
+            html += `<h4 style="font-size:12px;color:var(--t2);margin:8px 0 4px">📍 ${portName} ${isSlot ? '<span style="font-size:9px;color:var(--accent2)">' + T('inv.slotCharter').replace(/🚢\s*/,'').split('(')[0].trim() + '</span>' : ''}</h4>`;
             html += custs.map(c => {
                 const diffStars = '⭐'.repeat(c.difficulty);
                 const canAccess = c.difficulty <= (s.infra.training + 1 + ((s.infra.systems || s.infra.it || 0) >= 2 ? 1 : 0));
@@ -2685,29 +2714,29 @@ const Game = {
                     if (erosion.severity === 'critical') {
                         shareColor = '#ff1744';
                         cardBorder = 'border-left:3px solid #ff1744;background:rgba(255,23,68,.08)';
-                        erosionBadge = `<span style="font-size:9px;color:#ff1744;font-weight:700;margin-left:4px">🚨 심각 -${Math.round(erosion.erosionPct)}%</span>`;
+                        erosionBadge = `<span style="font-size:9px;color:#ff1744;font-weight:700;margin-left:4px">🚨 ${T('market.severe')} -${Math.round(erosion.erosionPct)}%</span>`;
                     } else if (erosion.severity === 'danger') {
                         shareColor = '#ff5252';
                         cardBorder = 'border-left:3px solid #ff5252;background:rgba(255,82,82,.06)';
-                        erosionBadge = `<span style="font-size:9px;color:#ff5252;font-weight:600;margin-left:4px">⚠️ 위험 -${Math.round(erosion.erosionPct)}%</span>`;
+                        erosionBadge = `<span style="font-size:9px;color:#ff5252;font-weight:600;margin-left:4px">⚠️ ${T('market.danger')} -${Math.round(erosion.erosionPct)}%</span>`;
                     } else {
                         shareColor = '#ff9100';
                         cardBorder = 'border-left:3px solid #ff9100;background:rgba(255,145,0,.05)';
-                        erosionBadge = `<span style="font-size:9px;color:#ff9100;margin-left:4px">⚠ 주의 -${Math.round(erosion.erosionPct)}%</span>`;
+                        erosionBadge = `<span style="font-size:9px;color:#ff9100;margin-left:4px">⚠ ${T('market.caution')} -${Math.round(erosion.erosionPct)}%</span>`;
                     }
                 } else {
                     shareColor = c.share > 50 ? 'var(--green)' : (c.share > 20 ? 'var(--yellow)' : 'var(--t3)');
                 }
 
                 // Peak share indicator
-                const peakInfo = erosion ? `<div style="font-size:9px;color:var(--t3)">최고 ${Math.round(erosion.peakShare)}% → 현재 ${Math.round(c.share)}%</div>` : '';
+                const peakInfo = erosion ? `<div style="font-size:9px;color:var(--t3)">${Math.round(erosion.peakShare)}% → ${Math.round(c.share)}%</div>` : '';
 
                 return `
                 <div class="cust-card" onclick="Game.showCustDetail('${c.id}','${port}')" style="cursor:pointer;${cardBorder}${!canAccess ? ';opacity:.5' : ''}">
                     <div class="cust-icon">${c.icon}</div>
                     <div class="cust-info">
-                        <div class="cust-name">${c.name} <span style="font-size:10px;color:var(--t3)">${c.type}</span>${hasBoost ? ' <span style="font-size:10px;color:var(--accent)">🔥 부스트</span>' : ''}${erosionBadge}</div>
-                        <div class="cust-detail">${diffStars} | 최대 20'×${c.maxVol20} 40'×${c.maxVol40} ${!canAccess ? '| 🔒 접근 불가' : ''}</div>
+                        <div class="cust-name">${D(c,'name')} <span style="font-size:10px;color:var(--t3)">${D(c,'type')}</span>${hasBoost ? ` <span style="font-size:10px;color:var(--accent)">${T('cust.boost')}</span>` : ''}${erosionBadge}</div>
+                        <div class="cust-detail">${diffStars} | ${T('cust.maxVol')} 20'×${c.maxVol20} 40'×${c.maxVol40} ${!canAccess ? '| ' + T('cust.locked') : ''}</div>
                     </div>
                     <div class="cust-share">
                         <div class="cust-share-val" style="color:${shareColor}">${Math.round(c.share)}%</div>
@@ -2762,8 +2791,8 @@ const Game = {
         let boostHtml = '';
         if (activeBoosts.length > 0) {
             boostHtml = `<div style="margin:8px 0;padding:6px 8px;background:rgba(76,175,80,.15);border:1px solid rgba(76,175,80,.3);border-radius:6px;font-size:11px">
-                <div style="font-weight:600;margin-bottom:4px">🔥 활성 부스트</div>
-                ${activeBoosts.map(b => `<div>${b.icon} ${b.name} — ${b.daysLeft}일 남음</div>`).join('')}
+                <div style="font-weight:600;margin-bottom:4px">${T('cust.boost')}</div>
+                ${activeBoosts.map(b => `<div>${b.icon} ${b.name} — ${b.daysLeft}${T('common.day')}</div>`).join('')}
             </div>`;
         }
 
@@ -2774,11 +2803,11 @@ const Game = {
             return `<div class="invest-item ${alreadyActive ? 'done' : (!canBuy ? 'locked' : '')}" style="margin:4px 0">
                 <div class="invest-icon">${bst.icon}</div>
                 <div class="invest-info">
-                    <div class="invest-name">${bst.name} ${alreadyActive ? '✅ 적용 중' : ''}</div>
-                    <div class="invest-effect">${bst.effect} (${bst.duration}일간)</div>
+                    <div class="invest-name">${bst.name} ${alreadyActive ? '✅' : ''}</div>
+                    <div class="invest-effect">${bst.effect} (${bst.duration}${T('common.day')})</div>
                 </div>
                 ${alreadyActive ? '' : `<div class="invest-cost">$${bst.cost.toLocaleString()}</div>
-                <button class="invest-btn" onclick="Game.applyCustBoost('${custId}','${port}','${bst.id}')" ${canBuy ? '' : 'disabled'}>적용</button>`}
+                <button class="invest-btn" onclick="Game.applyCustBoost('${custId}','${port}','${bst.id}')" ${canBuy ? '' : 'disabled'}>${T('promo.run')}</button>`}
             </div>`;
         }).join('');
 
@@ -2863,16 +2892,16 @@ const Game = {
             <div style="text-align:center;margin-bottom:10px">
                 <div style="font-size:36px">${c.icon}</div>
                 <div style="font-size:16px;font-weight:700">${c.name}</div>
-                <div style="font-size:11px;color:var(--t3)">${c.type} | ${this.getPortName(port)} | ${'⭐'.repeat(c.difficulty)} 난이도</div>
+                <div style="font-size:11px;color:var(--t3)">${c.type} | ${this.getPortName(port)} | ${'⭐'.repeat(c.difficulty)} ${T('cust.difficulty')}</div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
                 <div style="background:var(--card2);padding:8px;border-radius:6px;text-align:center">
                     <div style="font-size:18px;font-weight:700;color:${shareColor}">${Math.round(c.share)}%</div>
-                    <div style="font-size:10px;color:var(--t3)">점유율</div>
+                    <div style="font-size:10px;color:var(--t3)">${T('cust.share')}</div>
                 </div>
                 <div style="background:var(--card2);padding:8px;border-radius:6px;text-align:center">
                     <div style="font-size:18px;font-weight:700">${c.loyalty}</div>
-                    <div style="font-size:10px;color:var(--t3)">충성도</div>
+                    <div style="font-size:10px;color:var(--t3)">${T('cust.loyalty')}</div>
                 </div>
             </div>
             <div style="font-size:11px;color:var(--t2);margin-bottom:6px">
@@ -2882,12 +2911,12 @@ const Game = {
                 <div style="font-weight:600;margin-bottom:3px">🚢 도착지별 물량 배분</div>
                 ${destDetailHtml}
             </div>
-            ${!canAccess ? '<div style="color:var(--red);font-size:11px;margin-bottom:8px">🔒 접근 불가 — 영업 교육 투자가 필요합니다</div>' : ''}
+            ${!canAccess ? `<div style="color:var(--red);font-size:11px;margin-bottom:8px">${T('cust.lockedMsg')}</div>` : ''}
             ${erosionHtml}
             ${boostHtml}
             <div style="margin-top:10px"><div style="font-size:12px;font-weight:600;margin-bottom:6px">🚀 영업 부스터</div>${boosters}</div>`;
 
-        document.getElementById('assign-title').textContent = `${c.icon} ${c.name} 상세`;
+        document.getElementById('assign-title').textContent = `${c.icon} ${c.name}`;
         document.getElementById('assign-body').innerHTML = html;
         this.openModal('modal-assign');
     },
@@ -2897,12 +2926,12 @@ const Game = {
         const c = s.custs[port]?.find(x => x.id === custId);
         if (!c) return;
         const bst = CUSTOMER_BOOSTERS.find(b => b.id === boostId);
-        if (!bst || s.cash < bst.cost) { this.toast('현금이 부족합니다!', 'err'); return; }
+        if (!bst || s.cash < bst.cost) { this.toast(T('cust.noMoney'), 'err'); return; }
 
         if (!c.boosts) c.boosts = [];
         // Remove expired, check not already active
         c.boosts = c.boosts.filter(b => b.daysLeft > 0);
-        if (c.boosts.some(b => b.id === boostId)) { this.toast('이미 적용 중입니다', 'err'); return; }
+        if (c.boosts.some(b => b.id === boostId)) { this.toast(T('cust.alreadyActive'), 'err'); return; }
 
         s.cash -= bst.cost;
         s.stats.totExp += bst.cost;
@@ -2948,29 +2977,29 @@ const Game = {
         const utilRate = totalAll > 0 ? Math.round((totalBooked / totalAll) * 100) : 0;
 
         html += `<div style="margin-bottom:12px">
-            <h4 style="font-size:13px;margin-bottom:8px">📦 전체 컨테이너 현황</h4>
+            <h4 style="font-size:13px;margin-bottom:8px">${T('ctr.title')}</h4>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">
                 <div style="background:var(--card2);padding:8px;border-radius:6px;text-align:center">
                     <div style="font-size:18px;font-weight:700;color:var(--t1)">${totalAll}</div>
-                    <div style="font-size:10px;color:var(--t3)">전체 보유</div>
+                    <div style="font-size:10px;color:var(--t3)">Total</div>
                 </div>
                 <div style="background:var(--card2);padding:8px;border-radius:6px;text-align:center">
                     <div style="font-size:18px;font-weight:700;color:var(--green)">${totalBooked}</div>
-                    <div style="font-size:10px;color:var(--t3)">선적 대기</div>
+                    <div style="font-size:10px;color:var(--t3)">${T('ship.loading')}</div>
                 </div>
                 <div style="background:var(--card2);padding:8px;border-radius:6px;text-align:center">
                     <div style="font-size:18px;font-weight:700;color:${utilRate < 20 ? 'var(--red)' : (utilRate < 50 ? 'var(--yellow)' : 'var(--green)')}">${utilRate}%</div>
-                    <div style="font-size:10px;color:var(--t3)">활용률</div>
+                    <div style="font-size:10px;color:var(--t3)">Util.</div>
                 </div>
             </div>
             <div style="height:8px;background:var(--card2);border-radius:4px;overflow:hidden;margin-bottom:4px">
                 <div style="height:100%;width:${utilRate}%;background:linear-gradient(90deg,var(--green),var(--accent));border-radius:4px;transition:width .3s"></div>
             </div>
-            <div style="font-size:10px;color:var(--t3);text-align:right">선적대기 ${totalBooked}개 / 엠티 ${totalEmpty}개</div>
+            <div style="font-size:10px;color:var(--t3);text-align:right">${T('ship.loading')} ${totalBooked} / Empty ${totalEmpty}</div>
         </div>`;
 
         // Per-port breakdown
-        html += '<h4 style="font-size:13px;margin-bottom:8px">📍 항구별 컨테이너 분포</h4>';
+        html += `<h4 style="font-size:13px;margin-bottom:8px">${T('ctr.title')}</h4>`;
         const homePort = r.ports[0];
         const allSalesPorts = this.getAllSalesPorts();
         allPorts.forEach(p => {
@@ -2990,8 +3019,8 @@ const Game = {
 
             html += `<div style="background:var(--card2);border-radius:8px;padding:10px;margin-bottom:8px;border-left:3px solid ${isExcess ? 'var(--red)' : (isHome ? 'var(--green)' : (isSlot ? 'var(--accent2)' : 'var(--border)'))}">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                    <span style="font-size:13px;font-weight:600">${isHome ? '🏠' : (isSlot ? '⛴' : '📍')} ${portName} ${isSlot ? '<span style="font-size:9px;color:var(--accent2)">슬롯</span>' : ''} ${isExcess ? '<span style="color:var(--red);font-size:10px">⚠ 적체</span>' : ''}</span>
-                    <span style="font-size:11px;color:var(--t3)">합계 ${portTotal}개</span>
+                    <span style="font-size:13px;font-weight:600">${isHome ? T('ctr.home') : (isSlot ? '⛴' : '📍')} ${portName} ${isExcess ? '<span style="color:var(--red);font-size:10px">' + T('ctr.congestion') + '</span>' : ''}</span>
+                    <span style="font-size:11px;color:var(--t3)">${portTotal}</span>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">
                     <div>
@@ -3010,12 +3039,12 @@ const Game = {
                     </div>
                 </div>
                 ${isExcess ? `<div style="margin-top:6px;padding:4px 6px;background:rgba(239,83,80,.1);border-radius:4px;font-size:10px;color:var(--red)">⚠ 공컨테이너 과다 — ${portName}→${sellTo} 영업 강화 필요</div>` : ''}
-                ${!isHome && emptyTotal === 0 && bookedHere === 0 ? '<div style="margin-top:4px;font-size:10px;color:var(--t3)">컨테이너 없음 — 공급 필요</div>' : ''}
+                ${!isHome && emptyTotal === 0 && bookedHere === 0 ? '<div style="margin-top:4px;font-size:10px;color:var(--t3)">' + T('ctr.none') + '</div>' : ''}
             </div>`;
         });
 
         // Visual distribution bar
-        html += '<h4 style="font-size:13px;margin:12px 0 8px">📊 항구별 분포 비율</h4>';
+        html += `<h4 style="font-size:13px;margin:12px 0 8px">${T('ctr.distRatio')}</h4>`;
         const colors = ['var(--green)', 'var(--accent)', 'var(--yellow)', 'var(--blue)', '#9C27B0', '#00BCD4', '#FF7043', '#66BB6A', '#42A5F5', '#AB47BC', '#26A69A', '#FFA726', '#EC407A'];
         const portData = allPorts.map((p, i) => {
             const total = (s.ctr[p]?.['20'] || 0) + (s.ctr[p]?.['40'] || 0);
@@ -3036,9 +3065,9 @@ const Game = {
         }
 
         // === Container Repositioning ===
-        html += '<h4 style="font-size:13px;margin:12px 0 8px">🚛 엠티 재배치 (리포지셔닝)</h4>';
+        html += `<h4 style="font-size:13px;margin:12px 0 8px">${T('ctr.repo')}</h4>`;
         html += '<div style="background:var(--card2);border-radius:8px;padding:10px;margin-bottom:8px">';
-        html += '<div style="font-size:10px;color:var(--t3);margin-bottom:8px">엠티가 많은 항구에서 부족한 항구로 공컨테이너를 이동합니다. 비용이 발생하며 다음 항차 출항 시 이동됩니다.</div>';
+        html += `<div style="font-size:10px;color:var(--t3);margin-bottom:8px">${T('ctr.repoDesc')}</div>`;
 
         // Find ports with empties (include slot charter ports)
         const portsWithEmpty = allPorts.filter(p => (s.ctr[p]?.['20'] || 0) + (s.ctr[p]?.['40'] || 0) > 0);
@@ -3047,22 +3076,22 @@ const Game = {
 
         html += `<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:end;margin-bottom:8px">
             <div>
-                <div style="font-size:10px;color:var(--t3);margin-bottom:3px">출발 항구</div>
+                <div style="font-size:10px;color:var(--t3);margin-bottom:3px">${T('ctr.from')}</div>
                 <select id="repo-from" style="width:100%;padding:5px;background:var(--bg);color:var(--t1);border:1px solid var(--border);border-radius:4px;font-size:11px">${repoFromOptions}</select>
             </div>
             <div style="font-size:16px;color:var(--t3);padding-bottom:4px">→</div>
             <div>
-                <div style="font-size:10px;color:var(--t3);margin-bottom:3px">도착 항구</div>
+                <div style="font-size:10px;color:var(--t3);margin-bottom:3px">${T('ctr.to')}</div>
                 <select id="repo-to" style="width:100%;padding:5px;background:var(--bg);color:var(--t1);border:1px solid var(--border);border-radius:4px;font-size:11px">${repoToOptions}</select>
             </div>
         </div>`;
         html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
             <div>
-                <div style="font-size:10px;color:var(--t3);margin-bottom:3px">20' 수량</div>
+                <div style="font-size:10px;color:var(--t3);margin-bottom:3px">20' ${T('ctr.qty')}</div>
                 <input id="repo-q20" type="number" min="0" max="50" value="5" oninput="Game.updateRepoCost()" style="width:100%;padding:5px;background:var(--bg);color:var(--t1);border:1px solid var(--border);border-radius:4px;font-size:11px">
             </div>
             <div>
-                <div style="font-size:10px;color:var(--t3);margin-bottom:3px">40' 수량</div>
+                <div style="font-size:10px;color:var(--t3);margin-bottom:3px">40' ${T('ctr.qty')}</div>
                 <input id="repo-q40" type="number" min="0" max="50" value="5" oninput="Game.updateRepoCost()" style="width:100%;padding:5px;background:var(--bg);color:var(--t1);border:1px solid var(--border);border-radius:4px;font-size:11px">
             </div>
         </div>`;
@@ -3072,20 +3101,20 @@ const Game = {
                 <span style="color:var(--t3)">수량: <strong style="color:var(--t1)" id="repo-qty">10</strong>개</span>
                 <span>예상 비용: <strong style="color:var(--yellow);font-size:13px" id="repo-total-cost">$2,000</strong></span>
             </div>
-            <div style="margin-top:4px;font-size:10px;color:var(--t3)">출항 시 자동 이동 | 현재 현금: <span style="color:${s.cash >= 2000 ? 'var(--green)' : 'var(--red)'}" id="repo-cash">$${Math.round(s.cash).toLocaleString()}</span></div>
+            <div style="margin-top:4px;font-size:10px;color:var(--t3)">${T('ctr.autoOnDepart')} | 현재 현금: <span style="color:${s.cash >= 2000 ? 'var(--green)' : 'var(--red)'}" id="repo-cash">$${Math.round(s.cash).toLocaleString()}</span></div>
         </div>`;
         html += `<div style="display:flex;justify-content:flex-end">
-            <button class="btn-sm" onclick="Game.repoContainers()" style="padding:6px 20px;font-size:12px">🚛 재배치 실행</button>
+            <button class="btn-sm" onclick="Game.repoContainers()" style="padding:6px 20px;font-size:12px">🚛 ${T('ctr.execute')}</button>
         </div>`;
 
         // Show pending repos
         if (s.pendingRepos && s.pendingRepos.length > 0) {
             html += '<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">';
-            html += '<div style="font-size:10px;color:var(--yellow);margin-bottom:4px">📋 대기 중인 재배치 (다음 출항 시 실행)</div>';
+            html += `<div style="font-size:10px;color:var(--yellow);margin-bottom:4px">${T('ctr.pending')}</div>`;
             s.pendingRepos.forEach((rp, i) => {
                 html += `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:3px 0">
                     <span>${this.getPortName(rp.from)} → ${this.getPortName(rp.to)}: 20'×${rp.q20} + 40'×${rp.q40}</span>
-                    <button style="font-size:9px;padding:2px 6px;background:var(--red);color:#fff;border:none;border-radius:3px;cursor:pointer" onclick="Game.cancelRepo(${i})">취소</button>
+                    <button style="font-size:9px;padding:2px 6px;background:var(--red);color:#fff;border:none;border-radius:3px;cursor:pointer" onclick="Game.cancelRepo(${i})">${T('ctr.cancel')}</button>
                 </div>`;
             });
             html += '</div>';
@@ -3119,13 +3148,13 @@ const Game = {
         const q20 = parseInt(document.getElementById('repo-q20').value) || 0;
         const q40 = parseInt(document.getElementById('repo-q40').value) || 0;
 
-        if (from === to) { this.toast('출발/도착 항구가 같습니다', 'err'); return; }
-        if (q20 + q40 <= 0) { this.toast('수량을 입력하세요', 'err'); return; }
-        if (q20 > (s.ctr[from]?.['20'] || 0)) { this.toast(`${this.getPortName(from)}에 20' 엠티 부족`, 'err'); return; }
-        if (q40 > (s.ctr[from]?.['40'] || 0)) { this.toast(`${this.getPortName(from)}에 40' 엠티 부족`, 'err'); return; }
+        if (from === to) { this.toast(T('ctr.samePort'), 'err'); return; }
+        if (q20 + q40 <= 0) { this.toast(T('ctr.enterQty'), 'err'); return; }
+        if (q20 > (s.ctr[from]?.['20'] || 0)) { this.toast(this.getPortName(from) + T('ctr.shortage20'), 'err'); return; }
+        if (q40 > (s.ctr[from]?.['40'] || 0)) { this.toast(this.getPortName(from) + T('ctr.shortage40'), 'err'); return; }
 
         const cost = (q20 + q40) * 200;
-        if (s.cash < cost) { this.toast(`현금 부족 ($${cost.toLocaleString()} 필요)`, 'err'); return; }
+        if (s.cash < cost) { this.toast(T('cust.noMoney'), 'err'); return; }
 
         // Deduct cost and empties from source
         s.cash -= cost;
@@ -3169,21 +3198,21 @@ const Game = {
 
         // Company Training (전체)
         const afford = (c) => this.canAfford(c);
-        html += '<div class="invest-section"><h4>📚 전사 영업 교육 <span style="font-size:10px;color:var(--t3)">(전 직원 적용)</span></h4>';
+        html += `<div class="invest-section"><h4>${T('inv.training')} <span style="font-size:10px;color:var(--t3)">(${T('inv.trainingAll')})</span></h4>`;
         INVESTMENTS.training.forEach(inv => {
             const done = s.infra.training >= inv.level;
             const canBuy = !done && s.infra.training >= inv.level - 1 && afford(inv.cost);
             html += `<div class="invest-item ${done ? 'done' : (!canBuy ? 'locked' : '')}">
                 <div class="invest-icon">${inv.icon}</div>
                 <div class="invest-info"><div class="invest-name">${inv.name} ${done ? '✅' : `<span style="font-size:9px;color:var(--t3)">Lv.${inv.level}</span>`}</div><div class="invest-effect">${inv.effect}</div></div>
-                ${done ? '' : `<div class="invest-cost">$${inv.cost.toLocaleString()}</div><button class="invest-btn" onclick="Game.invest('training',${inv.level},${inv.cost})" ${canBuy ? '' : 'disabled'}>투자</button>`}
+                ${done ? '' : `<div class="invest-cost">$${inv.cost.toLocaleString()}</div><button class="invest-btn" onclick="Game.invest('training',${inv.level},${inv.cost})" ${canBuy ? '' : 'disabled'}>${T('inv.invest')}</button>`}
             </div>`;
         });
         html += '</div>';
 
         // Personal Training (영업사원 개인별)
-        html += '<div class="invest-section"><h4>🎯 개인별 특화 교육 <span style="font-size:10px;color:var(--t3)">(영업사원별 구매)</span></h4>';
-        html += '<div style="font-size:10px;color:var(--t3);padding:4px 8px">각 영업사원에게 개별 교육을 제공하여 능력을 강화합니다.</div>';
+        html += `<div class="invest-section"><h4>${T('inv.personalTraining')} <span style="font-size:10px;color:var(--t3)">(${T('inv.personalTrainingSub')})</span></h4>`;
+        html += `<div style="font-size:10px;color:var(--t3);padding:4px 8px">${T('inv.personalTrainingDesc')}</div>`;
         s.salesTeam.forEach((sp, idx) => {
             const ptLv = sp.personalTraining || 0;
             const nextPt = INVESTMENTS.personalTraining.find(p => p.level === ptLv + 1);
@@ -3193,7 +3222,7 @@ const Game = {
                 <div style="display:flex;align-items:center;gap:8px;width:100%">
                     <div class="invest-icon">${sp.avatar || '👤'}</div>
                     <div class="invest-info" style="flex:1;min-width:0">
-                        <div class="invest-name">${sp.name} <span style="font-size:9px;color:var(--accent)">스킬 ${(sp.skill || 1).toFixed(1)}</span></div>
+                        <div class="invest-name">${sp.name} <span style="font-size:9px;color:var(--accent)">${T('sales.skill')} ${(sp.skill || 1).toFixed(1)}</span></div>
                         <div class="invest-effect" style="display:flex;gap:4px;flex-wrap:wrap">
                             ${INVESTMENTS.personalTraining.map((pt, i) => {
                                 const done2 = ptLv >= pt.level;
@@ -3214,7 +3243,7 @@ const Game = {
         // Systems (통합 경영 시스템)
         const sysLv = s.infra.systems || s.infra.it || 0;
         if (!s.infra.systems && s.infra.it) s.infra.systems = s.infra.it; // migrate
-        html += '<div class="invest-section"><h4>🏗️ 경영 시스템 <span style="font-size:10px;color:var(--t3)">(IT · 물류 · 경영 인프라)</span></h4>';
+        html += `<div class="invest-section"><h4>${T('inv.systems')} <span style="font-size:10px;color:var(--t3)">(${T('inv.systemsSub')})</span></h4>`;
         INVESTMENTS.systems.forEach(inv => {
             const done = sysLv >= inv.level;
             const canBuy = !done && sysLv >= inv.level - 1 && afford(inv.cost);
@@ -3226,40 +3255,40 @@ const Game = {
                     </div>
                     <div class="invest-effect" style="word-break:break-word">${inv.effect}</div>
                 </div>
-                ${done ? '' : `<div class="invest-cost">$${inv.cost.toLocaleString()}</div><button class="invest-btn" onclick="Game.invest('systems',${inv.level},${inv.cost})" ${canBuy ? '' : 'disabled'}>투자</button>`}
+                ${done ? '' : `<div class="invest-cost">$${inv.cost.toLocaleString()}</div><button class="invest-btn" onclick="Game.invest('systems',${inv.level},${inv.cost})" ${canBuy ? '' : 'disabled'}>${T('inv.invest')}</button>`}
             </div>`;
         });
         html += '</div>';
 
         // Offices (only show ports on current route, excluding home port)
-        html += '<div class="invest-section"><h4>🏢 지사 설립</h4>';
+        html += `<div class="invest-section"><h4>${T('inv.office')}</h4>`;
         INVESTMENTS.office.filter(inv => s.route.ports.includes(inv.port) && inv.port !== s.route.ports[0]).forEach(inv => {
             const done = s.infra.offices[inv.port];
             const canBuy = !done && afford(inv.cost);
             html += `<div class="invest-item ${done ? 'done' : (!canBuy ? 'locked' : '')}">
                 <div class="invest-icon">${inv.icon}</div>
                 <div class="invest-info"><div class="invest-name">${inv.name} ${done ? '✅' : ''}</div><div class="invest-effect">${inv.effect}</div></div>
-                ${done ? '' : `<div class="invest-cost">$${inv.cost.toLocaleString()}</div><button class="invest-btn" onclick="Game.investOffice('${inv.port}',${inv.cost})" ${canBuy ? '' : 'disabled'}>설립</button>`}
+                ${done ? '' : `<div class="invest-cost">$${inv.cost.toLocaleString()}</div><button class="invest-btn" onclick="Game.investOffice('${inv.port}',${inv.cost})" ${canBuy ? '' : 'disabled'}>${T('inv.establish')}</button>`}
             </div>`;
         });
         html += '</div>';
 
         // Ship upgrade
-        html += '<div class="invest-section"><h4>🚢 선박 업그레이드</h4>';
+        html += `<div class="invest-section"><h4>${T('inv.ship')}</h4>`;
         INVESTMENTS.ship.forEach(inv => {
             const done = s.infra.shipLevel >= inv.level;
             const canBuy = !done && s.infra.shipLevel >= inv.level - 1 && afford(inv.cost);
             html += `<div class="invest-item ${done ? 'done' : (!canBuy ? 'locked' : '')}">
                 <div class="invest-icon">${inv.icon}</div>
-                <div class="invest-info"><div class="invest-name">${inv.name} (${inv.newCap}TEU) ${done ? '✅' : ''}</div><div class="invest-effect">선복량 ${inv.newCap}TEU로 확대</div></div>
-                ${done ? '' : `<div class="invest-cost">$${inv.cost.toLocaleString()}</div><button class="invest-btn" onclick="Game.investShip(${inv.level},${inv.newCap},${inv.cost})" ${canBuy ? '' : 'disabled'}>구매</button>`}
+                <div class="invest-info"><div class="invest-name">${inv.name} (${inv.newCap}TEU) ${done ? '✅' : ''}</div><div class="invest-effect">${T('inv.shipCap')} ${inv.newCap}${T('inv.shipExpand')}</div></div>
+                ${done ? '' : `<div class="invest-cost">$${inv.cost.toLocaleString()}</div><button class="invest-btn" onclick="Game.investShip(${inv.level},${inv.newCap},${inv.cost})" ${canBuy ? '' : 'disabled'}>${T('inv.buy')}</button>`}
             </div>`;
         });
         html += '</div>';
 
         // Containers — purchase per port with location-based pricing
-        html += '<div class="invest-section"><h4>📦 컨테이너 구매</h4>';
-        html += '<div style="font-size:10px;color:var(--t3);padding:4px 8px">구매 항구에 바로 배치됩니다. 해외 항구는 비싸지만 재배치 비용이 절약됩니다.</div>';
+        html += `<div class="invest-section"><h4>${T('inv.ctrBuy')}</h4>`;
+        html += `<div style="font-size:10px;color:var(--t3);padding:4px 8px">${T('inv.ctrBuyDesc')}</div>`;
 
         // Get all active ports (main route + slot charters)
         const ctrPorts = [...s.route.ports];
@@ -3296,7 +3325,7 @@ const Game = {
         const priceMult = getPortPriceMult(selPort);
         const selPortName = this.getPortName(selPort);
         const portCtr = s.ctr[selPort] || { '20': 0, '40': 0 };
-        html += `<div style="font-size:10px;color:var(--accent2);padding:2px 8px">📍 ${selPortName} — 현재 20':${portCtr['20']} / 40':${portCtr['40']}${priceMult > 1 ? ` | 가격 ×${priceMult}` : ''}</div>`;
+        html += `<div style="font-size:10px;color:var(--accent2);padding:2px 8px">📍 ${selPortName} — ${T('inv.ctrCurrent')} 20':${portCtr['20']} / 40':${portCtr['40']}${priceMult > 1 ? ` | ${T('inv.ctrPrice')} ×${priceMult}` : ''}</div>`;
 
         INVESTMENTS.containers.forEach(inv => {
             const adjCost = Math.round(inv.cost * priceMult);
@@ -3305,17 +3334,17 @@ const Game = {
                 <div class="invest-icon">${inv.icon}</div>
                 <div class="invest-info"><div class="invest-name">${inv.name}</div><div class="invest-effect">${selPortName}에 배치</div></div>
                 <div class="invest-cost">$${adjCost.toLocaleString()}</div>
-                <button class="invest-btn" onclick="Game.buyContainers(${inv.add20},${inv.add40},${adjCost},'${selPort}')" ${canBuy ? '' : 'disabled'}>구매</button>
+                <button class="invest-btn" onclick="Game.buyContainers(${inv.add20},${inv.add40},${adjCost},'${selPort}')" ${canBuy ? '' : 'disabled'}>${T('inv.buy')}</button>
             </div>`;
         });
         html += '</div>';
 
         // Recruitment — all from benchPool (draft unpicked + fired + scout pool)
         const allRecruits = (s.benchPool || []).filter(r => !s.salesTeam.find(st => st.id === r.id));
-        html += '<div class="invest-section"><h4>👥 영업사원 스카우트</h4>';
-        html += `<div style="font-size:10px;color:var(--t3);padding:4px 8px">현재 ${s.salesTeam.length}명 | 해고: [영업팀] 탭 → 영업사원 클릭 → 해고 | 스카우트 풀: ${allRecruits.length}명</div>`;
+        html += `<div class="invest-section"><h4>${T('inv.recruit')}</h4>`;
+        html += `<div style="font-size:10px;color:var(--t3);padding:4px 8px">${T('inv.recruitCurrent')} ${s.salesTeam.length}${T('common.people')} | ${T('inv.recruitFire')}: ${T('tab.sales')} → ${T('sales.fire')} | ${T('inv.recruitPool')}: ${allRecruits.length}${T('common.people')}</div>`;
         if (allRecruits.length === 0) {
-            html += '<div style="font-size:11px;color:var(--t3);padding:8px">모든 영업사원이 채용되었습니다.</div>';
+            html += `<div style="font-size:11px;color:var(--t3);padding:8px">${T('inv.allRecruited')}</div>`;
         }
         // Sort: unlocked first, then by skill desc
         allRecruits.sort((a, b) => {
@@ -3328,33 +3357,33 @@ const Game = {
             const unlocked = s.stats.totRev >= (r.unlockRev || 0);
             const canBuy = unlocked && afford(r.recruitCost);
             const t = r.traits || {};
-            const tierLabel = (r.skill >= 5) ? '<span style="font-size:9px;color:#FFD700">전설</span>' :
-                              (r.skill >= 4) ? '<span style="font-size:9px;color:#C0C0C0">고급</span>' :
-                              (r.skill >= 3) ? '<span style="font-size:9px;color:#CD7F32">중급</span>' : '';
+            const tierLabel = (r.skill >= 5) ? `<span style="font-size:9px;color:#FFD700">${T('tier.legend')}</span>` :
+                              (r.skill >= 4) ? `<span style="font-size:9px;color:#C0C0C0">${T('tier.high')}</span>` :
+                              (r.skill >= 3) ? `<span style="font-size:9px;color:#CD7F32">${T('tier.mid')}</span>` : '';
             html += `<div class="invest-item ${!unlocked ? 'locked' : ''}">
                 <div class="invest-icon">${r.avatar}</div>
                 <div class="invest-info">
                     <div class="invest-name">${r.name} ${'⭐'.repeat(r.skill || 1)} ${tierLabel} ${r.position ? '<span style="font-size:9px;color:var(--accent2)">'+r.position+'</span>' : ''} ${!unlocked ? '🔒' : ''}</div>
                     <div class="invest-effect">${r.desc || ''}</div>
                     <div class="trait-mini" style="margin-top:2px">
-                        <span data-tip="협상력">🤝${t.negotiation||0}</span>
-                        <span data-tip="대면력">🚶${t.faceToFace||0}</span>
-                        <span data-tip="IT역량">💻${t.digital||0}</span>
-                        <span data-tip="관계력">💛${t.relationship||0}</span>
-                        <span style="color:var(--t3)">| 💰 $${r.salary}/월</span>
+                        <span data-tip="${T('draft.negotiation')}">🤝${t.negotiation||0}</span>
+                        <span data-tip="${T('draft.faceToFace')}">🚶${t.faceToFace||0}</span>
+                        <span data-tip="${T('draft.digital')}">💻${t.digital||0}</span>
+                        <span data-tip="${T('draft.relationship')}">💛${t.relationship||0}</span>
+                        <span style="color:var(--t3)">| 💰 $${r.salary}/${T('common.month')}</span>
                     </div>
-                    ${!unlocked ? `<div style="font-size:9px;color:var(--yellow);margin-top:2px">매출 $${(r.unlockRev/1e3).toFixed(0)}K 달성 시 해금</div>` : ''}
+                    ${!unlocked ? `<div style="font-size:9px;color:var(--yellow);margin-top:2px">${T('inv.unlockAt')} $${(r.unlockRev/1e3).toFixed(0)}K</div>` : ''}
                 </div>
                 <div class="invest-cost">$${r.recruitCost.toLocaleString()}</div>
-                <button class="invest-btn" onclick="Game.recruitSales('${r.id}')" ${canBuy ? '' : 'disabled'}>스카우트</button>
+                <button class="invest-btn" onclick="Game.recruitSales('${r.id}')" ${canBuy ? '' : 'disabled'}>${T('inv.scout')}</button>
             </div>`;
         });
         html += '</div>';
 
         // === New Route Expansion ===
         if (typeof NEW_ROUTE_PACKAGES !== 'undefined') {
-            html += '<div class="invest-section"><h4>🌏 신규항로 개척 (자사선 투입)</h4>';
-            html += '<div style="font-size:10px;color:var(--t3);padding:4px 8px">자사 선박·컨테이너·해외사무실을 갖추고 새로운 항로를 개척합니다.</div>';
+            html += `<div class="invest-section"><h4>${T('inv.newRoute')}</h4>`;
+            html += `<div style="font-size:10px;color:var(--t3);padding:4px 8px">${T('inv.newRouteDesc')}</div>`;
             if (!s.ownedRoutes) s.ownedRoutes = [];
             NEW_ROUTE_PACKAGES.filter(pkg => {
                 // Hide counter-routes that don't match the starting route
@@ -3389,41 +3418,41 @@ const Game = {
                         <div style="display:flex;align-items:center;gap:8px;width:100%">
                             <div class="invest-icon">🌏</div>
                             <div class="invest-info" style="flex:1">
-                                <div class="invest-name">${pkg.nameKo} <span style="font-size:9px;color:var(--green)">운영 중</span> <span style="font-size:9px;color:var(--t3)">V.${owned.voyNum || 0}</span></div>
-                                <div class="invest-effect">${portList} | ${pkg.vesselSize}TEU × ${pkg.shipCount}척 | ${pkg.rotationDays}일</div>
+                                <div class="invest-name">${D(pkg,'name')} <span style="font-size:9px;color:var(--green)">${T('inv.operating')}</span> <span style="font-size:9px;color:var(--t3)">V.${owned.voyNum || 0}</span></div>
+                                <div class="invest-effect">${portList} | ${pkg.vesselSize}TEU × ${pkg.shipCount}${T('common.ships')} | ${pkg.rotationDays}${T('common.day')}</div>
                             </div>
-                            <button class="btn-sm" onclick="Game._expandedWithdrawRoute=Game._expandedWithdrawRoute==='${pkg.id}'?null:'${pkg.id}';Game.renderInvestments()" style="font-size:9px;padding:2px 6px;background:var(--card2);color:var(--red)">${orExpanded ? '▲ 접기' : '⚠ 철수'}</button>
+                            <button class="btn-sm" onclick="Game._expandedWithdrawRoute=Game._expandedWithdrawRoute==='${pkg.id}'?null:'${pkg.id}';Game.renderInvestments()" style="font-size:9px;padding:2px 6px;background:var(--card2);color:var(--red)">${orExpanded ? T('withdraw.collapse') : T('withdraw.btn')}</button>
                         </div>
                         ${orExpanded ? `<div style="width:100%;margin-top:8px;padding:10px;background:rgba(244,67,54,.05);border:1px solid var(--red);border-radius:8px;font-size:11px">
-                            <div style="font-weight:700;color:var(--red);margin-bottom:8px">⚠️ 항로 철수 — 손익 분석</div>
+                            <div style="font-weight:700;color:var(--red);margin-bottom:8px">${T('withdraw.routeTitle')}</div>
                             <table style="width:100%;border-collapse:collapse;font-size:11px">
                                 <tr style="border-bottom:1px solid var(--border)">
-                                    <td style="padding:4px 0;color:var(--green)">🚢 선박 매각 (${pkg.shipCount}척, 시가 50%)</td>
+                                    <td style="padding:4px 0;color:var(--green)">${T('withdraw.shipSale')} (${pkg.shipCount}${T('common.ships')}, ${T('withdraw.marketRate')} 50%)</td>
                                     <td style="text-align:right;color:var(--green);font-weight:600">+$${shipSaleValue.toLocaleString()}</td>
                                 </tr>
                                 <tr style="border-bottom:1px solid var(--border)">
-                                    <td style="padding:4px 0;color:var(--green)">📦 컨테이너 처분 (시가 30%)</td>
+                                    <td style="padding:4px 0;color:var(--green)">${T('withdraw.ctrDispose')} (${T('withdraw.marketRate')} 30%)</td>
                                     <td style="text-align:right;color:var(--green);font-weight:600">+$${ctrSaleValue.toLocaleString()}</td>
                                 </tr>
                                 <tr style="border-bottom:1px solid var(--border)">
-                                    <td style="padding:4px 0;color:var(--green)">🏢 사무실 정리 (${pkg.officePorts.length}곳, 보증금 20%)</td>
+                                    <td style="padding:4px 0;color:var(--green)">${T('withdraw.officeClose')} (${pkg.officePorts.length}${T('common.places')}, ${T('withdraw.deposit')} 20%)</td>
                                     <td style="text-align:right;color:var(--green);font-weight:600">+$${officeSaleValue.toLocaleString()}</td>
                                 </tr>
                                 ${routeLoan ? `<tr style="border-bottom:1px solid var(--border)">
-                                    <td style="padding:4px 0;color:var(--red)">🏦 잔여 대출 조기상환</td>
+                                    <td style="padding:4px 0;color:var(--red)">${T('withdraw.loanRepay')}</td>
                                     <td style="text-align:right;color:var(--red);font-weight:600">-$${loanRemaining.toLocaleString()}</td>
                                 </tr>` : ''}
                                 <tr style="font-weight:700;${netRecovery >= 0 ? 'color:var(--green)' : 'color:var(--red)'}">
-                                    <td style="padding:6px 0">순 회수 금액</td>
+                                    <td style="padding:6px 0">${T('withdraw.netRecovery')}</td>
                                     <td style="text-align:right;font-size:13px">${netRecovery >= 0 ? '+' : ''}$${netRecovery.toLocaleString()}</td>
                                 </tr>
                             </table>
                             <div style="margin-top:6px;padding:6px;background:var(--card2);border-radius:6px;font-size:10px;color:var(--t3)">
-                                ⚠️ 해당 항로의 화주 관계·시장 점유율이 초기화됩니다.<br>
-                                ⚠️ 관련 사무실이 폐쇄되고 컨테이너가 처분됩니다.
+                                ${T('withdraw.warnMarket')}<br>
+                                ${T('withdraw.warnOffice')}
                             </div>
                             <button class="btn-primary" onclick="Game.withdrawOwnedRoute('${pkg.id}')" style="width:100%;margin-top:8px;background:var(--red);font-size:12px">
-                                🚫 항로 철수 확정 (${netRecovery >= 0 ? '+' : ''}$${netRecovery.toLocaleString()})
+                                ${T('withdraw.confirmRoute')} (${netRecovery >= 0 ? '+' : ''}$${netRecovery.toLocaleString()})
                             </button>
                         </div>` : ''}
                     </div>`;
@@ -3436,40 +3465,40 @@ const Game = {
                         <div style="display:flex;align-items:center;gap:8px;width:100%">
                             <div class="invest-icon">🌏</div>
                             <div class="invest-info" style="flex:1;min-width:0">
-                                <div class="invest-name">${pkg.nameKo} ${!unlocked ? '🔒' : ''} <span style="font-size:9px;color:${pkg.color}">${pkg.difficulty}</span></div>
+                                <div class="invest-name">${D(pkg,'name')} ${!unlocked ? '🔒' : ''} <span style="font-size:9px;color:${pkg.color}">${D(pkg,'difficulty')}</span></div>
                                 <div class="invest-effect" style="word-break:break-word">${portList}</div>
-                                <div style="font-size:10px;color:var(--t3)">${pkg.vesselSize}TEU × ${pkg.shipCount}척 | ${pkg.rotationDays}일 로테이션</div>
-                                ${!unlocked ? `<div style="font-size:10px;color:var(--yellow);margin-top:3px;font-weight:600">🔒 해금 조건: 누적 매출 $${pkg.unlockRevenue >= 1e6 ? (pkg.unlockRevenue/1e6).toFixed(0)+'M' : (pkg.unlockRevenue/1e3).toFixed(0)+'K'}<br><span style="font-size:9px;font-weight:400">현재 매출: $${this._shortNum(s.stats.totRev)} (${Math.min(100, Math.round(s.stats.totRev / pkg.unlockRevenue * 100))}%)</span></div>` : ''}
+                                <div style="font-size:10px;color:var(--t3)">${pkg.vesselSize}TEU × ${pkg.shipCount}${T('common.ships')} | ${pkg.rotationDays}${T('common.day')}</div>
+                                ${!unlocked ? `<div style="font-size:10px;color:var(--yellow);margin-top:3px;font-weight:600">🔒 ${T('inv.unlockAt')} $${pkg.unlockRevenue >= 1e6 ? (pkg.unlockRevenue/1e6).toFixed(0)+'M' : (pkg.unlockRevenue/1e3).toFixed(0)+'K'}<br><span style="font-size:9px;font-weight:400">${T('inv.currentRev')}: $${this._shortNum(s.stats.totRev)} (${Math.min(100, Math.round(s.stats.totRev / pkg.unlockRevenue * 100))}%)</span></div>` : ''}
                             </div>
                             <div style="text-align:right;flex-shrink:0">
                                 <div class="invest-cost">$${pkg.totalInvestment.toLocaleString()}</div>
-                                ${unlocked ? `<button class="btn-sm" onclick="Game._expandedRoute=Game._expandedRoute==='${pkg.id}'?null:'${pkg.id}';Game.renderInvestments()" style="font-size:9px;padding:2px 6px;margin-top:3px">${expanded ? '▲ 접기' : '▼ 상세'}</button>` : ''}
+                                ${unlocked ? `<button class="btn-sm" onclick="Game._expandedRoute=Game._expandedRoute==='${pkg.id}'?null:'${pkg.id}';Game.renderInvestments()" style="font-size:9px;padding:2px 6px;margin-top:3px">${expanded ? T('inv.collapse') : T('inv.detail')}</button>` : ''}
                             </div>
                         </div>`;
 
                     if (expanded && unlocked) {
                         html += `<div style="width:100%;margin-top:8px;padding:10px;background:var(--bg);border-radius:8px;font-size:11px">
-                            <div style="font-weight:700;margin-bottom:8px;color:var(--t1)">📋 투자 내역서</div>
+                            <div style="font-weight:700;margin-bottom:8px;color:var(--t1)">${T('inv.investSheet')}</div>
                             <table style="width:100%;border-collapse:collapse;font-size:11px">
                                 <tr style="border-bottom:1px solid var(--border)">
-                                    <td style="padding:4px 0">🚢 선박 (${pkg.vesselSize}TEU급 × ${pkg.shipCount}척)</td>
+                                    <td style="padding:4px 0">${T('inv.shipItem')} (${pkg.vesselSize}TEU × ${pkg.shipCount}${T('common.ships')})</td>
                                     <td style="text-align:right;font-weight:600">$${shipTotal.toLocaleString()}</td>
                                 </tr>
                                 <tr style="border-bottom:1px solid var(--border)">
-                                    <td style="padding:4px 0">📦 컨테이너 (20'×${pkg.containerSet['20']} + 40'×${pkg.containerSet['40']})</td>
+                                    <td style="padding:4px 0">${T('inv.ctrItem')} (20'×${pkg.containerSet['20']} + 40'×${pkg.containerSet['40']})</td>
                                     <td style="text-align:right;font-weight:600">$${pkg.containerCost.toLocaleString()}</td>
                                 </tr>
                                 ${pkg.officePorts.map(op => `<tr style="border-bottom:1px solid var(--border)">
-                                    <td style="padding:4px 0">🏢 ${pkg.portNames[op]} 사무실 개설</td>
+                                    <td style="padding:4px 0">${T('inv.officeItem')} ${pkg.portNames[op]}</td>
                                     <td style="text-align:right;font-weight:600">$${pkg.officeCostEach.toLocaleString()}</td>
                                 </tr>`).join('')}
                                 <tr style="font-weight:700;color:var(--accent)">
-                                    <td style="padding:6px 0">총 투자금액</td>
+                                    <td style="padding:6px 0">${T('inv.totalInvest')}</td>
                                     <td style="text-align:right;font-size:13px">$${pkg.totalInvestment.toLocaleString()}</td>
                                 </tr>
                             </table>
                             <div style="margin-top:8px;padding:6px;background:var(--card2);border-radius:6px;font-size:10px;color:var(--t3)">
-                                <div>⛽ 연료비/일: $${pkg.fuelCostPerDay.toLocaleString()} | 항비/기항: $${pkg.portFeesPerCall.toLocaleString()} | 고정비/주: $${pkg.weeklyFixedCost.toLocaleString()}</div>
+                                <div>⛽ ${T('inv.fuelPerDay')}: $${pkg.fuelCostPerDay.toLocaleString()} | ${T('inv.portFees')}: $${pkg.portFeesPerCall.toLocaleString()} | ${T('inv.weeklyFixed')}: $${pkg.weeklyFixedCost.toLocaleString()}</div>
                             </div>`;
 
                         if (unlocked) {
@@ -3480,23 +3509,23 @@ const Game = {
                             const dispMonthly = Math.round(loanAmt / 24);
                             const dispInterest = Math.round(loanAmt * dispRate / 100 / 12);
                             html += `<div style="margin-top:10px;padding:10px;background:rgba(33,150,243,.1);border:1px solid var(--accent);border-radius:8px">
-                                <div style="font-weight:700;font-size:12px;color:var(--accent);margin-bottom:6px">🏦 선박금융 + 항로 개척</div>
+                                <div style="font-weight:700;font-size:12px;color:var(--accent);margin-bottom:6px">${T('inv.loanTitle')}</div>
                                 <div style="font-size:10px;color:var(--t2);display:grid;grid-template-columns:1fr 1fr;gap:4px">
-                                    <span>총 투자금: $${pkg.totalInvestment.toLocaleString()}</span>
-                                    <span>자기자본: $${Math.round(pkg.totalInvestment - loanAmt).toLocaleString()}</span>
-                                    <span>대출금: <strong style="color:var(--accent)">$${loanAmt.toLocaleString()}</strong></span>
-                                    <span>대출 연이율: <strong style="color:var(--yellow)">${dispRate}%</strong></span>
-                                    <span>월 상환금: ~$${dispMonthly.toLocaleString()}</span>
-                                    <span>월 이자: ~$${dispInterest.toLocaleString()}</span>
+                                    <span>${T('inv.totalInvestLabel')}: $${pkg.totalInvestment.toLocaleString()}</span>
+                                    <span>${T('inv.equity')}: $${Math.round(pkg.totalInvestment - loanAmt).toLocaleString()}</span>
+                                    <span>${T('inv.loanAmt')}: <strong style="color:var(--accent)">$${loanAmt.toLocaleString()}</strong></span>
+                                    <span>${T('inv.annualRate')}: <strong style="color:var(--yellow)">${dispRate}%</strong></span>
+                                    <span>${T('inv.monthlyRepay')}: ~$${dispMonthly.toLocaleString()}</span>
+                                    <span>${T('inv.monthlyInterest')}: ~$${dispInterest.toLocaleString()}</span>
                                 </div>
                                 <div style="font-size:9px;color:var(--t3);margin-top:4px">* 24개월 분할상환 | 수수료 $${dispFee.toLocaleString()}</div>
                                 <button class="btn-primary" onclick="Game.buyNewRouteWithLoan('${pkg.id}')" ${s.cash >= (pkg.totalInvestment - loanAmt) ? '' : 'disabled'} style="width:100%;margin-top:8px;font-size:12px;background:#1565C0">
-                                    🏦 대출 실행 + 항로 개척
+                                    ${T('inv.loanExec')}
                                 </button>
-                                ${s.cash < (pkg.totalInvestment - loanAmt) ? `<div style="font-size:9px;color:var(--red);margin-top:4px">⚠️ 자기자본 부족 (필요: $${Math.round(pkg.totalInvestment - loanAmt).toLocaleString()})</div>` : ''}
+                                ${s.cash < (pkg.totalInvestment - loanAmt) ? `<div style="font-size:9px;color:var(--red);margin-top:4px">${T('inv.equityShort')}</div>` : ''}
                             </div>`;
                         } else {
-                            html += `<button class="btn-primary" disabled style="width:100%;margin-top:10px;font-size:12px">현금 부족</button>`;
+                            html += `<button class="btn-primary" disabled style="width:100%;margin-top:10px;font-size:12px">${T('inv.noFunds')}</button>`;
                         }
                         html += `</div>`;
                     }
@@ -3508,8 +3537,8 @@ const Game = {
 
         // Slot Charters
         if (typeof SLOT_CHARTERS !== 'undefined') {
-            html += '<div class="invest-section"><h4>🚢 슬롯 차터 (경쟁사 선복 구매)</h4>';
-            html += '<div style="font-size:10px;color:var(--t3);padding:4px 8px">경쟁사 모선의 선복을 구매하여 새 항로에 진출합니다. 자사 선박 없이 영업 가능!</div>';
+            html += `<div class="invest-section"><h4>${T('inv.slotCharter')}</h4>`;
+            html += `<div style="font-size:10px;color:var(--t3);padding:4px 8px">${T('inv.slotCharterDesc')}</div>`;
             if (!s.slotCharters) s.slotCharters = [];
             SLOT_CHARTERS.forEach(sc => {
                 const owned = s.slotCharters.find(o => o.id === sc.id);
@@ -3538,38 +3567,38 @@ const Game = {
                         <div style="display:flex;align-items:center;gap:8px;width:100%">
                             <div class="invest-icon">🚢</div>
                             <div class="invest-info" style="flex:1">
-                                <div class="invest-name">${sc.nameKo} <span style="font-size:9px;color:var(--green)">운영 중</span></div>
+                                <div class="invest-name">${D(sc,'name')} <span style="font-size:9px;color:var(--green)">${T('inv.operating')}</span></div>
                                 <div class="invest-effect">${sc.carrier} ${sc.vesselName} | ${portList}</div>
-                                <div style="font-size:10px;color:var(--t3);margin-top:2px">📦 ${sc.slotCapacity} TEU | 💰 항차당 $${sc.slotFeePerVoyage.toLocaleString()} | V.${owned.voyNum || 1}</div>
+                                <div style="font-size:10px;color:var(--t3);margin-top:2px">📦 ${sc.slotCapacity} TEU | 💰 ${T('inv.perVoyage')} $${sc.slotFeePerVoyage.toLocaleString()} | V.${owned.voyNum || 1}</div>
                             </div>
-                            <button class="btn-sm" onclick="Game._expandedWithdrawSC=Game._expandedWithdrawSC==='${sc.id}'?null:'${sc.id}';Game.renderInvestments()" style="font-size:9px;padding:2px 6px;background:var(--card2);color:var(--red)">${scExpanded ? '▲ 접기' : '⚠ 철수'}</button>
+                            <button class="btn-sm" onclick="Game._expandedWithdrawSC=Game._expandedWithdrawSC==='${sc.id}'?null:'${sc.id}';Game.renderInvestments()" style="font-size:9px;padding:2px 6px;background:var(--card2);color:var(--red)">${scExpanded ? T('withdraw.collapse') : T('withdraw.btn')}</button>
                         </div>
                         ${scExpanded ? `<div style="width:100%;margin-top:8px;padding:10px;background:rgba(244,67,54,.05);border:1px solid var(--red);border-radius:8px;font-size:11px">
-                            <div style="font-weight:700;color:var(--red);margin-bottom:8px">⚠️ 슬롯차터 철수 — 손익 분석</div>
+                            <div style="font-weight:700;color:var(--red);margin-bottom:8px">${T('withdraw.scTitle')}</div>
                             <table style="width:100%;border-collapse:collapse;font-size:11px">
                                 <tr style="border-bottom:1px solid var(--border)">
-                                    <td style="padding:4px 0;color:var(--green)">🚢 슬롯 계약 해지 위약금 환급 (30%)</td>
+                                    <td style="padding:4px 0;color:var(--green)">${T('withdraw.slotCancel')} (30%)</td>
                                     <td style="text-align:right;color:var(--green);font-weight:600">+$${scSlotRefund.toLocaleString()}</td>
                                 </tr>
                                 <tr style="border-bottom:1px solid var(--border)">
-                                    <td style="padding:4px 0;color:var(--green)">🏢 사무실 정리 (${scOfficePorts.length}곳, 보증금 20%)</td>
+                                    <td style="padding:4px 0;color:var(--green)">${T('withdraw.officeClose')} (${scOfficePorts.length}${T('common.places')}, ${T('withdraw.deposit')} 20%)</td>
                                     <td style="text-align:right;color:var(--green);font-weight:600">+$${scOfficeRefund.toLocaleString()}</td>
                                 </tr>
                                 ${scLoan ? `<tr style="border-bottom:1px solid var(--border)">
-                                    <td style="padding:4px 0;color:var(--red)">🏦 잔여 대출 조기상환</td>
+                                    <td style="padding:4px 0;color:var(--red)">${T('withdraw.loanRepay')}</td>
                                     <td style="text-align:right;color:var(--red);font-weight:600">-$${scLoanRemain.toLocaleString()}</td>
                                 </tr>` : ''}
                                 <tr style="font-weight:700;${scNetRecovery >= 0 ? 'color:var(--green)' : 'color:var(--red)'}">
-                                    <td style="padding:6px 0">순 회수 금액</td>
+                                    <td style="padding:6px 0">${T('withdraw.netRecovery')}</td>
                                     <td style="text-align:right;font-size:13px">${scNetRecovery >= 0 ? '+' : ''}$${scNetRecovery.toLocaleString()}</td>
                                 </tr>
                             </table>
                             <div style="margin-top:6px;padding:6px;background:var(--card2);border-radius:6px;font-size:10px;color:var(--t3)">
-                                ⚠️ 해당 항로의 화주 관계·시장 점유율이 초기화됩니다.<br>
-                                ⚠️ 슬롯 사용료 부담이 즉시 사라집니다.
+                                ${T('withdraw.warnMarket')}<br>
+                                ${T('withdraw.warnSlot')}
                             </div>
                             <button class="btn-primary" onclick="Game.withdrawSlotCharter('${sc.id}')" style="width:100%;margin-top:8px;background:var(--red);font-size:12px">
-                                🚫 슬롯차터 철수 확정 (${scNetRecovery >= 0 ? '+' : ''}$${scNetRecovery.toLocaleString()})
+                                ${T('withdraw.confirmSC')} (${scNetRecovery >= 0 ? '+' : ''}$${scNetRecovery.toLocaleString()})
                             </button>
                         </div>` : ''}
                     </div>`;
@@ -3578,29 +3607,29 @@ const Game = {
                         <div style="display:flex;align-items:center;gap:8px;width:100%">
                             <div class="invest-icon">🚢</div>
                             <div class="invest-info" style="flex:1;min-width:0">
-                                <div class="invest-name">${sc.nameKo} ${!unlocked ? '🔒' : ''} <span style="font-size:9px;color:${sc.color}">${sc.difficulty}</span></div>
+                                <div class="invest-name">${D(sc,'name')} ${!unlocked ? '🔒' : ''} <span style="font-size:9px;color:${sc.color}">${D(sc,'difficulty')}</span></div>
                                 <div class="invest-effect" style="word-break:break-word">${sc.carrier} 모선 선복 ${sc.slotCapacity} TEU</div>
                                 <div style="font-size:10px;color:var(--t3);margin-top:2px">${portList} | ${sc.rotationDays}일 로테이션</div>
                                 <div style="font-size:10px;color:var(--t2);margin-top:2px">
                                     💰 슬롯비: $${sc.slotCost.toLocaleString()} + 🏢 사무실 ${scOfficePorts.length}곳: $${scOfficeCost.toLocaleString()}
                                 </div>
-                                <div style="font-size:10px;color:var(--yellow);margin-top:2px">항차당 슬롯비: $${sc.slotFeePerVoyage.toLocaleString()}</div>
-                                ${!unlocked ? `<div style="font-size:10px;color:var(--yellow);margin-top:3px;font-weight:600">🔒 해금 조건: 누적 매출 $${sc.unlockRevenue >= 1e6 ? (sc.unlockRevenue/1e6).toFixed(0)+'M' : (sc.unlockRevenue/1e3).toFixed(0)+'K'}<br><span style="font-size:9px;font-weight:400">현재 매출: $${this._shortNum(s.stats.totRev)} (${Math.min(100, Math.round(s.stats.totRev / sc.unlockRevenue * 100))}%)</span></div>` : ''}
+                                <div style="font-size:10px;color:var(--yellow);margin-top:2px">${T('inv.perVoyage')}: $${sc.slotFeePerVoyage.toLocaleString()}</div>
+                                ${!unlocked ? `<div style="font-size:10px;color:var(--yellow);margin-top:3px;font-weight:600">🔒 ${T('inv.unlockAt')} $${sc.unlockRevenue >= 1e6 ? (sc.unlockRevenue/1e6).toFixed(0)+'M' : (sc.unlockRevenue/1e3).toFixed(0)+'K'}<br><span style="font-size:9px;font-weight:400">${T('inv.currentRev')}: $${this._shortNum(s.stats.totRev)} (${Math.min(100, Math.round(s.stats.totRev / sc.unlockRevenue * 100))}%)</span></div>` : ''}
                             </div>
                             <div style="text-align:right;flex-shrink:0">
                                 <div class="invest-cost">$${scTotalCost.toLocaleString()}</div>
-                                ${canBuy ? `<button class="invest-btn" onclick="Game.buySlotCharter('${sc.id}')">구매</button>` : ''}
+                                ${canBuy ? `<button class="invest-btn" onclick="Game.buySlotCharter('${sc.id}')">${T('inv.buy')}</button>` : ''}
                             </div>
                         </div>`;
 
                     if (scNeedsLoan) {
                         html += `<div style="width:100%;margin-top:8px;padding:8px;background:rgba(33,150,243,.1);border:1px solid var(--accent);border-radius:8px;font-size:10px">
-                            <div style="font-weight:700;color:var(--accent);margin-bottom:4px">🏦 대출로 슬롯 차터</div>
+                            <div style="font-weight:700;color:var(--accent);margin-bottom:4px">${T('inv.slotLoan')}</div>
                             <div style="color:var(--t2);display:flex;gap:8px;flex-wrap:wrap">
-                                <span>부족: <strong style="color:var(--red)">$${scShortage.toLocaleString()}</strong></span>
-                                <span>연이율: <strong style="color:var(--yellow)">${scLoanRate}%</strong></span>
-                                <span>월 상환: ~$${scMonthlyRepay.toLocaleString()}</span>
-                                <span>월 이자: ~$${scMonthlyInterest.toLocaleString()}</span>
+                                <span>${T('inv.shortage')}: <strong style="color:var(--red)">$${scShortage.toLocaleString()}</strong></span>
+                                <span>${T('inv.annualRate')}: <strong style="color:var(--yellow)">${scLoanRate}%</strong></span>
+                                <span>${T('inv.monthlyRepay')}: ~$${scMonthlyRepay.toLocaleString()}</span>
+                                <span>${T('inv.monthlyInterest')}: ~$${scMonthlyInterest.toLocaleString()}</span>
                             </div>
                             <button class="btn-primary" onclick="Game.buySlotCharterWithLoan('${sc.id}')" style="width:100%;margin-top:6px;font-size:11px;background:#1565C0;padding:6px">
                                 🏦 대출 실행 + 슬롯 차터 ($${scTotalCost.toLocaleString()})
@@ -3618,10 +3647,10 @@ const Game = {
             if (!s.loans) s.loans = [];
             const totalDebt = s.debt;
             const baseInvest = s.route.investmentCost;
-            html += '<div class="invest-section"><h4>🏦 은행 대출</h4>';
+            html += `<div class="invest-section"><h4>${T('inv.bankLoan')}</h4>`;
             html += '<div style="font-size:10px;color:var(--t3);padding:4px 8px;display:flex;justify-content:space-between">';
-            html += `<span>현재 부채: $${Math.round(totalDebt).toLocaleString()}</span>`;
-            html += `<span>대출 이력: ${s.loans.length}건</span>`;
+            html += `<span>${T('loan.currentDebt')}: $${Math.round(totalDebt).toLocaleString()}</span>`;
+            html += `<span>${T('loan.history')}: ${s.loans.length}${T('fin.cases')}</span>`;
             html += '</div>';
 
             BANK_LOANS.forEach(loan => {
@@ -3639,24 +3668,24 @@ const Game = {
                         <div class="invest-name">${loan.name} ${!unlocked ? '🔒' : ''}</div>
                         <div class="invest-effect">${loan.desc}</div>
                         <div style="font-size:10px;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;color:var(--t2)">
-                            <span>💰 대출금: <strong style="color:var(--green)">$${loan.amount.toLocaleString()}</strong></span>
-                            <span>📊 연이율: <strong style="color:var(--yellow)">${loan.annualRate}%</strong></span>
-                            <span>🏷️ 수수료: $${fee.toLocaleString()} (${(loan.originFee * 100).toFixed(1)}%)</span>
+                            <span>${T('loan.amount')}: <strong style="color:var(--green)">$${loan.amount.toLocaleString()}</strong></span>
+                            <span>${T('loan.rate')}: <strong style="color:var(--yellow)">${loan.annualRate}%</strong></span>
+                            <span>${T('loan.fee')}: $${fee.toLocaleString()} (${(loan.originFee * 100).toFixed(1)}%)</span>
                         </div>
                         <div style="font-size:9px;margin-top:2px;color:var(--t3)">
-                            실수령: $${netAmount.toLocaleString()} | 월 이자: ~$${monthlyInterest.toLocaleString()} | 부채한도: $${debtLimit.toLocaleString()}
+                            ${T('loan.net')}: $${netAmount.toLocaleString()} | ${T('loan.monthInt')}: ~$${monthlyInterest.toLocaleString()} | ${T('loan.debtLimit')}: $${debtLimit.toLocaleString()}
                         </div>
-                        ${!unlocked ? `<div style="font-size:9px;color:var(--yellow);margin-top:2px">매출 $${loan.unlockRev >= 1e6 ? (loan.unlockRev/1e6).toFixed(0)+'M' : (loan.unlockRev/1e3).toFixed(0)+'K'} 달성 시 이용 가능</div>` : ''}
-                        ${unlocked && wouldExceed ? `<div style="font-size:9px;color:var(--red);margin-top:2px">⚠️ 부채한도 초과 — 대출 불가</div>` : ''}
+                        ${!unlocked ? `<div style="font-size:9px;color:var(--yellow);margin-top:2px">${T('inv.unlockAt')} $${loan.unlockRev >= 1e6 ? (loan.unlockRev/1e6).toFixed(0)+'M' : (loan.unlockRev/1e3).toFixed(0)+'K'} — ${T('loan.available')}</div>` : ''}
+                        ${unlocked && wouldExceed ? `<div style="font-size:9px;color:var(--red);margin-top:2px">${T('loan.overLimitWarn')}</div>` : ''}
                     </div>
-                    <button class="invest-btn" onclick="Game.takeLoan('${loan.id}')" ${canTake ? '' : 'disabled'}>대출</button>
+                    <button class="invest-btn" onclick="Game.takeLoan('${loan.id}')" ${canTake ? '' : 'disabled'}>${T('loan.btn')}</button>
                 </div>`;
             });
             html += '</div>';
         }
 
         // Promotions
-        html += '<div class="invest-section"><h4>📢 프로모션</h4>';
+        html += `<div class="invest-section"><h4>${T('inv.promo')}</h4>`;
         if (!s.promos) s.promos = [];
         PROMOTIONS.forEach(p => {
             const active = s.promos.find(ap => ap.id === p.id && ap.endsDay > s.gameDay);
@@ -3664,11 +3693,11 @@ const Game = {
             html += `<div class="promo-item ${active ? 'active-promo' : ''}">
                 <div class="promo-icon">${p.icon}</div>
                 <div class="promo-info">
-                    <div class="promo-name">${p.name} ${active ? `<span style="color:var(--yellow);font-size:10px">진행 중 (D${active.endsDay}까지)</span>` : ''}</div>
+                    <div class="promo-name">${p.name} ${active ? `<span style="color:var(--yellow);font-size:10px">${T('promo.active')} (D${active.endsDay}${T('promo.until')})</span>` : ''}</div>
                     <div class="promo-effect">${p.effect}</div>
                 </div>
                 ${active ? '' : `<div class="promo-cost">$${p.cost.toLocaleString()}</div>
-                <button class="invest-btn" onclick="Game.runPromo('${p.id}')" ${canBuy ? '' : 'disabled'}>실행</button>`}
+                <button class="invest-btn" onclick="Game.runPromo('${p.id}')" ${canBuy ? '' : 'disabled'}>${T('promo.run')}</button>`}
             </div>`;
         });
         html += '</div>';
@@ -3682,7 +3711,7 @@ const Game = {
         if (!loan) return;
         const debtLimit = s.route.investmentCost * loan.maxDebtRatio;
         if ((s.debt + loan.amount) > debtLimit) {
-            this.toast('부채한도를 초과합니다!', 'err');
+            this.toast(T('loan.overLimit'), 'err');
             return;
         }
         const fee = Math.round(loan.amount * loan.originFee);
@@ -3704,7 +3733,7 @@ const Game = {
     runPromo(promoId) {
         const s = this.state;
         const p = PROMOTIONS.find(x => x.id === promoId);
-        if (!p || !this.canAfford(p.cost)) { this.toast('부채 한도 초과!', 'err'); return; }
+        if (!p || !this.canAfford(p.cost)) { this.toast(T('inv.debtOver'), 'err'); return; }
         s.cash -= p.cost;
         s.stats.totExp += p.cost;
         if (!s.promos) s.promos = [];
@@ -3775,10 +3804,10 @@ const Game = {
         const officePorts = sc.officePorts || sc.ports.filter(p => p !== 'PUS');
         const officeCost = (sc.officeCostEach || 25000) * officePorts.length;
         const totalCost = sc.slotCost + officeCost;
-        if (!this.canAfford(totalCost)) { this.toast('자금 부족! (슬롯비 + 사무실 개설비)', 'err'); return; }
-        if (s.stats.totRev < (sc.unlockRevenue || 0)) { this.toast('매출 조건 미달!', 'err'); return; }
+        if (!this.canAfford(totalCost)) { this.toast(T('inv.noFunds'), 'err'); return; }
+        if (s.stats.totRev < (sc.unlockRevenue || 0)) { this.toast(T('inv.revNotMet'), 'err'); return; }
         if (!s.slotCharters) s.slotCharters = [];
-        if (s.slotCharters.find(o => o.id === sc.id)) { this.toast('이미 운영 중!', 'err'); return; }
+        if (s.slotCharters.find(o => o.id === sc.id)) { this.toast(T('inv.alreadyActive'), 'err'); return; }
 
         s.cash -= sc.slotCost;
         s.stats.totExp += sc.slotCost;
@@ -3786,7 +3815,7 @@ const Game = {
 
         const ofc = this._initSlotCharter(sc);
 
-        this.toast(`🚢 ${sc.nameKo} 슬롯 차터 개시! (사무실 ${officePorts.length}곳 개설)`, 'ok');
+        this.toast(`🚢 ${D(sc,'name')} 슬롯 차터 개시! (사무실 ${officePorts.length}곳 개설)`, 'ok');
         this.addFeed(`🚢 ${sc.carrier} ${sc.vesselName} 선복 구매! 🏢 사무실 ${officePorts.length}곳 개설 ($${ofc.toLocaleString()})`, 'alert');
         this.renderInvestments();
         this.updateHUD();
@@ -3796,9 +3825,9 @@ const Game = {
         const s = this.state;
         const sc = SLOT_CHARTERS.find(x => x.id === scId);
         if (!sc) return;
-        if (s.stats.totRev < (sc.unlockRevenue || 0)) { this.toast('매출 조건 미달!', 'err'); return; }
+        if (s.stats.totRev < (sc.unlockRevenue || 0)) { this.toast(T('inv.revNotMet'), 'err'); return; }
         if (!s.slotCharters) s.slotCharters = [];
-        if (s.slotCharters.find(o => o.id === sc.id)) { this.toast('이미 운영 중!', 'err'); return; }
+        if (s.slotCharters.find(o => o.id === sc.id)) { this.toast(T('inv.alreadyActive'), 'err'); return; }
 
         const officePorts = sc.officePorts || sc.ports.filter(p => p !== 'PUS');
         const officeCost = (sc.officeCostEach || 25000) * officePorts.length;
@@ -3811,7 +3840,7 @@ const Game = {
         s.debt += shortage;
         s.stats.totExp += loanFee;
         if (!s.loans) s.loans = [];
-        s.loans.push({ id: 'loan_slot_' + sc.id, name: `슬롯차터 대출 (${sc.nameKo})`, amount: shortage, rate: loanRate, fee: loanFee, day: s.gameDay, ts: Date.now() });
+        s.loans.push({ id: 'loan_slot_' + sc.id, name: `슬롯차터 대출 (${D(sc,'name')})`, amount: shortage, rate: loanRate, fee: loanFee, day: s.gameDay, ts: Date.now() });
 
         // Deduct slot cost
         s.cash -= sc.slotCost;
@@ -3821,8 +3850,8 @@ const Game = {
         // Init charter (includes office + containers)
         const ofc = this._initSlotCharter(sc);
 
-        this.toast(`🏦 대출 $${shortage.toLocaleString()} → 🚢 ${sc.nameKo} 개시! 🏢 사무실 ${officePorts.length}곳`, 'ok');
-        this.addFeed(`🏦 대출 $${shortage.toLocaleString()} (연 ${loanRate}%) → 🚢 ${sc.nameKo} + 🏢 사무실 개설`, 'alert');
+        this.toast(`🏦 대출 $${shortage.toLocaleString()} → 🚢 ${D(sc,'name')} 개시! 🏢 사무실 ${officePorts.length}곳`, 'ok');
+        this.addFeed(`🏦 대출 $${shortage.toLocaleString()} (연 ${loanRate}%) → 🚢 ${D(sc,'name')} + 🏢 사무실 개설`, 'alert');
         this.renderInvestments();
         this.updateHUD();
     },
@@ -3831,9 +3860,9 @@ const Game = {
         const s = this.state;
         const pkg = NEW_ROUTE_PACKAGES.find(x => x.id === pkgId);
         if (!pkg) return;
-        if (s.stats.totRev < (pkg.unlockRevenue || 0)) { this.toast('매출 조건 미달!', 'err'); return; }
+        if (s.stats.totRev < (pkg.unlockRevenue || 0)) { this.toast(T('inv.revNotMet'), 'err'); return; }
         if (!s.ownedRoutes) s.ownedRoutes = [];
-        if (s.ownedRoutes.find(o => o.id === pkg.id)) { this.toast('이미 운영 중!', 'err'); return; }
+        if (s.ownedRoutes.find(o => o.id === pkg.id)) { this.toast(T('inv.alreadyActive'), 'err'); return; }
 
         // Always require loan (minimum 40% of investment)
         const shortage = Math.max(0, pkg.totalInvestment - Math.max(0, s.cash));
@@ -3842,13 +3871,13 @@ const Game = {
         const loanFee = Math.round(loanAmt * 0.01);
         const equity = pkg.totalInvestment - loanAmt;
 
-        if (s.cash < equity) { this.toast('자기자본 부족!', 'err'); return; }
+        if (s.cash < equity) { this.toast(T('inv.equityShort'), 'err'); return; }
 
         // Take loan
         s.debt += loanAmt;
         s.stats.totExp += loanFee;
         if (!s.loans) s.loans = [];
-        s.loans.push({ id: 'loan_route_' + pkg.id, name: `선박금융 (${pkg.nameKo})`, amount: loanAmt, rate: loanRate, fee: loanFee, day: s.gameDay, ts: Date.now() });
+        s.loans.push({ id: 'loan_route_' + pkg.id, name: `선박금융 (${D(pkg,'name')})`, amount: loanAmt, rate: loanRate, fee: loanFee, day: s.gameDay, ts: Date.now() });
 
         // Deduct equity from cash
         s.cash -= equity;
@@ -3870,8 +3899,8 @@ const Game = {
         // Expand market to include new route lanes
         this.expandMarket(pkg);
 
-        this.toast(`🏦 대출 $${shortage.toLocaleString()} 실행 → 🌏 ${pkg.nameKo} 항로 개척!`, 'ok');
-        this.addFeed(`🏦 대출 $${shortage.toLocaleString()} (연 ${loanRate}%) → 🌏 ${pkg.nameKo} 개통!`, 'alert');
+        this.toast(`🏦 대출 $${shortage.toLocaleString()} 실행 → 🌏 ${D(pkg,'name')} 항로 개척!`, 'ok');
+        this.addFeed(`🏦 대출 $${shortage.toLocaleString()} (연 ${loanRate}%) → 🌏 ${D(pkg,'name')} 개통!`, 'alert');
         this.renderInvestments();
         this.updateHUD();
     },
@@ -3930,7 +3959,7 @@ const Game = {
                     s.stats.totExp += expenses;
                     s.stats.totTEU += totalTEU;
 
-                    this.addFeed(`🚢 ${sc.nameKo} V.${charter.voyNum} 완료 — ${totalTEU}TEU (${lf}%) ${profit >= 0 ? '💰' : '📛'} $${Math.abs(Math.round(profit)).toLocaleString()}`, profit >= 0 ? 'good' : 'alert');
+                    this.addFeed(`🚢 ${D(sc,'name')} V.${charter.voyNum} 완료 — ${totalTEU}TEU (${lf}%) ${profit >= 0 ? '💰' : '📛'} $${Math.abs(Math.round(profit)).toLocaleString()}`, profit >= 0 ? 'good' : 'alert');
 
                     charter.voyNum++;
                     charter.daysSinceLast = 0;
@@ -3999,7 +4028,7 @@ const Game = {
                 s.stats.totTEU += totalTEU;
 
                 route.voyNum = (route.voyNum || 0) + 1;
-                this.addFeed(`🌏 ${pkg.nameKo} V.${route.voyNum} 완료 — ${totalTEU}TEU (${lf}%) ${profit >= 0 ? '💰' : '📛'} $${Math.abs(Math.round(profit)).toLocaleString()}`, profit >= 0 ? 'good' : 'alert');
+                this.addFeed(`🌏 ${D(pkg,'name')} V.${route.voyNum} 완료 — ${totalTEU}TEU (${lf}%) ${profit >= 0 ? '💰' : '📛'} $${Math.abs(Math.round(profit)).toLocaleString()}`, profit >= 0 ? 'good' : 'alert');
 
                 route.voyage.dayCounter = 0;
             }
@@ -4084,8 +4113,8 @@ const Game = {
         s.slotCharters.splice(idx, 1);
         this._expandedWithdrawSC = null;
 
-        this.toast(`🚫 ${sc.nameKo} 철수 완료! ${netRecovery >= 0 ? '+' : ''}$${netRecovery.toLocaleString()}`, netRecovery >= 0 ? 'ok' : 'err');
-        this.addFeed(`🚫 ${sc.nameKo} 슬롯차터 철수 — ${netRecovery >= 0 ? '회수' : '손실'} $${Math.abs(netRecovery).toLocaleString()}`, 'alert');
+        this.toast(`🚫 ${D(sc,'name')} 철수 완료! ${netRecovery >= 0 ? '+' : ''}$${netRecovery.toLocaleString()}`, netRecovery >= 0 ? 'ok' : 'err');
+        this.addFeed(`🚫 ${D(sc,'name')} 슬롯차터 철수 — ${netRecovery >= 0 ? '회수' : '손실'} $${Math.abs(netRecovery).toLocaleString()}`, 'alert');
         this.renderInvestments();
         this.updateHUD();
     },
@@ -4164,8 +4193,8 @@ const Game = {
         s.ownedRoutes.splice(idx, 1);
         this._expandedWithdrawRoute = null;
 
-        this.toast(`🚫 ${pkg.nameKo} 항로 철수 완료! ${netRecovery >= 0 ? '+' : ''}$${netRecovery.toLocaleString()}`, netRecovery >= 0 ? 'ok' : 'err');
-        this.addFeed(`🚫 ${pkg.nameKo} 자사선 철수 — 선박 매각 +$${shipSaleValue.toLocaleString()} | 순 ${netRecovery >= 0 ? '회수' : '손실'} $${Math.abs(netRecovery).toLocaleString()}`, 'alert');
+        this.toast(`🚫 ${D(pkg,'name')} 항로 철수 완료! ${netRecovery >= 0 ? '+' : ''}$${netRecovery.toLocaleString()}`, netRecovery >= 0 ? 'ok' : 'err');
+        this.addFeed(`🚫 ${D(pkg,'name')} 자사선 철수 — 선박 매각 +$${shipSaleValue.toLocaleString()} | 순 ${netRecovery >= 0 ? '회수' : '손실'} $${Math.abs(netRecovery).toLocaleString()}`, 'alert');
         this.renderInvestments();
         this.updateHUD();
     },
@@ -4185,7 +4214,7 @@ const Game = {
 
     invest(type, level, cost) {
         const s = this.state;
-        if (!this.canAfford(cost)) { this.toast('부채 한도 초과!', 'err'); return; }
+        if (!this.canAfford(cost)) { this.toast(T('inv.debtOver'), 'err'); return; }
         s.cash -= cost; s.stats.totExp += cost;
         s.infra[type] = level;
         const labels = { training: '영업 교육', systems: '경영 시스템', it: 'IT 시스템' };
@@ -4197,7 +4226,7 @@ const Game = {
 
     investPersonalTraining(spIdx, level, cost) {
         const s = this.state;
-        if (!this.canAfford(cost)) { this.toast('부채 한도 초과!', 'err'); return; }
+        if (!this.canAfford(cost)) { this.toast(T('inv.debtOver'), 'err'); return; }
         const sp = s.salesTeam[spIdx];
         if (!sp) return;
         s.cash -= cost; s.stats.totExp += cost;
@@ -4212,29 +4241,29 @@ const Game = {
 
     investOffice(port, cost) {
         const s = this.state;
-        if (!this.canAfford(cost)) { this.toast('부채 한도 초과!', 'err'); return; }
+        if (!this.canAfford(cost)) { this.toast(T('inv.debtOver'), 'err'); return; }
         s.cash -= cost; s.stats.totExp += cost;
         s.infra.offices[port] = true;
-        this.toast(`${s.route.portNames[port]} 지사 설립!`, 'ok');
+        this.toast(`${s.route.portNames[port]} ${T('inv.establish')}!`, 'ok');
         this.renderInvestments();
         this.updateHUD();
     },
 
     investShip(level, newCap, cost) {
         const s = this.state;
-        if (!this.canAfford(cost)) { this.toast('부채 한도 초과!', 'err'); return; }
+        if (!this.canAfford(cost)) { this.toast(T('inv.debtOver'), 'err'); return; }
         s.cash -= cost; s.stats.totExp += cost;
         s.infra.shipLevel = level;
         s.ship.capacity = newCap;
-        this.toast(`선박 업그레이드! ${newCap}TEU`, 'ok');
-        this.addFeed(`🚢 선박 업그레이드 완료! 선복량 ${newCap}TEU`, 'alert');
+        this.toast(`${T('inv.ship')}! ${newCap}TEU`, 'ok');
+        this.addFeed(`🚢 ${T('inv.ship')} ${T('inv.shipCap')} ${newCap}TEU`, 'alert');
         this.renderInvestments();
         this.updateAll();
     },
 
     buyContainers(add20, add40, cost, port) {
         const s = this.state;
-        if (!this.canAfford(cost)) { this.toast('부채 한도 초과!', 'err'); return; }
+        if (!this.canAfford(cost)) { this.toast(T('inv.debtOver'), 'err'); return; }
         s.cash -= cost; s.stats.totExp += cost;
         const targetPort = port || s.route.ports[0];
         if (!s.ctr[targetPort]) s.ctr[targetPort] = { '20': 0, '40': 0 };
@@ -4255,40 +4284,40 @@ const Game = {
         // === Summary Cards ===
         let html = `
         <div class="fin-grid">
-            <div class="fin-card"><span class="fin-val" style="color:var(--green)">$${Math.round(s.cash).toLocaleString()}</span><span class="fin-label">보유 현금</span></div>
-            <div class="fin-card"><span class="fin-val" style="color:var(--red)">$${Math.round(s.debt).toLocaleString()}</span><span class="fin-label">부채</span></div>
-            <div class="fin-card"><span class="fin-val" style="color:var(--green)">$${Math.round(s.stats.totRev).toLocaleString()}</span><span class="fin-label">누적 매출</span></div>
-            <div class="fin-card"><span class="fin-val" style="color:var(--red)">$${Math.round(totExp).toLocaleString()}</span><span class="fin-label">누적 비용</span></div>
-            <div class="fin-card"><span class="fin-val" style="color:${netProfit >= 0 ? 'var(--green)' : 'var(--red)'}">$${Math.round(netProfit).toLocaleString()}</span><span class="fin-label">누적 손익</span></div>
-            <div class="fin-card"><span class="fin-val">${s.stats.totVoy}</span><span class="fin-label">총 항차</span></div>
+            <div class="fin-card"><span class="fin-val" style="color:var(--green)">$${Math.round(s.cash).toLocaleString()}</span><span class="fin-label">${T('fin.cashLabel')}</span></div>
+            <div class="fin-card"><span class="fin-val" style="color:var(--red)">$${Math.round(s.debt).toLocaleString()}</span><span class="fin-label">${T('fin.debtLabel')}</span></div>
+            <div class="fin-card"><span class="fin-val" style="color:var(--green)">$${Math.round(s.stats.totRev).toLocaleString()}</span><span class="fin-label">${T('fin.cumRev')}</span></div>
+            <div class="fin-card"><span class="fin-val" style="color:var(--red)">$${Math.round(totExp).toLocaleString()}</span><span class="fin-label">${T('fin.cumExp')}</span></div>
+            <div class="fin-card"><span class="fin-val" style="color:${netProfit >= 0 ? 'var(--green)' : 'var(--red)'}">$${Math.round(netProfit).toLocaleString()}</span><span class="fin-label">${T('fin.cumProfit')}</span></div>
+            <div class="fin-card"><span class="fin-val">${s.stats.totVoy}</span><span class="fin-label">${T('fin.voyage')}</span></div>
         </div>`;
 
         // === P&L Statement ===
-        html += '<h4 style="font-size:13px;color:var(--t2);margin:12px 0 8px">📊 손익계산서 (누적)</h4>';
+        html += `<h4 style="font-size:13px;color:var(--t2);margin:12px 0 8px">${T('fin.pnl')}</h4>`;
         html += '<div style="background:var(--card2);border-radius:8px;padding:10px;margin-bottom:12px">';
         // Revenue
-        html += '<div class="fin-row" style="font-weight:600"><span>매출 (운임 수입)</span><span style="color:var(--green)">$' + Math.round(s.stats.totRev).toLocaleString() + '</span></div>';
+        html += '<div class="fin-row" style="font-weight:600"><span>' + T('fin.revenue') + '</span><span style="color:var(--green)">$' + Math.round(s.stats.totRev).toLocaleString() + '</span></div>';
         // Expenses breakdown
         const voyExp = s.stats.history.reduce((sum, h) => sum + h.exp, 0);
         const salaryExp = teamCost * Math.floor(s.gameDay / 30); // approximate salary paid
         const investExp = totExp - voyExp - salaryExp;
         html += '<div style="border-top:1px solid var(--border);margin:6px 0;padding-top:6px">';
-        html += '<div class="fin-row"><span style="color:var(--t3)">항해 비용 (연료+항비)</span><span style="color:var(--red)">-$' + Math.round(voyExp).toLocaleString() + '</span></div>';
-        html += '<div class="fin-row"><span style="color:var(--t3)">인건비 ($' + teamCost.toLocaleString() + '/월)</span><span style="color:var(--red)">-$' + Math.round(Math.max(0, salaryExp)).toLocaleString() + '</span></div>';
-        html += '<div class="fin-row"><span style="color:var(--t3)">투자/기타 비용</span><span style="color:var(--red)">-$' + Math.round(Math.max(0, investExp)).toLocaleString() + '</span></div>';
+        html += '<div class="fin-row"><span style="color:var(--t3)">' + T('fin.voyageCost') + '</span><span style="color:var(--red)">-$' + Math.round(voyExp).toLocaleString() + '</span></div>';
+        html += '<div class="fin-row"><span style="color:var(--t3)">' + T('fin.salaryCost') + ' ($' + teamCost.toLocaleString() + '/' + T('fin.perMonth') + ')</span><span style="color:var(--red)">-$' + Math.round(Math.max(0, salaryExp)).toLocaleString() + '</span></div>';
+        html += '<div class="fin-row"><span style="color:var(--t3)">' + T('fin.otherCost') + '</span><span style="color:var(--red)">-$' + Math.round(Math.max(0, investExp)).toLocaleString() + '</span></div>';
         html += '</div>';
         // Net
-        html += '<div class="fin-row" style="font-weight:700;border-top:2px solid var(--border);padding-top:6px;margin-top:6px"><span>순이익</span><span style="color:' + (netProfit >= 0 ? 'var(--green)' : 'var(--red)') + '">$' + Math.round(netProfit).toLocaleString() + '</span></div>';
+        html += '<div class="fin-row" style="font-weight:700;border-top:2px solid var(--border);padding-top:6px;margin-top:6px"><span>' + T('fin.netProfit') + '</span><span style="color:' + (netProfit >= 0 ? 'var(--green)' : 'var(--red)') + '">$' + Math.round(netProfit).toLocaleString() + '</span></div>';
         // Margin
         if (s.stats.totRev > 0) {
             const margin = Math.round((netProfit / s.stats.totRev) * 100);
-            html += '<div class="fin-row"><span style="color:var(--t3)">이익률</span><span style="color:' + (margin >= 0 ? 'var(--green)' : 'var(--red)') + '">' + margin + '%</span></div>';
+            html += '<div class="fin-row"><span style="color:var(--t3)">' + T('fin.profitMargin') + '</span><span style="color:' + (margin >= 0 ? 'var(--green)' : 'var(--red)') + '">' + margin + '%</span></div>';
         }
         html += '</div>';
 
         // === Per-Voyage P&L ===
         if (s.stats.history.length > 0) {
-            html += '<h4 style="font-size:13px;color:var(--t2);margin:12px 0 8px">🚢 항차별 채산</h4>';
+            html += `<h4 style="font-size:13px;color:var(--t2);margin:12px 0 8px">${T('fin.voyagePnl')}</h4>`;
 
             // Average stats
             const avgRev = Math.round(s.stats.history.reduce((s, h) => s + h.rev, 0) / s.stats.history.length);
@@ -4298,16 +4327,16 @@ const Game = {
             html += `<div style="background:var(--card2);border-radius:8px;padding:10px;margin-bottom:8px">
                 <div style="font-size:11px;color:var(--t3);margin-bottom:6px">📊 항차 평균</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;text-align:center;font-size:11px">
-                    <div><div style="font-weight:700;color:var(--green)">$${avgRev.toLocaleString()}</div><div style="font-size:9px;color:var(--t3)">매출</div></div>
-                    <div><div style="font-weight:700;color:var(--red)">$${avgExp.toLocaleString()}</div><div style="font-size:9px;color:var(--t3)">비용</div></div>
-                    <div><div style="font-weight:700;color:${avgProfit >= 0 ? 'var(--green)' : 'var(--red)'}">$${avgProfit.toLocaleString()}</div><div style="font-size:9px;color:var(--t3)">이익</div></div>
-                    <div><div style="font-weight:700">${avgLF}%</div><div style="font-size:9px;color:var(--t3)">적재율</div></div>
+                    <div><div style="font-weight:700;color:var(--green)">$${avgRev.toLocaleString()}</div><div style="font-size:9px;color:var(--t3)">${T('fin.rev')}</div></div>
+                    <div><div style="font-weight:700;color:var(--red)">$${avgExp.toLocaleString()}</div><div style="font-size:9px;color:var(--t3)">${T('fin.exp')}</div></div>
+                    <div><div style="font-weight:700;color:${avgProfit >= 0 ? 'var(--green)' : 'var(--red)'}">$${avgProfit.toLocaleString()}</div><div style="font-size:9px;color:var(--t3)">${T('fin.profit')}</div></div>
+                    <div><div style="font-weight:700">${avgLF}%</div><div style="font-size:9px;color:var(--t3)">${T('fin.loadFactor')}</div></div>
                 </div>
             </div>`;
 
             // Per-voyage table with expandable detail
             html += '<div style="background:var(--card2);border-radius:8px;padding:10px">';
-            html += '<div style="display:grid;grid-template-columns:60px 1fr 1fr 1fr 50px;gap:4px;font-size:10px;color:var(--t3);padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:4px"><span>항차</span><span style="text-align:right">매출</span><span style="text-align:right">비용</span><span style="text-align:right">손익</span><span style="text-align:right">적재율</span></div>';
+            html += `<div style="display:grid;grid-template-columns:60px 1fr 1fr 1fr 50px;gap:4px;font-size:10px;color:var(--t3);padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:4px"><span>${T('fin.voyage')}</span><span style="text-align:right">${T('fin.rev')}</span><span style="text-align:right">${T('fin.exp')}</span><span style="text-align:right">${T('fin.profit')}</span><span style="text-align:right">${T('fin.loadFactor')}</span></div>`;
             [...s.stats.history].reverse().forEach((h, idx) => {
                 const profitColor = h.profit >= 0 ? 'var(--green)' : 'var(--red)';
                 const lfColor = h.lf >= 70 ? 'var(--green)' : (h.lf >= 40 ? 'var(--yellow)' : 'var(--red)');
@@ -4333,26 +4362,26 @@ const Game = {
                 const margin = h.rev > 0 ? Math.round((h.profit / h.rev) * 100) : 0;
                 html += `<div id="${detailId}" style="display:none;background:var(--bg);border-radius:6px;padding:8px;margin:4px 0 8px;font-size:10px">
                     <div style="font-weight:600;margin-bottom:4px;color:var(--t2)">V.${String(h.voy).padStart(3,'0')} 상세 채산</div>
-                    <div class="fin-row"><span style="color:var(--green)">운임 매출</span><span style="color:var(--green)">+$${h.rev.toLocaleString()}</span></div>
+                    <div class="fin-row"><span style="color:var(--green)">${T('fin.freightRev')}</span><span style="color:var(--green)">+$${h.rev.toLocaleString()}</span></div>
                     <div style="border-top:1px solid var(--border);margin:4px 0"></div>
-                    <div class="fin-row"><span>⛽ 연료비 + 항비</span><span style="color:var(--red)">-$${fp.toLocaleString()}</span></div>
-                    <div class="fin-row"><span>🏢 주간 고정비</span><span style="color:var(--red)">-$${fc.toLocaleString()}</span></div>
-                    <div class="fin-row"><span>🏦 이자 + 상환</span><span style="color:var(--red)">-$${ir.toLocaleString()}</span></div>
-                    <div class="fin-row"><span>🔧 정비 + 급유</span><span style="color:var(--red)">-$${rm.toLocaleString()}</span></div>
-                    ${salAct > 0 ? `<div class="fin-row"><span>👥 영업활동비 (접대/방문 등)</span><span style="color:var(--red)">-$${salAct.toLocaleString()}</span></div>` : ''}
-                    ${boost > 0 ? `<div class="fin-row"><span>🚀 화주 부스터</span><span style="color:var(--red)">-$${boost.toLocaleString()}</span></div>` : ''}
-                    ${repoA > 0 ? `<div class="fin-row"><span>🚛 엠티 회수 (자동)</span><span style="color:var(--red)">-$${repoA.toLocaleString()}</span></div>` : ''}
-                    ${repoU > 0 ? `<div class="fin-row"><span>🚛 엠티 재배치 (수동)</span><span style="color:var(--red)">-$${repoU.toLocaleString()}</span></div>` : ''}
+                    <div class="fin-row"><span>${T('fin.fuelPort')}</span><span style="color:var(--red)">-$${fp.toLocaleString()}</span></div>
+                    <div class="fin-row"><span>${T('fin.weeklyFixed')}</span><span style="color:var(--red)">-$${fc.toLocaleString()}</span></div>
+                    <div class="fin-row"><span>${T('fin.interestRepay')}</span><span style="color:var(--red)">-$${ir.toLocaleString()}</span></div>
+                    <div class="fin-row"><span>${T('fin.maintenance')}</span><span style="color:var(--red)">-$${rm.toLocaleString()}</span></div>
+                    ${salAct > 0 ? `<div class="fin-row"><span>${T('fin.salesActivity')}</span><span style="color:var(--red)">-$${salAct.toLocaleString()}</span></div>` : ''}
+                    ${boost > 0 ? `<div class="fin-row"><span>${T('fin.boosterCost')}</span><span style="color:var(--red)">-$${boost.toLocaleString()}</span></div>` : ''}
+                    ${repoA > 0 ? `<div class="fin-row"><span>${T('fin.autoRepo')}</span><span style="color:var(--red)">-$${repoA.toLocaleString()}</span></div>` : ''}
+                    ${repoU > 0 ? `<div class="fin-row"><span>${T('fin.manualRepo')}</span><span style="color:var(--red)">-$${repoU.toLocaleString()}</span></div>` : ''}
                     <div style="border-top:2px solid var(--border);margin:4px 0"></div>
-                    <div class="fin-row" style="font-weight:700"><span>순이익</span><span style="color:${profitColor}">$${h.profit.toLocaleString()}</span></div>
-                    <div class="fin-row"><span style="color:var(--t3)">이익률</span><span style="color:${margin >= 0 ? 'var(--green)' : 'var(--red)'}">${margin}%</span></div>
+                    <div class="fin-row" style="font-weight:700"><span>${T('fin.netProfit')}</span><span style="color:${profitColor}">$${h.profit.toLocaleString()}</span></div>
+                    <div class="fin-row"><span style="color:var(--t3)">${T('fin.profitMargin')}</span><span style="color:${margin >= 0 ? 'var(--green)' : 'var(--red)'}">${margin}%</span></div>
                     <div class="fin-row"><span style="color:var(--t3)">적재량</span><span>${h.teu} TEU (${h.lf}%)</span></div>
                 </div>`;
             });
 
             // Cumulative profit chart (text-based bar chart)
             html += '<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">';
-            html += '<div style="font-size:10px;color:var(--t3);margin-bottom:4px">📈 누적 손익 추이</div>';
+            html += `<div style="font-size:10px;color:var(--t3);margin-bottom:4px">${T('fin.pnlTrend')}</div>`;
             let cumProfit = 0;
             const cumData = s.stats.history.map(h => { cumProfit += h.profit; return { voy: h.voy, cum: cumProfit }; });
             const maxAbs = Math.max(1, ...cumData.map(d => Math.abs(d.cum)));
@@ -4373,7 +4402,7 @@ const Game = {
         }
 
         // === KPI Summary ===
-        html += '<h4 style="font-size:13px;color:var(--t2);margin:12px 0 8px">📋 경영 KPI</h4>';
+        html += `<h4 style="font-size:13px;color:var(--t2);margin:12px 0 8px">${T('fin.kpi')}</h4>`;
         html += '<div style="background:var(--card2);border-radius:8px;padding:10px">';
         const avgRevPerTEU = s.stats.totTEU > 0 ? Math.round(s.stats.totRev / s.stats.totTEU) : 0;
         const debtRatio = s.stats.totRev > 0 ? Math.round((s.debt / Math.max(1, s.stats.totRev)) * 100) : 100;
@@ -4381,8 +4410,8 @@ const Game = {
         const activeCusts = Object.values(s.custs).flat().filter(c => c.share > 0).length;
         html += `<div class="fin-row"><span style="color:var(--t3)">TEU당 평균 매출</span><span>$${avgRevPerTEU.toLocaleString()}</span></div>`;
         html += `<div class="fin-row"><span style="color:var(--t3)">총 운송 TEU</span><span>${s.stats.totTEU.toLocaleString()}</span></div>`;
-        html += `<div class="fin-row"><span style="color:var(--t3)">부채 비율 (부채/매출)</span><span style="color:${debtRatio > 100 ? 'var(--red)' : 'var(--green)'}">${debtRatio}%</span></div>`;
-        html += `<div class="fin-row"><span style="color:var(--t3)">활성 화주</span><span>${activeCusts}/${totalCusts}</span></div>`;
+        html += `<div class="fin-row"><span style="color:var(--t3)">${T('fin.debtRatio')}</span><span style="color:${debtRatio > 100 ? 'var(--red)' : 'var(--green)'}">${debtRatio}%</span></div>`;
+        html += `<div class="fin-row"><span style="color:var(--t3)">${T('fin.activeCust')}</span><span>${activeCusts}/${totalCusts}</span></div>`;
         html += `<div class="fin-row"><span style="color:var(--t3)">월 인건비</span><span>$${teamCost.toLocaleString()}</span></div>`;
         html += '</div>';
 
@@ -4418,14 +4447,14 @@ const Game = {
         </div>`;
 
         // Per salesperson
-        html += '<h4 style="font-size:12px;color:var(--t2);margin:8px 0">👤 영업사원별 실적</h4>';
+        html += `<h4 style="font-size:12px;color:var(--t2);margin:8px 0">${T('fin.salesPerf')}</h4>`;
         for (const [name, d] of Object.entries(bySP)) {
             const spRate = d.total > 0 ? Math.round((d.success / d.total) * 100) : 0;
-            html += `<div class="fin-row"><span>${d.avatar} ${name} (${d.total}건, 성공 ${spRate}%)</span><span style="color:var(--green)">$${d.rev.toLocaleString()}</span></div>`;
+            html += `<div class="fin-row"><span>${d.avatar} ${name} (${d.total}${T('fin.cases')}, ${T('fin.successRate')} ${spRate}%)</span><span style="color:var(--green)">$${d.rev.toLocaleString()}</span></div>`;
         }
 
         // Recent log
-        html += '<h4 style="font-size:12px;color:var(--t2);margin:12px 0 4px">📋 최근 활동 내역</h4>';
+        html += `<h4 style="font-size:12px;color:var(--t2);margin:12px 0 4px">${T('fin.recentLog')}</h4>`;
         logs.slice(0, 20).forEach(l => {
             html += `<div class="fin-row">
                 <span style="color:var(--t3)">D${l.day}</span>
@@ -4434,7 +4463,7 @@ const Game = {
             </div>`;
         });
 
-        if (logs.length === 0) html += '<p style="color:var(--t3);font-size:12px">아직 활동 내역이 없습니다.</p>';
+        if (logs.length === 0) html += `<p style="color:var(--t3);font-size:12px">${T('fin.noActivity')}</p>`;
 
         // Active BSA contracts
         if (s.bsaContracts && s.bsaContracts.length > 0) {
@@ -4717,13 +4746,13 @@ const Game = {
         const s = this.state;
         const teu = this.getTEU();
         const daysLeft = Math.max(0, s.route.rotationDays - s.voyage.daysSinceLast);
-        document.getElementById('depart-bookings').textContent = `📦 ${teu} TEU 적재 (${Math.round(teu / s.ship.capacity * 100)}%)`;
-        document.getElementById('depart-countdown').textContent = `자동 출항: ${daysLeft}일 후`;
+        document.getElementById('depart-bookings').textContent = `📦 ${teu} ${T('depart.loaded')} (${Math.round(teu / s.ship.capacity * 100)}%)`;
+        document.getElementById('depart-countdown').textContent = `${T('depart.countdown')} ${daysLeft}${T('depart.daysLeft')}`;
         const shipStatus = document.getElementById('ship-status');
         if (shipStatus) {
             const homePort = s.route.ports[0];
             const w = this.getWeather(homePort);
-            shipStatus.textContent = `⚓ 정박 중 — ${w.icon} ${w.desc} ${w.temp}° | 출항까지 ${daysLeft}일`;
+            shipStatus.textContent = `${T('ship.docked')} — ${w.icon} ${w.desc} ${w.temp}° | ${T('depart.countdown')} ${daysLeft}${T('depart.daysLeft')}`;
         }
     },
 
@@ -4737,8 +4766,8 @@ const Game = {
         baseDate.setHours(0, 0, 0, 0);
         const d = new Date(baseDate.getTime() + (this.state.gameDay - 1) * 86400000);
         const month = d.getMonth(); // 0-11
-        const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-        const dateStr = `${d.getFullYear()}.${months[month]} ${d.getDate()}일`;
+        const months = [T('month.1'),T('month.2'),T('month.3'),T('month.4'),T('month.5'),T('month.6'),T('month.7'),T('month.8'),T('month.9'),T('month.10'),T('month.11'),T('month.12')];
+        const dateStr = `${d.getFullYear()}.${months[month]} ${d.getDate()}${T('common.day')}`;
         const season = month <= 1 || month === 11 ? 'winter' : (month <= 4 ? 'spring' : (month <= 8 ? 'summer' : 'autumn'));
         return { date: d, month, dateStr, season, year: d.getFullYear() };
     },
@@ -4747,7 +4776,7 @@ const Game = {
     getWeather(portCode) {
         const gd = this.getGameDate();
         const data = WEATHER_DATA[portCode];
-        if (!data) return { icon: '☀️', desc: '맑음', wave: 1, temp: 20, rain: false, snow: false, typhoon: false };
+        if (!data) return { icon: '☀️', desc: T('weather.clear'), wave: 1, temp: 20, rain: false, snow: false, typhoon: false };
 
         const m = data[gd.month];
         // Deterministic daily seed based on gameDay + port for consistent weather
@@ -4758,13 +4787,13 @@ const Game = {
         const wave = m.wave + (typhoon ? 2 : (rain ? 1 : 0));
 
         let icon, weatherDesc;
-        if (typhoon) { icon = '🌀'; weatherDesc = '태풍 접근'; }
-        else if (snow) { icon = '🌨️'; weatherDesc = '눈'; }
-        else if (rain && wave >= 3) { icon = '⛈️'; weatherDesc = '폭풍우'; }
-        else if (rain) { icon = '🌧️'; weatherDesc = '비'; }
-        else if (wave >= 4) { icon = '🌊'; weatherDesc = '높은 파도'; }
-        else if (m.rain > 0.3 && seed < 50) { icon = '⛅'; weatherDesc = '흐림'; }
-        else { icon = '☀️'; weatherDesc = '맑음'; }
+        if (typhoon) { icon = '🌀'; weatherDesc = T('weather.typhoon'); }
+        else if (snow) { icon = '🌨️'; weatherDesc = T('weather.snow'); }
+        else if (rain && wave >= 3) { icon = '⛈️'; weatherDesc = T('weather.storm'); }
+        else if (rain) { icon = '🌧️'; weatherDesc = T('weather.rain'); }
+        else if (wave >= 4) { icon = '🌊'; weatherDesc = T('weather.highWave'); }
+        else if (m.rain > 0.3 && seed < 50) { icon = '⛅'; weatherDesc = T('weather.cloudy'); }
+        else { icon = '☀️'; weatherDesc = T('weather.clear'); }
 
         return { icon, desc: weatherDesc, detailDesc: m.desc, wave: Math.min(5, wave), temp: m.temp, rain, snow, typhoon };
     },
@@ -4821,8 +4850,8 @@ const Game = {
     },
 
     async cloudSave(silent) {
-        if (!this.state || !this.state.co) { if (!silent) this.toast('저장할 데이터 없음', 'err'); return; }
-        if (typeof fbDb === 'undefined' || !fbDb) { if (!silent) this.toast('☁️ Firebase 연결 안됨', 'err'); return; }
+        if (!this.state || !this.state.co) { if (!silent) this.toast(T('save.noData'), 'err'); return; }
+        if (typeof fbDb === 'undefined' || !fbDb) { if (!silent) this.toast(T('save.fbNoConnect'), 'err'); return; }
         try {
             const key = this.state.co.replace(/[.#$/\[\]]/g, '_');
             const saveData = JSON.stringify(this.state);
@@ -4834,21 +4863,21 @@ const Game = {
                 day: this.state.gameDay,
                 rev: this.state.stats?.totRev || 0,
             });
-            if (!silent) this.toast('☁️ 클라우드 저장 완료!', 'ok');
+            if (!silent) this.toast(T('save.cloudOK'), 'ok');
         } catch (e) {
             console.error('Cloud save failed:', e);
-            if (!silent) this.toast('☁️ 저장 실패: ' + (e.message || '권한 오류'), 'err');
+            if (!silent) this.toast(T('save.cloudFail') + ' ' + (e.message || ''), 'err');
         }
     },
 
     async cloudLoad(companyName) {
-        if (!fbDb) { this.toast('오프라인 상태입니다', 'err'); return false; }
+        if (!fbDb) { this.toast(T('save.offline'), 'err'); return false; }
         try {
             const key = companyName.replace(/[.#$/\[\]]/g, '_');
             const snap = await fbDb.ref('saves/' + key).once('value');
             const entry = snap.val();
             if (!entry || !entry.data) {
-                this.toast('☁️ 클라우드 세이브를 찾을 수 없습니다', 'err');
+                this.toast(T('save.cloudNotFound'), 'err');
                 return false;
             }
             // Write to localStorage and load normally
@@ -4858,7 +4887,7 @@ const Game = {
             return true;
         } catch (e) {
             console.error('Cloud load error:', e);
-            this.toast('☁️ 불러오기 실패', 'err');
+            this.toast(T('save.loadFail'), 'err');
             return false;
         }
     },
@@ -4870,7 +4899,7 @@ const Game = {
             const s = JSON.parse(data);
             // Restore route reference
             s.route = ROUTES.find(r => r.id === s.route.id);
-            if (!s.route) { this.toast('저장 데이터의 항로를 찾을 수 없습니다', 'err'); return; }
+            if (!s.route) { this.toast(T('save.routeNotFound'), 'err'); return; }
 
             // === Migration: fill missing fields from code updates ===
             if (!s.prospectPool) s.prospectPool = this.initProspectPool(s.route);
@@ -4949,10 +4978,10 @@ const Game = {
             }
 
             this.startGame();
-            this.toast('✅ 저장 데이터를 불러왔습니다', 'ok');
+            this.toast(T('save.loaded'), 'ok');
         } catch (e) {
             console.error('Load error:', e);
-            this.toast('저장 데이터 오류 — 새 게임을 시작하세요', 'err');
+            this.toast(T('save.loadError'), 'err');
         }
     },
 
@@ -4977,7 +5006,7 @@ const Game = {
             uid: this._getUserId(),
             co: s.co,
             ceo: s.ceo,
-            route: s.route.nameKo || s.route.id,
+            route: D(s.route, 'name') || s.route.id,
             totRev: Math.round(s.stats.totRev),
             totExp: Math.round(s.stats.totExp),
             netProfit: Math.round(netProfit),
@@ -5053,7 +5082,7 @@ const Game = {
         const view = document.getElementById('ranking-view');
 
         // Show loading
-        view.innerHTML = '<p style="color:var(--t3);font-size:12px;text-align:center;padding:20px">🔄 랭킹 불러오는 중...</p>';
+        view.innerHTML = `<p style="color:var(--t3);font-size:12px;text-align:center;padding:20px">${T('save.rankLoading')}</p>`;
 
         // Update own entry first
         this.saveToLeaderboard();
@@ -5069,15 +5098,15 @@ const Game = {
         const myCo = s.co || '';
 
         let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
-        html += '<h4 style="font-size:14px;margin:0">🏆 해운왕 랭킹</h4>';
+        html += `<h4 style="font-size:14px;margin:0">${T('rank.title')}</h4>`;
         html += `<span style="font-size:10px;color:var(--t3)">`;
         html += isOnline
-            ? `🌐 온라인 — ${rankings.length}개 회사`
-            : `📴 오프라인 — ${rankings.length}개 회사 (로컬)`;
+            ? `${T('rank.online')} — ${rankings.length}${T('rank.companies')}`
+            : `${T('rank.offline')} — ${rankings.length}${T('rank.companies')} (${T('rank.local')})`;
         html += `</span></div>`;
 
         if (rankings.length === 0) {
-            html += '<p style="color:var(--t3);font-size:12px;text-align:center;padding:20px">아직 등록된 회사가 없습니다.<br>항차를 완료하면 자동으로 등록됩니다.</p>';
+            html += `<p style="color:var(--t3);font-size:12px;text-align:center;padding:20px">${T('rank.noCompanies')}</p>`;
             view.innerHTML = html;
             return;
         }
@@ -5088,18 +5117,18 @@ const Game = {
             const rank = rankings.indexOf(me) + 1;
             const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
             html += `<div style="background:linear-gradient(135deg,var(--card),var(--card2));border:1px solid var(--accent);border-radius:8px;padding:10px;margin-bottom:10px">
-                <div style="font-size:13px;font-weight:700">${medal} ${me.co} <span style="font-size:10px;color:var(--t2)">(내 회사)</span></div>
+                <div style="font-size:13px;font-weight:700">${medal} ${me.co} <span style="font-size:10px;color:var(--t2)">(${T('rank.myCompany')})</span></div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-top:6px;font-size:11px">
-                    <div>📈 매출<br><strong style="color:var(--green)">$${Math.round(me.totRev).toLocaleString()}</strong></div>
-                    <div>💰 순이익<br><strong style="color:${me.netProfit >= 0 ? 'var(--green)' : 'var(--red)'}">$${Math.round(me.netProfit).toLocaleString()}</strong></div>
-                    <div>🚢 항차<br><strong>${me.totVoy}회</strong></div>
-                    <div>📅 경과<br><strong>D+${me.day || 0}</strong></div>
+                    <div>📈 ${T('rank.rev')}<br><strong style="color:var(--green)">$${Math.round(me.totRev).toLocaleString()}</strong></div>
+                    <div>💰 ${T('rank.profit')}<br><strong style="color:${me.netProfit >= 0 ? 'var(--green)' : 'var(--red)'}">$${Math.round(me.netProfit).toLocaleString()}</strong></div>
+                    <div>🚢 ${T('rank.voyages')}<br><strong>${me.totVoy}${T('common.times')}</strong></div>
+                    <div>📅 ${T('rank.elapsed')}<br><strong>D+${me.day || 0}</strong></div>
                 </div>
             </div>`;
         }
 
         // Ranking table
-        html += `<div style="font-size:10px;color:var(--t3);margin-bottom:4px">순이익 기준 순위${isOnline ? ' (전체 유저)' : ''}</div>`;
+        html += `<div style="font-size:10px;color:var(--t3);margin-bottom:4px">${T('rank.byProfit')}${isOnline ? ' (' + T('rank.allUsers') + ')' : ''}</div>`;
         html += '<div class="ranking-list">';
         rankings.forEach((entry, i) => {
             const isMe = entry.co === myCo;
@@ -5108,19 +5137,19 @@ const Game = {
             html += `<div class="rank-row ${isMe ? 'rank-me' : ''}" style="display:grid;grid-template-columns:30px 1fr 70px 70px 44px 44px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;${isMe ? 'background:var(--accent)15;border-left:3px solid var(--accent)' : ''}">
                 <div style="text-align:center;font-size:13px">${medal}</div>
                 <div>
-                    <div style="font-weight:600">${entry.co}${isMe ? ' <span style="font-size:9px;color:var(--accent)">(나)</span>' : ''}</div>
+                    <div style="font-weight:600">${entry.co}${isMe ? ` <span style="font-size:9px;color:var(--accent)">(${T('rank.me')})</span>` : ''}</div>
                     <div style="font-size:9px;color:var(--t3)">${entry.ceo} | ${entry.route}</div>
                 </div>
                 <div style="text-align:right">
-                    <div style="color:var(--green);font-size:10px">매출</div>
+                    <div style="color:var(--green);font-size:10px">${T('rank.rev')}</div>
                     <div>$${this._shortNum(entry.totRev)}</div>
                 </div>
                 <div style="text-align:right">
-                    <div style="color:${profitColor};font-size:10px">순이익</div>
+                    <div style="color:${profitColor};font-size:10px">${T('rank.profit')}</div>
                     <div style="color:${profitColor}">$${this._shortNum(entry.netProfit)}</div>
                 </div>
-                <div style="text-align:right;font-size:9px;color:var(--t3)">${entry.totVoy}항차<br>LF${entry.avgLF}%</div>
-                <div style="text-align:center;font-size:10px;color:var(--accent)"><div style="font-size:9px;color:var(--t3)">경과</div><strong>D+${entry.day || 0}</strong></div>
+                <div style="text-align:right;font-size:9px;color:var(--t3)">${entry.totVoy}${T('rank.voyages')}<br>LF${entry.avgLF}%</div>
+                <div style="text-align:center;font-size:10px;color:var(--accent)"><div style="font-size:9px;color:var(--t3)">${T('rank.elapsed')}</div><strong>D+${entry.day || 0}</strong></div>
             </div>`;
         });
         html += '</div>';
@@ -5128,8 +5157,8 @@ const Game = {
         if (rankings.length > 1) {
             const best = rankings[0];
             html += '<div style="margin-top:10px;font-size:10px;color:var(--t3);display:flex;justify-content:space-between">';
-            html += `<span>🏆 최고: ${best.co} ($${this._shortNum(best.netProfit)})</span>`;
-            html += `<span>📊 평균 적재율: ${Math.round(rankings.reduce((s,e) => s + (e.avgLF||0), 0) / rankings.length)}%</span>`;
+            html += `<span>${T('rank.best')}: ${best.co} ($${this._shortNum(best.netProfit)})</span>`;
+            html += `<span>${T('rank.avgLF')}: ${Math.round(rankings.reduce((s,e) => s + (e.avgLF||0), 0) / rankings.length)}%</span>`;
             html += '</div>';
         }
 
@@ -5139,7 +5168,7 @@ const Game = {
             this.syncMarketWithRankings();
 
             html += '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">';
-            html += '<h4 style="font-size:13px;margin:0 0 8px">📊 항로별 시장 점유율</h4>';
+            html += `<h4 style="font-size:13px;margin:0 0 8px">${T('rank.marketShare')}</h4>`;
 
             const carriers = this.getMarketCarriers();
 
@@ -5154,7 +5183,7 @@ const Game = {
                 html += `<div style="margin-bottom:8px">`;
                 html += `<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px">`;
                 html += `<span>${fromN} → ${toN}</span>`;
-                html += `<span style="color:var(--accent)">주간 ${m.totalVolume}TEU | 내 점유율 ${playerShare}%</span>`;
+                html += `<span style="color:var(--accent)">${T('rank.weekly')} ${m.totalVolume}TEU | ${T('rank.myShare')} ${playerShare}%</span>`;
                 html += `</div>`;
 
                 html += `<div style="display:flex;height:14px;border-radius:3px;overflow:hidden;font-size:8px">`;
@@ -5184,7 +5213,7 @@ const Game = {
 
         // Refresh button
         html += `<div style="text-align:center;margin-top:10px">
-            <button class="btn-sm" onclick="Game._fbRankingCache=null;Game.renderRanking()" style="font-size:10px;padding:4px 12px;background:var(--card2)">🔄 새로고침</button>
+            <button class="btn-sm" onclick="Game._fbRankingCache=null;Game.renderRanking()" style="font-size:10px;padding:4px 12px;background:var(--card2)">${T('rank.refresh')}</button>
         </div>`;
 
         view.innerHTML = html;
@@ -5226,27 +5255,27 @@ const Game = {
         </div>
         <div style="display:flex;flex-direction:column;gap:8px">
             <button class="btn-primary" onclick="Game.manualSave()" style="width:100%">
-                💾 수동 저장
+                ${T('menu.save')}
             </button>
             <button class="btn-primary" onclick="Game.cloudSave(false)" style="width:100%;background:#1565C0">
-                ☁️ 클라우드 저장 (다른 기기에서 이어하기)
+                ${T('menu.cloudSave')}
             </button>
             <button class="btn-primary" onclick="Game.saveAndExit()" style="width:100%;background:#b71c1c">
-                🚪 저장 후 종료
+                ${T('menu.saveExit')}
             </button>
             <button class="btn-sm" onclick="Game.closeSaveMenu()" style="width:100%;background:var(--card2);margin-top:4px">
-                ▶ 게임으로 돌아가기
+                ${T('menu.close')}
             </button>
         </div>
         <div style="margin-top:8px;padding:8px;background:var(--card2);border-radius:6px;font-size:10px;color:var(--t3);line-height:1.5">
-            💡 다른 기기에서 이어하려면:<br>
-            1. 여기서 "☁️ 클라우드 저장" 클릭<br>
-            2. 다른 기기에서 "☁️ 클라우드 불러오기" 클릭<br>
-            3. 회사명 "<strong>${s.co}</strong>" 입력
+            💡<br>
+            1. ${T('menu.cloudDesc1')}<br>
+            2. ${T('menu.cloudDesc2')}<br>
+            3. "<strong>${s.co}</strong>"
         </div>
         <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
             <button class="btn-sm" id="btn-newco-init" onclick="document.getElementById('btn-newco-init').style.display='none';document.getElementById('newco-confirm').style.display='block'" style="width:100%;background:var(--card2);color:var(--t3);font-size:11px">
-                🏢 새 회사 설립 (현재 회사 포기)
+                ${T('menu.newCompany')}
             </button>
             <div id="newco-confirm" style="display:none;margin-top:8px;padding:10px;background:rgba(255,23,68,.08);border:1px solid rgba(255,23,68,.3);border-radius:8px">
                 <div style="font-size:11px;color:#ff5252;margin-bottom:8px;line-height:1.4">
@@ -5254,15 +5283,17 @@ const Game = {
                     랭킹 기록은 유지됩니다. 이 작업은 되돌릴 수 없습니다.
                 </div>
                 <div style="display:flex;gap:8px">
-                    <button class="btn-sm" onclick="Game.startNewCompany()" style="flex:1;background:#b71c1c;color:white;font-weight:700">확인 — 새로 시작</button>
-                    <button class="btn-sm" onclick="document.getElementById('btn-newco-init').style.display='';document.getElementById('newco-confirm').style.display='none'" style="flex:1;background:var(--card2)">취소</button>
+                    <button class="btn-sm" onclick="Game.startNewCompany()" style="flex:1;background:#b71c1c;color:white;font-weight:700">${T('common.ok')}</button>
+                    <button class="btn-sm" onclick="document.getElementById('btn-newco-init').style.display='';document.getElementById('newco-confirm').style.display='none'" style="flex:1;background:var(--card2)">${T('common.cancel')}</button>
                 </div>
             </div>
         </div>
-        <div style="font-size:9px;color:var(--t3);text-align:center;margin-top:10px;line-height:1.5">
-            게임은 매일 자동 저장됩니다.<br>
-            브라우저를 닫아도 자동 저장됩니다.<br>
-            다음 접속 시 오프라인 진행이 반영됩니다.
+        <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px;text-align:center">
+            <div style="font-size:10px;color:var(--t3);margin-bottom:6px">${T('menu.language')}</div>
+            <div style="display:flex;gap:8px;justify-content:center">
+                <button class="btn-sm" onclick="setLanguage('ko');Game.openSaveMenu()" style="padding:6px 16px;${CURRENT_LANG==='ko'?'background:var(--accent);color:white':''}">${T('menu.langKo')}</button>
+                <button class="btn-sm" onclick="setLanguage('ja');Game.openSaveMenu()" style="padding:6px 16px;${CURRENT_LANG==='ja'?'background:var(--accent);color:white':''}">${T('menu.langJa')}</button>
+            </div>
         </div>`;
 
         document.getElementById('savemenu-body').innerHTML = html;
@@ -5287,7 +5318,7 @@ const Game = {
         // Go to title — show new game button, hide load button
         this.showScreen('screen-title');
         document.getElementById('btn-load').style.display = 'none';
-        this.toast('기존 회사가 정리되었습니다. 새 회사를 설립하세요!', 'ok');
+        this.toast(T('save.resetDone'), 'ok');
     },
 
     showCloudLoadUI() {
@@ -5301,7 +5332,7 @@ const Game = {
     manualSave() {
         this.saveGame();
         this.cloudSave(false); // also cloud save on manual save
-        this.toast('💾 저장 완료!', 'ok');
+        this.toast(T('save.complete'), 'ok');
     },
 
     saveAndExit() {
@@ -5310,7 +5341,7 @@ const Game = {
         this.closeModal('modal-savemenu');
         this.showScreen('screen-title');
         document.getElementById('btn-load').style.display = 'inline-block';
-        this.toast('💾 저장 후 종료되었습니다', 'ok');
+        this.toast(T('save.exitDone'), 'ok');
     },
 
     toast(msg, type = '') {

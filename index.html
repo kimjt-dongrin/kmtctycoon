@@ -17,7 +17,13 @@
             <div class="title-ship-wrap"><div class="title-ship"></div></div>
             <button class="btn-primary btn-pulse" onclick="Game.showScreen('screen-route');Game.renderRoutes()">🚢 새 회사 설립</button>
             <button class="btn-primary" onclick="Game.loadGame()" id="btn-load" style="display:none;margin-top:8px;background:var(--card2)">📂 이어하기</button>
-            <p class="ver">v4 — Idle Management</p>
+            <button class="btn-primary" onclick="Game.showCloudLoadUI()" style="margin-top:8px;background:#1565C0">☁️ 클라우드 불러오기</button>
+            <div id="cloud-load-ui" style="display:none;margin-top:10px;text-align:center">
+                <input id="inp-cloud-co" placeholder="회사명 입력" maxlength="20" style="width:200px;padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:white;font-size:14px;text-align:center">
+                <button class="btn-primary" onclick="Game.cloudLoad(document.getElementById('inp-cloud-co').value.trim())" style="margin-top:6px;background:#1565C0;width:200px">불러오기</button>
+                <p style="font-size:10px;color:rgba(255,255,255,.5);margin-top:4px">PC에서 저장한 회사명을 정확히 입력하세요</p>
+            </div>
+            <p class="ver">v5 — Market Competition</p>
         </div>
     </div>
 

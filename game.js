@@ -4525,7 +4525,58 @@ const Game = {
             localStorage.setItem('kmtc_save', JSON.stringify(this.state));
             // Update leaderboard every save
             this.saveToLeaderboard();
+            // Cloud save (throttled: every 5 minutes)
+            this._cloudSaveThrottled();
         } catch (e) { /* ignore */ }
+    },
+
+    _cloudSaveThrottled() {
+        const now = Date.now();
+        if (this._lastCloudSave && now - this._lastCloudSave < 300000) return; // 5min throttle
+        this._lastCloudSave = now;
+        this.cloudSave(true); // silent
+    },
+
+    async cloudSave(silent) {
+        if (!fbDb || !this.state || !this.state.co) return;
+        try {
+            const key = this.state.co.replace(/[.#$/\[\]]/g, '_');
+            const saveData = JSON.stringify(this.state);
+            await fbDb.ref('saves/' + key).set({
+                data: saveData,
+                co: this.state.co,
+                ceo: this.state.ceo,
+                updatedAt: Date.now(),
+                day: this.state.gameDay,
+                rev: this.state.stats?.totRev || 0,
+            });
+            if (!silent) this.toast('☁️ 클라우드 저장 완료!', 'ok');
+        } catch (e) {
+            console.warn('Cloud save failed:', e.message);
+            if (!silent) this.toast('☁️ 클라우드 저장 실패', 'err');
+        }
+    },
+
+    async cloudLoad(companyName) {
+        if (!fbDb) { this.toast('오프라인 상태입니다', 'err'); return false; }
+        try {
+            const key = companyName.replace(/[.#$/\[\]]/g, '_');
+            const snap = await fbDb.ref('saves/' + key).once('value');
+            const entry = snap.val();
+            if (!entry || !entry.data) {
+                this.toast('☁️ 클라우드 세이브를 찾을 수 없습니다', 'err');
+                return false;
+            }
+            // Write to localStorage and load normally
+            localStorage.setItem('kmtc_save', entry.data);
+            this.loadGame();
+            this.toast(`☁️ "${companyName}" 클라우드에서 불러왔습니다!`, 'ok');
+            return true;
+        } catch (e) {
+            console.error('Cloud load error:', e);
+            this.toast('☁️ 불러오기 실패', 'err');
+            return false;
+        }
     },
 
     loadGame() {
@@ -4891,12 +4942,21 @@ const Game = {
             <button class="btn-primary" onclick="Game.manualSave()" style="width:100%">
                 💾 수동 저장
             </button>
+            <button class="btn-primary" onclick="Game.cloudSave(false)" style="width:100%;background:#1565C0">
+                ☁️ 클라우드 저장 (다른 기기에서 이어하기)
+            </button>
             <button class="btn-primary" onclick="Game.saveAndExit()" style="width:100%;background:#b71c1c">
                 🚪 저장 후 종료
             </button>
             <button class="btn-sm" onclick="Game.closeSaveMenu()" style="width:100%;background:var(--card2);margin-top:4px">
                 ▶ 게임으로 돌아가기
             </button>
+        </div>
+        <div style="margin-top:8px;padding:8px;background:var(--card2);border-radius:6px;font-size:10px;color:var(--t3);line-height:1.5">
+            💡 다른 기기에서 이어하려면:<br>
+            1. 여기서 "☁️ 클라우드 저장" 클릭<br>
+            2. 다른 기기에서 "☁️ 클라우드 불러오기" 클릭<br>
+            3. 회사명 "<strong>${s.co}</strong>" 입력
         </div>
         <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
             <button class="btn-sm" id="btn-newco-init" onclick="document.getElementById('btn-newco-init').style.display='none';document.getElementById('newco-confirm').style.display='block'" style="width:100%;background:var(--card2);color:var(--t3);font-size:11px">
@@ -4944,8 +5004,17 @@ const Game = {
         this.toast('기존 회사가 정리되었습니다. 새 회사를 설립하세요!', 'ok');
     },
 
+    showCloudLoadUI() {
+        const el = document.getElementById('cloud-load-ui');
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        if (el.style.display === 'block') {
+            document.getElementById('inp-cloud-co').focus();
+        }
+    },
+
     manualSave() {
         this.saveGame();
+        this.cloudSave(false); // also cloud save on manual save
         this.toast('💾 저장 완료!', 'ok');
     },
 

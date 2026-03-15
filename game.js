@@ -2882,9 +2882,12 @@ const Game = {
             SLOT_CHARTERS.forEach(sc => {
                 const owned = s.slotCharters.find(o => o.id === sc.id);
                 const unlocked = s.stats.totRev >= (sc.unlockRevenue || 0);
-                const canBuy = !owned && unlocked && afford(sc.slotCost);
                 const portList = sc.ports.map(p => sc.portNames[p]).join(' → ');
-                const scShortage = Math.max(0, sc.slotCost - Math.max(0, s.cash));
+                const scOfficePorts = sc.officePorts || sc.ports.filter(p => p !== 'PUS');
+                const scOfficeCost = (sc.officeCostEach || 25000) * scOfficePorts.length;
+                const scTotalCost = sc.slotCost + scOfficeCost;
+                const canBuy = !owned && unlocked && afford(scTotalCost);
+                const scShortage = Math.max(0, scTotalCost - Math.max(0, s.cash));
                 const scNeedsLoan = unlocked && !canBuy && !owned && scShortage > 0;
                 const scLoanRate = 8;
                 const scMonthlyRepay = Math.round(scShortage / 12);
@@ -2908,11 +2911,14 @@ const Game = {
                                 <div class="invest-name">${sc.nameKo} ${!unlocked ? '🔒' : ''} <span style="font-size:9px;color:${sc.color}">${sc.difficulty}</span></div>
                                 <div class="invest-effect" style="word-break:break-word">${sc.carrier} 모선 선복 ${sc.slotCapacity} TEU</div>
                                 <div style="font-size:10px;color:var(--t3);margin-top:2px">${portList} | ${sc.rotationDays}일 로테이션</div>
+                                <div style="font-size:10px;color:var(--t2);margin-top:2px">
+                                    💰 슬롯비: $${sc.slotCost.toLocaleString()} + 🏢 사무실 ${scOfficePorts.length}곳: $${scOfficeCost.toLocaleString()}
+                                </div>
                                 <div style="font-size:10px;color:var(--yellow);margin-top:2px">항차당 슬롯비: $${sc.slotFeePerVoyage.toLocaleString()}</div>
                                 ${!unlocked ? `<div style="font-size:10px;color:var(--yellow);margin-top:3px;font-weight:600">🔒 해금 조건: 누적 매출 $${sc.unlockRevenue >= 1e6 ? (sc.unlockRevenue/1e6).toFixed(0)+'M' : (sc.unlockRevenue/1e3).toFixed(0)+'K'}<br><span style="font-size:9px;font-weight:400">현재 매출: $${this._shortNum(s.stats.totRev)} (${Math.min(100, Math.round(s.stats.totRev / sc.unlockRevenue * 100))}%)</span></div>` : ''}
                             </div>
                             <div style="text-align:right;flex-shrink:0">
-                                <div class="invest-cost">$${sc.slotCost.toLocaleString()}</div>
+                                <div class="invest-cost">$${scTotalCost.toLocaleString()}</div>
                                 ${canBuy ? `<button class="invest-btn" onclick="Game.buySlotCharter('${sc.id}')">구매</button>` : ''}
                             </div>
                         </div>`;
@@ -2927,7 +2933,7 @@ const Game = {
                                 <span>월 이자: ~$${scMonthlyInterest.toLocaleString()}</span>
                             </div>
                             <button class="btn-primary" onclick="Game.buySlotCharterWithLoan('${sc.id}')" style="width:100%;margin-top:6px;font-size:11px;background:#1565C0;padding:6px">
-                                🏦 대출 실행 + 슬롯 차터 ($${sc.slotCost.toLocaleString()})
+                                🏦 대출 실행 + 슬롯 차터 ($${scTotalCost.toLocaleString()})
                             </button>
                         </div>`;
                     }
@@ -3053,43 +3059,61 @@ const Game = {
     },
 
     // ==================== SLOT CHARTER ====================
+    _initSlotCharter(sc) {
+        const s = this.state;
+        // Initialize slot charter state
+        if (!s.slotCharters) s.slotCharters = [];
+        s.slotCharters.push({
+            id: sc.id, voyNum: 1, daysSinceLast: 0,
+            status: 'port', legIdx: 0, sailProgress: 0, bookings: [],
+        });
+
+        // Office setup for new ports (PUS already has office)
+        const officePorts = sc.officePorts || sc.ports.filter(p => p !== 'PUS');
+        const officeCost = (sc.officeCostEach || 25000) * officePorts.length;
+        officePorts.forEach(p => { if (!s.infra.offices) s.infra.offices = {}; s.infra.offices[p] = true; });
+        s.cash -= officeCost;
+        s.stats.totExp += officeCost;
+
+        // Add customers for slot charter ports
+        sc.ports.forEach(p => {
+            if (!s.custs[p] && CUSTOMERS[p]) s.custs[p] = CUSTOMERS[p].map(c => ({ ...c }));
+            // Containers: 20 of each per new foreign port, PUS already has some
+            if (!s.ctr[p]) s.ctr[p] = { '20': 15, '40': 10 };
+            else {
+                // Existing port (e.g. PUS): add some extra containers for new route
+                s.ctr[p]['20'] = (s.ctr[p]['20'] || 0) + 5;
+                s.ctr[p]['40'] = (s.ctr[p]['40'] || 0) + 3;
+            }
+        });
+
+        // Add sales ports
+        if (!s.slotSalesPorts) s.slotSalesPorts = {};
+        for (const port in sc.salesPorts) s.slotSalesPorts[port] = sc.salesPorts[port];
+
+        return officeCost;
+    },
+
     buySlotCharter(scId) {
         const s = this.state;
         const sc = SLOT_CHARTERS.find(x => x.id === scId);
-        if (!sc || !this.canAfford(sc.slotCost)) { this.toast('부채 한도 초과!', 'err'); return; }
+        if (!sc) return;
+        const officePorts = sc.officePorts || sc.ports.filter(p => p !== 'PUS');
+        const officeCost = (sc.officeCostEach || 25000) * officePorts.length;
+        const totalCost = sc.slotCost + officeCost;
+        if (!this.canAfford(totalCost)) { this.toast('자금 부족! (슬롯비 + 사무실 개설비)', 'err'); return; }
         if (s.stats.totRev < (sc.unlockRevenue || 0)) { this.toast('매출 조건 미달!', 'err'); return; }
         if (!s.slotCharters) s.slotCharters = [];
         if (s.slotCharters.find(o => o.id === sc.id)) { this.toast('이미 운영 중!', 'err'); return; }
 
         s.cash -= sc.slotCost;
         s.stats.totExp += sc.slotCost;
-        s.debt += Math.round(sc.slotCost * 0.5); // 50% 부채 추가
+        s.debt += Math.round(sc.slotCost * 0.5);
 
-        // Initialize slot charter state
-        s.slotCharters.push({
-            id: sc.id, voyNum: 1, daysSinceLast: 0,
-            status: 'port', // port or sailing
-            legIdx: 0, sailProgress: 0,
-            bookings: [],
-        });
+        const ofc = this._initSlotCharter(sc);
 
-        // Add customers for slot charter ports
-        sc.ports.forEach(p => {
-            if (!s.custs[p] && CUSTOMERS[p]) {
-                s.custs[p] = CUSTOMERS[p].map(c => ({ ...c }));
-            }
-            // Add containers for new ports
-            if (!s.ctr[p]) s.ctr[p] = { '20': 10, '40': 10 };
-        });
-
-        // Add sales ports to route (so salespeople can target them)
-        if (!s.slotSalesPorts) s.slotSalesPorts = {};
-        for (const port in sc.salesPorts) {
-            s.slotSalesPorts[port] = sc.salesPorts[port];
-        }
-
-        this.toast(`🚢 ${sc.nameKo} 슬롯 차터 개시!`, 'ok');
-        this.addFeed(`🚢 ${sc.carrier} ${sc.vesselName} 선복 구매! ${sc.slotCapacity}TEU 슬롯 확보`, 'alert');
+        this.toast(`🚢 ${sc.nameKo} 슬롯 차터 개시! (사무실 ${officePorts.length}곳 개설)`, 'ok');
+        this.addFeed(`🚢 ${sc.carrier} ${sc.vesselName} 선복 구매! 🏢 사무실 ${officePorts.length}곳 개설 ($${ofc.toLocaleString()})`, 'alert');
         this.renderInvestments();
         this.updateHUD();
     },
@@ -3102,7 +3126,10 @@ const Game = {
         if (!s.slotCharters) s.slotCharters = [];
         if (s.slotCharters.find(o => o.id === sc.id)) { this.toast('이미 운영 중!', 'err'); return; }
 
-        const shortage = Math.max(0, sc.slotCost - Math.max(0, s.cash));
+        const officePorts = sc.officePorts || sc.ports.filter(p => p !== 'PUS');
+        const officeCost = (sc.officeCostEach || 25000) * officePorts.length;
+        const totalCost = sc.slotCost + officeCost;
+        const shortage = Math.max(0, totalCost - Math.max(0, s.cash));
         const loanRate = 8;
         const loanFee = Math.round(shortage * 0.02);
 
@@ -3112,21 +3139,16 @@ const Game = {
         if (!s.loans) s.loans = [];
         s.loans.push({ id: 'loan_slot_' + sc.id, name: `슬롯차터 대출 (${sc.nameKo})`, amount: shortage, rate: loanRate, fee: loanFee, day: s.gameDay, ts: Date.now() });
 
-        // Now proceed with purchase (cash covers what we have, loan covers the rest)
+        // Deduct slot cost
         s.cash -= sc.slotCost;
         s.stats.totExp += sc.slotCost;
         s.debt += Math.round(sc.slotCost * 0.5);
 
-        s.slotCharters.push({ id: sc.id, voyNum: 1, daysSinceLast: 0, status: 'port', legIdx: 0, sailProgress: 0, bookings: [] });
-        sc.ports.forEach(p => {
-            if (!s.custs[p] && CUSTOMERS[p]) s.custs[p] = CUSTOMERS[p].map(c => ({ ...c }));
-            if (!s.ctr[p]) s.ctr[p] = { '20': 10, '40': 10 };
-        });
-        if (!s.slotSalesPorts) s.slotSalesPorts = {};
-        for (const port in sc.salesPorts) s.slotSalesPorts[port] = sc.salesPorts[port];
+        // Init charter (includes office + containers)
+        const ofc = this._initSlotCharter(sc);
 
-        this.toast(`🏦 대출 $${shortage.toLocaleString()} 실행 → 🚢 ${sc.nameKo} 슬롯 차터 개시!`, 'ok');
-        this.addFeed(`🏦 대출 $${shortage.toLocaleString()} (연 ${loanRate}%) → 🚢 ${sc.nameKo} 슬롯 확보!`, 'alert');
+        this.toast(`🏦 대출 $${shortage.toLocaleString()} → 🚢 ${sc.nameKo} 개시! 🏢 사무실 ${officePorts.length}곳`, 'ok');
+        this.addFeed(`🏦 대출 $${shortage.toLocaleString()} (연 ${loanRate}%) → 🚢 ${sc.nameKo} + 🏢 사무실 개설`, 'alert');
         this.renderInvestments();
         this.updateHUD();
     },
@@ -3987,16 +4009,17 @@ const Game = {
 
         // Always save to localStorage as fallback
         const board = JSON.parse(localStorage.getItem('kmtc_leaderboard') || '[]');
-        const idx = board.findIndex(b => b.uid === entry.uid);
+        const idx = board.findIndex(b => b.co === entry.co);
         if (idx >= 0) board[idx] = entry;
         else board.push(entry);
         board.sort((a, b) => b.netProfit - a.netProfit);
         localStorage.setItem('kmtc_leaderboard', JSON.stringify(board.slice(0, 100)));
 
-        // Push to Firebase
+        // Push to Firebase — use sanitized company name as key to prevent duplicates
         if (typeof fbDb !== 'undefined' && fbDb) {
             try {
-                fbDb.ref('rankings/' + entry.uid).set(entry);
+                const fbKey = entry.co.replace(/[.#$/\[\]]/g, '_');
+                fbDb.ref('rankings/' + fbKey).set(entry);
             } catch(e) { /* silent */ }
         }
     },
@@ -4014,7 +4037,15 @@ const Game = {
             const snap = await fbDb.ref('rankings').orderByChild('netProfit').limitToLast(100).once('value');
             const data = snap.val();
             if (!data) return [];
-            const arr = Object.values(data);
+            const raw = Object.values(data);
+            // Deduplicate by company name — keep most recent entry per co
+            const byName = {};
+            raw.forEach(e => {
+                if (!byName[e.co] || (e.updatedAt || 0) > (byName[e.co].updatedAt || 0)) {
+                    byName[e.co] = e;
+                }
+            });
+            const arr = Object.values(byName);
             arr.sort((a, b) => b.netProfit - a.netProfit);
             this._fbRankingCache = arr;
             this._fbRankingTs = Date.now();
@@ -4043,6 +4074,7 @@ const Game = {
         }
 
         const uid = this._getUserId();
+        const myCo = s.co || '';
 
         let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
         html += '<h4 style="font-size:14px;margin:0">🏆 해운왕 랭킹</h4>';
@@ -4059,7 +4091,7 @@ const Game = {
         }
 
         // Summary for current company
-        const me = rankings.find(b => b.uid === uid);
+        const me = rankings.find(b => b.co === myCo);
         if (me) {
             const rank = rankings.indexOf(me) + 1;
             const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
@@ -4077,7 +4109,7 @@ const Game = {
         html += `<div style="font-size:10px;color:var(--t3);margin-bottom:4px">순이익 기준 순위${isOnline ? ' (전체 유저)' : ''}</div>`;
         html += '<div class="ranking-list">';
         rankings.forEach((entry, i) => {
-            const isMe = entry.uid === uid;
+            const isMe = entry.co === myCo;
             const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span style="color:var(--t3)">${i + 1}</span>`;
             const profitColor = entry.netProfit >= 0 ? 'var(--green)' : 'var(--red)';
             html += `<div class="rank-row ${isMe ? 'rank-me' : ''}" style="display:grid;grid-template-columns:30px 1fr 80px 80px 50px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;${isMe ? 'background:var(--accent)15;border-left:3px solid var(--accent)' : ''}">
@@ -4249,16 +4281,43 @@ window.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('kmtc_save')) {
         document.getElementById('btn-load').style.display = 'inline-block';
     }
-    // Migrate existing localStorage leaderboard to Firebase on first load
-    if (typeof fbDb !== 'undefined' && fbDb && !localStorage.getItem('kmtc_fb_migrated')) {
+    // Migrate + deduplicate Firebase rankings
+    if (typeof fbDb !== 'undefined' && fbDb) {
         try {
-            const board = JSON.parse(localStorage.getItem('kmtc_leaderboard') || '[]');
-            board.forEach(entry => {
-                if (!entry.uid) entry.uid = 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
-                fbDb.ref('rankings/' + entry.uid).set(entry);
-            });
-            localStorage.setItem('kmtc_fb_migrated', '1');
-            console.log('Migrated', board.length, 'entries to Firebase');
-        } catch(e) { console.warn('Migration failed:', e.message); }
+            // Migrate local data if not done
+            if (!localStorage.getItem('kmtc_fb_migrated')) {
+                const board = JSON.parse(localStorage.getItem('kmtc_leaderboard') || '[]');
+                board.forEach(entry => {
+                    if (!entry.uid) entry.uid = 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+                    fbDb.ref('rankings/' + entry.uid).set(entry);
+                });
+                localStorage.setItem('kmtc_fb_migrated', '1');
+            }
+            // One-time cleanup: remove duplicate company names, keep newest
+            if (!localStorage.getItem('kmtc_fb_deduped2')) {
+                fbDb.ref('rankings').once('value').then(snap => {
+                    const data = snap.val();
+                    if (!data) return;
+                    const byName = {};
+                    Object.entries(data).forEach(([key, entry]) => {
+                        const name = entry.co;
+                        if (!byName[name] || (entry.updatedAt || 0) > (byName[name].updatedAt || 0)) {
+                            // If there was a previous best, mark it for deletion
+                            if (byName[name]) byName[name].deleteKey = true;
+                            byName[name] = { ...entry, key, deleteKey: false };
+                        } else {
+                            // This entry is older, mark for deletion
+                            fbDb.ref('rankings/' + key).remove();
+                        }
+                    });
+                    // Delete older duplicates
+                    Object.values(byName).forEach(e => {
+                        if (e.deleteKey) fbDb.ref('rankings/' + e.key).remove();
+                    });
+                    localStorage.setItem('kmtc_fb_deduped2', '1');
+                    console.log('Firebase dedup complete');
+                });
+            }
+        } catch(e) { console.warn('Migration/dedup failed:', e.message); }
     }
 });

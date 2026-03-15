@@ -183,6 +183,7 @@ const SLOT_CHARTERS = [
         fuelCostPerDay: 0, portFeesPerCall: 500, // 연료 없음, 항비만 일부
         difficulty: '쉬움', color: '#66BB6A',
         unlockRevenue: 300000,
+        officePorts: ['HCM', 'HPH'], officeCostEach: 25000,
     },
     {
         id: 'SC_KTS', name: 'Korea-Thailand Slot', nameKo: '한태국 슬롯차터 (KTS)',
@@ -207,6 +208,7 @@ const SLOT_CHARTERS = [
         fuelCostPerDay: 0, portFeesPerCall: 400,
         difficulty: '보통', color: '#FFA726',
         unlockRevenue: 500000,
+        officePorts: ['LCB', 'BKK'], officeCostEach: 25000,
     },
     {
         id: 'SC_KIS', name: 'Korea-Indonesia Slot', nameKo: '한인니 슬롯차터 (KIS)',
@@ -231,6 +233,7 @@ const SLOT_CHARTERS = [
         fuelCostPerDay: 0, portFeesPerCall: 600,
         difficulty: '어려움', color: '#EF5350',
         unlockRevenue: 1000000,
+        officePorts: ['JKT', 'SBY'], officeCostEach: 30000,
     },
 ];
 

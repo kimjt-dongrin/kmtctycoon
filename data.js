@@ -836,6 +836,30 @@ const RECRUIT_POOL = [
 ];
 
 // Promotions (투자 탭)
+// Bank Loan Products
+const BANK_LOANS = [
+    { id: 'loan_emergency', name: '긴급 운영자금', icon: '🆘',
+      amount: 50000, annualRate: 12, originFee: 0.03,
+      desc: '심사 없이 즉시 실행 가능한 소액 긴급대출',
+      unlockRev: 0, maxDebtRatio: 3.0 },
+    { id: 'loan_operating', name: '운영자금 대출', icon: '💵',
+      amount: 200000, annualRate: 8, originFee: 0.02,
+      desc: '일반 운영비·영업비 충당을 위한 표준 대출',
+      unlockRev: 300000, maxDebtRatio: 2.5 },
+    { id: 'loan_facility', name: '시설투자 대출', icon: '🏗️',
+      amount: 500000, annualRate: 6, originFee: 0.015,
+      desc: '사무실·IT시스템·교육 등 인프라 투자용',
+      unlockRev: 1000000, maxDebtRatio: 2.0 },
+    { id: 'loan_ship', name: '선박금융', icon: '🚢',
+      amount: 2000000, annualRate: 5, originFee: 0.01,
+      desc: '신조·중고선 매입을 위한 장기 선박담보대출',
+      unlockRev: 3000000, maxDebtRatio: 1.8 },
+    { id: 'loan_project', name: '프로젝트 파이낸싱', icon: '🏦',
+      amount: 5000000, annualRate: 4.5, originFee: 0.008,
+      desc: '대규모 항로 개척·선대 확장을 위한 종합 금융 패키지',
+      unlockRev: 8000000, maxDebtRatio: 1.5 },
+];
+
 const PROMOTIONS = [
     { id:'promo1', name:'운임 할인 캠페인', cost:3000, duration:7, icon:'🏷️',
       effect:'전체 화주 영업 성공률 +15% (7일간)', successBoost:0.15 },

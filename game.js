@@ -2885,6 +2885,48 @@ const Game = {
             html += '</div>';
         }
 
+        // === Bank Loans ===
+        if (typeof BANK_LOANS !== 'undefined') {
+            if (!s.loans) s.loans = [];
+            const totalDebt = s.debt;
+            const baseInvest = s.route.investmentCost;
+            html += '<div class="invest-section"><h4>🏦 은행 대출</h4>';
+            html += '<div style="font-size:10px;color:var(--t3);padding:4px 8px;display:flex;justify-content:space-between">';
+            html += `<span>현재 부채: $${Math.round(totalDebt).toLocaleString()}</span>`;
+            html += `<span>대출 이력: ${s.loans.length}건</span>`;
+            html += '</div>';
+
+            BANK_LOANS.forEach(loan => {
+                const unlocked = s.stats.totRev >= loan.unlockRev;
+                const debtLimit = baseInvest * loan.maxDebtRatio;
+                const wouldExceed = (totalDebt + loan.amount) > debtLimit;
+                const canTake = unlocked && !wouldExceed;
+                const fee = Math.round(loan.amount * loan.originFee);
+                const netAmount = loan.amount - fee;
+                const monthlyInterest = Math.round(loan.amount * loan.annualRate / 100 / 12);
+
+                html += `<div class="invest-item ${!unlocked ? 'locked' : ''}" style="border-left:3px solid ${canTake ? 'var(--accent)' : 'var(--border)'}">
+                    <div class="invest-icon">${loan.icon}</div>
+                    <div class="invest-info" style="flex:1">
+                        <div class="invest-name">${loan.name} ${!unlocked ? '🔒' : ''}</div>
+                        <div class="invest-effect">${loan.desc}</div>
+                        <div style="font-size:10px;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;color:var(--t2)">
+                            <span>💰 대출금: <strong style="color:var(--green)">$${loan.amount.toLocaleString()}</strong></span>
+                            <span>📊 연이율: <strong style="color:var(--yellow)">${loan.annualRate}%</strong></span>
+                            <span>🏷️ 수수료: $${fee.toLocaleString()} (${(loan.originFee * 100).toFixed(1)}%)</span>
+                        </div>
+                        <div style="font-size:9px;margin-top:2px;color:var(--t3)">
+                            실수령: $${netAmount.toLocaleString()} | 월 이자: ~$${monthlyInterest.toLocaleString()} | 부채한도: $${debtLimit.toLocaleString()}
+                        </div>
+                        ${!unlocked ? `<div style="font-size:9px;color:var(--yellow);margin-top:2px">매출 $${loan.unlockRev >= 1e6 ? (loan.unlockRev/1e6).toFixed(0)+'M' : (loan.unlockRev/1e3).toFixed(0)+'K'} 달성 시 이용 가능</div>` : ''}
+                        ${unlocked && wouldExceed ? `<div style="font-size:9px;color:var(--red);margin-top:2px">⚠️ 부채한도 초과 — 대출 불가</div>` : ''}
+                    </div>
+                    <button class="invest-btn" onclick="Game.takeLoan('${loan.id}')" ${canTake ? '' : 'disabled'}>대출</button>
+                </div>`;
+            });
+            html += '</div>';
+        }
+
         // Promotions
         html += '<div class="invest-section"><h4>📢 프로모션</h4>';
         if (!s.promos) s.promos = [];
@@ -2904,6 +2946,31 @@ const Game = {
         html += '</div>';
 
         document.getElementById('invest-list').innerHTML = html;
+    },
+
+    takeLoan(loanId) {
+        const s = this.state;
+        const loan = BANK_LOANS.find(l => l.id === loanId);
+        if (!loan) return;
+        const debtLimit = s.route.investmentCost * loan.maxDebtRatio;
+        if ((s.debt + loan.amount) > debtLimit) {
+            this.toast('부채한도를 초과합니다!', 'err');
+            return;
+        }
+        const fee = Math.round(loan.amount * loan.originFee);
+        const netAmount = loan.amount - fee;
+
+        s.cash += netAmount;
+        s.debt += loan.amount;
+        s.stats.totExp += fee; // origination fee is an expense
+        if (!s.loans) s.loans = [];
+        s.loans.push({
+            id: loan.id, name: loan.name, amount: loan.amount,
+            rate: loan.annualRate, fee, day: s.gameDay, ts: Date.now()
+        });
+        this.toast(`🏦 ${loan.name} 실행! +$${netAmount.toLocaleString()} (수수료 $${fee.toLocaleString()})`, 'ok');
+        this.addFeed(`🏦 ${loan.name} $${loan.amount.toLocaleString()} 대출 실행 (연 ${loan.annualRate}%)`, 'invest');
+        this.renderInvestments();
     },
 
     runPromo(promoId) {
@@ -3680,6 +3747,7 @@ const Game = {
             if (!s.milestones) s.milestones = [];
             if (!s.alerts) s.alerts = [];
             if (!s.startedAt) s.startedAt = Date.now();
+            if (!s.loans) s.loans = [];
             if (!s.spotOffers) s.spotOffers = [];
             if (!s.bsaContracts) s.bsaContracts = [];
             if (!s.benchPool) s.benchPool = [];

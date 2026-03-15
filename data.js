@@ -52,6 +52,64 @@ const ROUTES = [
 
 // New Route Expansion — build your own service with ships & infrastructure
 const NEW_ROUTE_PACKAGES = [
+    // === Counter-routes: low unlock, available when player started the OTHER route ===
+    {
+        id: 'NR_KCS', nameKo: '한중항로 (KCS)', name: 'Korea-China Service',
+        description: '부산에서 중국 닝보·상하이를 잇는 근해항로 — 가장 기본적인 확장',
+        ports: ['PUS', 'NBO', 'SHA'],
+        portNames: { PUS: '부산', NBO: '닝보', SHA: '상하이' },
+        salesPorts: {
+            PUS: { sellTo: ['NBO', 'SHA'] },
+            NBO: { sellTo: ['PUS', 'SHA'] },
+            SHA: { sellTo: ['PUS', 'NBO'] },
+        },
+        legs: [
+            { from: 'PUS', to: 'NBO', seaDays: 2 },
+            { from: 'NBO', to: 'SHA', seaDays: 1 },
+            { from: 'SHA', to: 'PUS', seaDays: 2 },
+        ],
+        vesselSize: 150, rotationDays: 7,
+        fuelCostPerDay: 2000, portFeesPerCall: 3000, weeklyFixedCost: 15000,
+        color: '#4CAF50', difficulty: '쉬움',
+        unlockRevenue: 200000, // $200K — 가장 낮은 허들
+        shipCount: 1, shipCostEach: 600000,
+        containerSet: { '20': 60, '40': 40 }, containerCost: 100000,
+        officePorts: ['NBO', 'SHA'], officeCostEach: 25000,
+        totalInvestment: 750000,
+        debtRatio: 0.6,
+        requireStartRoute: 'KJS', // KJS로 시작한 사람만 표시
+    },
+    {
+        id: 'NR_KJS', nameKo: '한일항로 (KJS)', name: 'Korea-Japan Service',
+        description: '울산·부산에서 일본 도쿄·요코하마·치바를 순회하는 항로',
+        ports: ['USN', 'PUS', 'TYO', 'YOK', 'CHB'],
+        portNames: { USN: '울산', PUS: '부산', TYO: '도쿄', YOK: '요코하마', CHB: '치바' },
+        salesPorts: {
+            USN: { sellTo: ['TYO', 'YOK', 'CHB'] },
+            PUS: { sellTo: ['TYO', 'YOK', 'CHB'] },
+            TYO: { sellTo: ['USN', 'PUS'] },
+            YOK: { sellTo: ['USN', 'PUS'] },
+            CHB: { sellTo: ['USN', 'PUS'] },
+        },
+        legs: [
+            { from: 'USN', to: 'PUS', seaDays: 0.5 },
+            { from: 'PUS', to: 'TYO', seaDays: 2 },
+            { from: 'TYO', to: 'YOK', seaDays: 0.5 },
+            { from: 'YOK', to: 'CHB', seaDays: 0.5 },
+            { from: 'CHB', to: 'USN', seaDays: 2 },
+        ],
+        vesselSize: 250, rotationDays: 14,
+        fuelCostPerDay: 2500, portFeesPerCall: 3500, weeklyFixedCost: 25000,
+        color: '#FF9800', difficulty: '쉬움',
+        unlockRevenue: 200000, // $200K — 가장 낮은 허들
+        shipCount: 1, shipCostEach: 900000,
+        containerSet: { '20': 80, '40': 60 }, containerCost: 140000,
+        officePorts: ['TYO', 'YOK', 'CHB'], officeCostEach: 30000,
+        totalInvestment: 1130000,
+        debtRatio: 0.6,
+        requireStartRoute: 'KCS', // KCS로 시작한 사람만 표시
+    },
+    // === Southeast Asia expansion ===
     {
         id: 'NR_KVS', nameKo: '한베트남항로 (KVS)', name: 'Korea-Vietnam Service',
         description: '부산에서 베트남 주요 항구를 잇는 동남아 근해항로',

@@ -3356,7 +3356,11 @@ const Game = {
             html += '<div class="invest-section"><h4>🌏 신규항로 개척 (자사선 투입)</h4>';
             html += '<div style="font-size:10px;color:var(--t3);padding:4px 8px">자사 선박·컨테이너·해외사무실을 갖추고 새로운 항로를 개척합니다.</div>';
             if (!s.ownedRoutes) s.ownedRoutes = [];
-            NEW_ROUTE_PACKAGES.forEach(pkg => {
+            NEW_ROUTE_PACKAGES.filter(pkg => {
+                // Hide counter-routes that don't match the starting route
+                if (pkg.requireStartRoute && s.route.id !== pkg.requireStartRoute) return false;
+                return true;
+            }).forEach(pkg => {
                 const owned = s.ownedRoutes.find(o => o.id === pkg.id);
                 const unlocked = s.stats.totRev >= (pkg.unlockRevenue || 0);
                 const canBuy = !owned && unlocked && afford(pkg.totalInvestment);
@@ -3370,13 +3374,58 @@ const Game = {
                 const monthlyInterest = Math.round(shortage * loanRate / 100 / 12);
 
                 if (owned) {
-                    html += `<div class="invest-item active-promo" style="border-left:3px solid ${pkg.color}">
-                        <div class="invest-icon">🌏</div>
-                        <div class="invest-info">
-                            <div class="invest-name">${pkg.nameKo} <span style="font-size:9px;color:var(--green)">운영 중</span></div>
-                            <div class="invest-effect">${portList} | ${pkg.vesselSize}TEU × ${pkg.shipCount}척 | ${pkg.rotationDays}일</div>
+                    const orExpanded = this._expandedWithdrawRoute === pkg.id;
+                    // Calculate withdrawal values
+                    const shipSaleValue = Math.round(pkg.shipCount * pkg.shipCostEach * 0.50);
+                    const ctrSaleValue = Math.round(pkg.containerCost * 0.30);
+                    const officeSaleValue = Math.round(pkg.officePorts.length * pkg.officeCostEach * 0.20);
+                    const totalRecovery = shipSaleValue + ctrSaleValue + officeSaleValue;
+                    // Find related loan
+                    const routeLoan = (s.loans || []).find(l => l.id === 'loan_route_' + pkg.id);
+                    const loanRemaining = routeLoan ? Math.round(routeLoan.amount * 0.8) : 0; // assume ~80% remains
+                    const netRecovery = totalRecovery - loanRemaining;
+
+                    html += `<div class="invest-item active-promo" style="border-left:3px solid ${pkg.color};flex-wrap:wrap">
+                        <div style="display:flex;align-items:center;gap:8px;width:100%">
+                            <div class="invest-icon">🌏</div>
+                            <div class="invest-info" style="flex:1">
+                                <div class="invest-name">${pkg.nameKo} <span style="font-size:9px;color:var(--green)">운영 중</span> <span style="font-size:9px;color:var(--t3)">V.${owned.voyNum || 0}</span></div>
+                                <div class="invest-effect">${portList} | ${pkg.vesselSize}TEU × ${pkg.shipCount}척 | ${pkg.rotationDays}일</div>
+                            </div>
+                            <button class="btn-sm" onclick="Game._expandedWithdrawRoute=Game._expandedWithdrawRoute==='${pkg.id}'?null:'${pkg.id}';Game.renderInvestments()" style="font-size:9px;padding:2px 6px;background:var(--card2);color:var(--red)">${orExpanded ? '▲ 접기' : '⚠ 철수'}</button>
                         </div>
-                        <div style="font-size:10px;color:var(--green)">활성</div>
+                        ${orExpanded ? `<div style="width:100%;margin-top:8px;padding:10px;background:rgba(244,67,54,.05);border:1px solid var(--red);border-radius:8px;font-size:11px">
+                            <div style="font-weight:700;color:var(--red);margin-bottom:8px">⚠️ 항로 철수 — 손익 분석</div>
+                            <table style="width:100%;border-collapse:collapse;font-size:11px">
+                                <tr style="border-bottom:1px solid var(--border)">
+                                    <td style="padding:4px 0;color:var(--green)">🚢 선박 매각 (${pkg.shipCount}척, 시가 50%)</td>
+                                    <td style="text-align:right;color:var(--green);font-weight:600">+$${shipSaleValue.toLocaleString()}</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid var(--border)">
+                                    <td style="padding:4px 0;color:var(--green)">📦 컨테이너 처분 (시가 30%)</td>
+                                    <td style="text-align:right;color:var(--green);font-weight:600">+$${ctrSaleValue.toLocaleString()}</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid var(--border)">
+                                    <td style="padding:4px 0;color:var(--green)">🏢 사무실 정리 (${pkg.officePorts.length}곳, 보증금 20%)</td>
+                                    <td style="text-align:right;color:var(--green);font-weight:600">+$${officeSaleValue.toLocaleString()}</td>
+                                </tr>
+                                ${routeLoan ? `<tr style="border-bottom:1px solid var(--border)">
+                                    <td style="padding:4px 0;color:var(--red)">🏦 잔여 대출 조기상환</td>
+                                    <td style="text-align:right;color:var(--red);font-weight:600">-$${loanRemaining.toLocaleString()}</td>
+                                </tr>` : ''}
+                                <tr style="font-weight:700;${netRecovery >= 0 ? 'color:var(--green)' : 'color:var(--red)'}">
+                                    <td style="padding:6px 0">순 회수 금액</td>
+                                    <td style="text-align:right;font-size:13px">${netRecovery >= 0 ? '+' : ''}$${netRecovery.toLocaleString()}</td>
+                                </tr>
+                            </table>
+                            <div style="margin-top:6px;padding:6px;background:var(--card2);border-radius:6px;font-size:10px;color:var(--t3)">
+                                ⚠️ 해당 항로의 화주 관계·시장 점유율이 초기화됩니다.<br>
+                                ⚠️ 관련 사무실이 폐쇄되고 컨테이너가 처분됩니다.
+                            </div>
+                            <button class="btn-primary" onclick="Game.withdrawOwnedRoute('${pkg.id}')" style="width:100%;margin-top:8px;background:var(--red);font-size:12px">
+                                🚫 항로 철수 확정 (${netRecovery >= 0 ? '+' : ''}$${netRecovery.toLocaleString()})
+                            </button>
+                        </div>` : ''}
                     </div>`;
                 } else {
                     const shipTotal = pkg.shipCount * pkg.shipCostEach;
@@ -3477,14 +3526,52 @@ const Game = {
                 const scMonthlyInterest = Math.round(scShortage * scLoanRate / 100 / 12);
 
                 if (owned) {
-                    html += `<div class="invest-item active-promo" style="border-left:3px solid ${sc.color}">
-                        <div class="invest-icon">🚢</div>
-                        <div class="invest-info">
-                            <div class="invest-name">${sc.nameKo} <span style="font-size:9px;color:var(--green)">운영 중</span></div>
-                            <div class="invest-effect">${sc.carrier} ${sc.vesselName} | ${portList}</div>
-                            <div style="font-size:10px;color:var(--t3);margin-top:2px">📦 ${sc.slotCapacity} TEU | 💰 항차당 $${sc.slotFeePerVoyage.toLocaleString()} | V.${owned.voyNum || 1}</div>
+                    const scExpanded = this._expandedWithdrawSC === sc.id;
+                    const scSlotRefund = Math.round(sc.slotCost * 0.30);
+                    const scOfficeRefund = Math.round(scOfficePorts.length * (sc.officeCostEach || 25000) * 0.20);
+                    const scTotalRecovery = scSlotRefund + scOfficeRefund;
+                    const scLoan = (s.loans || []).find(l => l.id === 'loan_slot_' + sc.id);
+                    const scLoanRemain = scLoan ? Math.round(scLoan.amount * 0.8) : 0;
+                    const scNetRecovery = scTotalRecovery - scLoanRemain;
+
+                    html += `<div class="invest-item active-promo" style="border-left:3px solid ${sc.color};flex-wrap:wrap">
+                        <div style="display:flex;align-items:center;gap:8px;width:100%">
+                            <div class="invest-icon">🚢</div>
+                            <div class="invest-info" style="flex:1">
+                                <div class="invest-name">${sc.nameKo} <span style="font-size:9px;color:var(--green)">운영 중</span></div>
+                                <div class="invest-effect">${sc.carrier} ${sc.vesselName} | ${portList}</div>
+                                <div style="font-size:10px;color:var(--t3);margin-top:2px">📦 ${sc.slotCapacity} TEU | 💰 항차당 $${sc.slotFeePerVoyage.toLocaleString()} | V.${owned.voyNum || 1}</div>
+                            </div>
+                            <button class="btn-sm" onclick="Game._expandedWithdrawSC=Game._expandedWithdrawSC==='${sc.id}'?null:'${sc.id}';Game.renderInvestments()" style="font-size:9px;padding:2px 6px;background:var(--card2);color:var(--red)">${scExpanded ? '▲ 접기' : '⚠ 철수'}</button>
                         </div>
-                        <div style="font-size:10px;color:var(--green)">활성</div>
+                        ${scExpanded ? `<div style="width:100%;margin-top:8px;padding:10px;background:rgba(244,67,54,.05);border:1px solid var(--red);border-radius:8px;font-size:11px">
+                            <div style="font-weight:700;color:var(--red);margin-bottom:8px">⚠️ 슬롯차터 철수 — 손익 분석</div>
+                            <table style="width:100%;border-collapse:collapse;font-size:11px">
+                                <tr style="border-bottom:1px solid var(--border)">
+                                    <td style="padding:4px 0;color:var(--green)">🚢 슬롯 계약 해지 위약금 환급 (30%)</td>
+                                    <td style="text-align:right;color:var(--green);font-weight:600">+$${scSlotRefund.toLocaleString()}</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid var(--border)">
+                                    <td style="padding:4px 0;color:var(--green)">🏢 사무실 정리 (${scOfficePorts.length}곳, 보증금 20%)</td>
+                                    <td style="text-align:right;color:var(--green);font-weight:600">+$${scOfficeRefund.toLocaleString()}</td>
+                                </tr>
+                                ${scLoan ? `<tr style="border-bottom:1px solid var(--border)">
+                                    <td style="padding:4px 0;color:var(--red)">🏦 잔여 대출 조기상환</td>
+                                    <td style="text-align:right;color:var(--red);font-weight:600">-$${scLoanRemain.toLocaleString()}</td>
+                                </tr>` : ''}
+                                <tr style="font-weight:700;${scNetRecovery >= 0 ? 'color:var(--green)' : 'color:var(--red)'}">
+                                    <td style="padding:6px 0">순 회수 금액</td>
+                                    <td style="text-align:right;font-size:13px">${scNetRecovery >= 0 ? '+' : ''}$${scNetRecovery.toLocaleString()}</td>
+                                </tr>
+                            </table>
+                            <div style="margin-top:6px;padding:6px;background:var(--card2);border-radius:6px;font-size:10px;color:var(--t3)">
+                                ⚠️ 해당 항로의 화주 관계·시장 점유율이 초기화됩니다.<br>
+                                ⚠️ 슬롯 사용료 부담이 즉시 사라집니다.
+                            </div>
+                            <button class="btn-primary" onclick="Game.withdrawSlotCharter('${sc.id}')" style="width:100%;margin-top:8px;background:var(--red);font-size:12px">
+                                🚫 슬롯차터 철수 확정 (${scNetRecovery >= 0 ? '+' : ''}$${scNetRecovery.toLocaleString()})
+                            </button>
+                        </div>` : ''}
                     </div>`;
                 } else {
                     html += `<div class="invest-item" style="border-left:3px solid ${sc.color};flex-wrap:wrap;${!unlocked ? 'opacity:.5' : ''}">
@@ -3917,6 +4004,170 @@ const Game = {
                 route.voyage.dayCounter = 0;
             }
         });
+    },
+
+    // ==================== WITHDRAWAL ====================
+    withdrawSlotCharter(scId) {
+        const s = this.state;
+        const sc = SLOT_CHARTERS.find(x => x.id === scId);
+        if (!sc) return;
+        const idx = (s.slotCharters || []).findIndex(o => o.id === scId);
+        if (idx < 0) { this.toast('운영 중인 슬롯차터가 아닙니다.', 'err'); return; }
+
+        const officePorts = sc.officePorts || sc.ports.filter(p => p !== 'PUS');
+        const slotRefund = Math.round(sc.slotCost * 0.30);
+        const officeRefund = Math.round(officePorts.length * (sc.officeCostEach || 25000) * 0.20);
+        const totalRecovery = slotRefund + officeRefund;
+
+        // Repay related loan
+        const loanIdx = (s.loans || []).findIndex(l => l.id === 'loan_slot_' + scId);
+        let loanRepay = 0;
+        if (loanIdx >= 0) {
+            loanRepay = Math.round(s.loans[loanIdx].amount * 0.8);
+            s.debt = Math.max(0, s.debt - s.loans[loanIdx].amount);
+            s.loans.splice(loanIdx, 1);
+        }
+        // Also reduce general debt from slot purchase (50% of slotCost was added as debt)
+        const slotDebt = Math.round(sc.slotCost * 0.5);
+        s.debt = Math.max(0, s.debt - slotDebt);
+
+        const netRecovery = totalRecovery - loanRepay;
+        s.cash += netRecovery;
+        if (netRecovery < 0) s.stats.totExp += Math.abs(netRecovery);
+
+        // Close offices (only if not used by other routes)
+        officePorts.forEach(p => {
+            const usedByOther = (s.ownedRoutes || []).some(or => {
+                const pkg = NEW_ROUTE_PACKAGES.find(x => x.id === or.id);
+                return pkg && pkg.officePorts.includes(p);
+            }) || (s.slotCharters || []).some((ch, i) => {
+                if (i === idx) return false;
+                const sch = SLOT_CHARTERS.find(x => x.id === ch.id);
+                return sch && (sch.officePorts || sch.ports.filter(pp => pp !== 'PUS')).includes(p);
+            }) || s.route.ports.includes(p);
+            if (!usedByOther && s.infra.offices[p]) delete s.infra.offices[p];
+        });
+
+        // Remove containers from exclusive ports
+        sc.ports.forEach(p => {
+            if (p === 'PUS') return;
+            const usedByOther = s.route.ports.includes(p) ||
+                (s.ownedRoutes || []).some(or => { const pk = NEW_ROUTE_PACKAGES.find(x => x.id === or.id); return pk && pk.ports.includes(p); }) ||
+                (s.slotCharters || []).some((ch, i) => { if (i === idx) return false; const sch = SLOT_CHARTERS.find(x => x.id === ch.id); return sch && sch.ports.includes(p); });
+            if (!usedByOther) {
+                delete s.ctr[p];
+                delete s.custs[p];
+            }
+        });
+
+        // Remove sales ports
+        if (s.slotSalesPorts) {
+            for (const port in sc.salesPorts) {
+                const usedByOther = (s.ownedRoutes || []).some(or => { const pk = NEW_ROUTE_PACKAGES.find(x => x.id === or.id); return pk && pk.salesPorts[port]; }) ||
+                    (s.slotCharters || []).some((ch, i) => { if (i === idx) return false; const sch = SLOT_CHARTERS.find(x => x.id === ch.id); return sch && sch.salesPorts[port]; });
+                if (!usedByOther) delete s.slotSalesPorts[port];
+            }
+        }
+
+        // Remove market lanes
+        if (s.market) {
+            sc.ports.forEach(fp => {
+                const sp = sc.salesPorts[fp];
+                if (!sp) return;
+                sp.sellTo.forEach(tp => {
+                    delete s.market[`${fp}-${tp}`];
+                });
+            });
+        }
+
+        // Remove charter
+        s.slotCharters.splice(idx, 1);
+        this._expandedWithdrawSC = null;
+
+        this.toast(`🚫 ${sc.nameKo} 철수 완료! ${netRecovery >= 0 ? '+' : ''}$${netRecovery.toLocaleString()}`, netRecovery >= 0 ? 'ok' : 'err');
+        this.addFeed(`🚫 ${sc.nameKo} 슬롯차터 철수 — ${netRecovery >= 0 ? '회수' : '손실'} $${Math.abs(netRecovery).toLocaleString()}`, 'alert');
+        this.renderInvestments();
+        this.updateHUD();
+    },
+
+    withdrawOwnedRoute(routeId) {
+        const s = this.state;
+        const pkg = NEW_ROUTE_PACKAGES.find(x => x.id === routeId);
+        if (!pkg) return;
+        const idx = (s.ownedRoutes || []).findIndex(o => o.id === routeId);
+        if (idx < 0) { this.toast('운영 중인 항로가 아닙니다.', 'err'); return; }
+
+        const shipSaleValue = Math.round(pkg.shipCount * pkg.shipCostEach * 0.50);
+        const ctrSaleValue = Math.round(pkg.containerCost * 0.30);
+        const officeSaleValue = Math.round(pkg.officePorts.length * pkg.officeCostEach * 0.20);
+        const totalRecovery = shipSaleValue + ctrSaleValue + officeSaleValue;
+
+        // Repay related loan
+        const loanIdx = (s.loans || []).findIndex(l => l.id === 'loan_route_' + routeId);
+        let loanRepay = 0;
+        if (loanIdx >= 0) {
+            loanRepay = Math.round(s.loans[loanIdx].amount * 0.8);
+            s.debt = Math.max(0, s.debt - s.loans[loanIdx].amount);
+            s.loans.splice(loanIdx, 1);
+        }
+
+        const netRecovery = totalRecovery - loanRepay;
+        s.cash += netRecovery;
+        if (netRecovery < 0) s.stats.totExp += Math.abs(netRecovery);
+
+        // Close offices (only if not used by other routes)
+        pkg.officePorts.forEach(p => {
+            const usedByOther = (s.slotCharters || []).some(ch => {
+                const sch = SLOT_CHARTERS.find(x => x.id === ch.id);
+                return sch && (sch.officePorts || sch.ports.filter(pp => pp !== 'PUS')).includes(p);
+            }) || (s.ownedRoutes || []).some((or, i) => {
+                if (i === idx) return false;
+                const pk = NEW_ROUTE_PACKAGES.find(x => x.id === or.id);
+                return pk && pk.officePorts.includes(p);
+            }) || s.route.ports.includes(p);
+            if (!usedByOther && s.infra.offices[p]) delete s.infra.offices[p];
+        });
+
+        // Remove containers from exclusive ports
+        pkg.ports.forEach(p => {
+            if (p === 'PUS') return;
+            const usedByOther = s.route.ports.includes(p) ||
+                (s.slotCharters || []).some(ch => { const sch = SLOT_CHARTERS.find(x => x.id === ch.id); return sch && sch.ports.includes(p); }) ||
+                (s.ownedRoutes || []).some((or, i) => { if (i === idx) return false; const pk = NEW_ROUTE_PACKAGES.find(x => x.id === or.id); return pk && pk.ports.includes(p); });
+            if (!usedByOther) {
+                delete s.ctr[p];
+                delete s.custs[p];
+            }
+        });
+
+        // Remove sales ports
+        if (s.slotSalesPorts) {
+            for (const port in pkg.salesPorts) {
+                const usedByOther = (s.slotCharters || []).some(ch => { const sch = SLOT_CHARTERS.find(x => x.id === ch.id); return sch && sch.salesPorts[port]; }) ||
+                    (s.ownedRoutes || []).some((or, i) => { if (i === idx) return false; const pk = NEW_ROUTE_PACKAGES.find(x => x.id === or.id); return pk && pk.salesPorts[port]; });
+                if (!usedByOther) delete s.slotSalesPorts[port];
+            }
+        }
+
+        // Remove market lanes
+        if (s.market) {
+            pkg.ports.forEach(fp => {
+                const sp = pkg.salesPorts[fp];
+                if (!sp) return;
+                sp.sellTo.forEach(tp => {
+                    delete s.market[`${fp}-${tp}`];
+                });
+            });
+        }
+
+        // Remove route
+        s.ownedRoutes.splice(idx, 1);
+        this._expandedWithdrawRoute = null;
+
+        this.toast(`🚫 ${pkg.nameKo} 항로 철수 완료! ${netRecovery >= 0 ? '+' : ''}$${netRecovery.toLocaleString()}`, netRecovery >= 0 ? 'ok' : 'err');
+        this.addFeed(`🚫 ${pkg.nameKo} 자사선 철수 — 선박 매각 +$${shipSaleValue.toLocaleString()} | 순 ${netRecovery >= 0 ? '회수' : '손실'} $${Math.abs(netRecovery).toLocaleString()}`, 'alert');
+        this.renderInvestments();
+        this.updateHUD();
     },
 
     getActivePromoBoost() {

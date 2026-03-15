@@ -5089,10 +5089,11 @@ const Game = {
             const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
             html += `<div style="background:linear-gradient(135deg,var(--card),var(--card2));border:1px solid var(--accent);border-radius:8px;padding:10px;margin-bottom:10px">
                 <div style="font-size:13px;font-weight:700">${medal} ${me.co} <span style="font-size:10px;color:var(--t2)">(내 회사)</span></div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px;font-size:11px">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-top:6px;font-size:11px">
                     <div>📈 매출<br><strong style="color:var(--green)">$${Math.round(me.totRev).toLocaleString()}</strong></div>
                     <div>💰 순이익<br><strong style="color:${me.netProfit >= 0 ? 'var(--green)' : 'var(--red)'}">$${Math.round(me.netProfit).toLocaleString()}</strong></div>
                     <div>🚢 항차<br><strong>${me.totVoy}회</strong></div>
+                    <div>📅 경과<br><strong>D+${me.day || 0}</strong></div>
                 </div>
             </div>`;
         }
@@ -5104,11 +5105,11 @@ const Game = {
             const isMe = entry.co === myCo;
             const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span style="color:var(--t3)">${i + 1}</span>`;
             const profitColor = entry.netProfit >= 0 ? 'var(--green)' : 'var(--red)';
-            html += `<div class="rank-row ${isMe ? 'rank-me' : ''}" style="display:grid;grid-template-columns:30px 1fr 80px 80px 50px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;${isMe ? 'background:var(--accent)15;border-left:3px solid var(--accent)' : ''}">
+            html += `<div class="rank-row ${isMe ? 'rank-me' : ''}" style="display:grid;grid-template-columns:30px 1fr 70px 70px 44px 44px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;${isMe ? 'background:var(--accent)15;border-left:3px solid var(--accent)' : ''}">
                 <div style="text-align:center;font-size:13px">${medal}</div>
                 <div>
                     <div style="font-weight:600">${entry.co}${isMe ? ' <span style="font-size:9px;color:var(--accent)">(나)</span>' : ''}</div>
-                    <div style="font-size:9px;color:var(--t3)">${entry.ceo} | ${entry.route} | D${entry.day}</div>
+                    <div style="font-size:9px;color:var(--t3)">${entry.ceo} | ${entry.route}</div>
                 </div>
                 <div style="text-align:right">
                     <div style="color:var(--green);font-size:10px">매출</div>
@@ -5119,6 +5120,7 @@ const Game = {
                     <div style="color:${profitColor}">$${this._shortNum(entry.netProfit)}</div>
                 </div>
                 <div style="text-align:right;font-size:9px;color:var(--t3)">${entry.totVoy}항차<br>LF${entry.avgLF}%</div>
+                <div style="text-align:center;font-size:10px;color:var(--accent)"><div style="font-size:9px;color:var(--t3)">경과</div><strong>D+${entry.day || 0}</strong></div>
             </div>`;
         });
         html += '</div>';

@@ -286,6 +286,9 @@ const Game = {
     dailyUpdate() {
         const s = this.state;
 
+        // Oil price spike check
+        this.checkOilSpike();
+
         // Daily salaries
         const dailySalary = s.salesTeam.reduce((sum, st) => sum + st.salary / 30, 0) + s.captain.salary / 30;
         s.cash -= dailySalary;
@@ -1680,20 +1683,26 @@ const Game = {
         this.renderInlineSailMap();
 
         if (v.sailProgress >= 1) {
-            // Leg complete — weather affects fuel cost
+            // Leg complete — weather + oil price affect fuel cost
             const w = this.getWeather(leg.to);
-            let fuelMult = 1.0;
-            if (w.typhoon) fuelMult = 1.3;
-            else if (w.wave >= 4) fuelMult = 1.15;
-            else if (w.wave >= 3) fuelMult = 1.08;
+            const oil = this.getOilPrice();
+            let fuelMult = oil.mult;
+            if (w.typhoon) fuelMult *= 1.3;
+            else if (w.wave >= 4) fuelMult *= 1.15;
+            else if (w.wave >= 3) fuelMult *= 1.08;
             const fuel = Math.round(leg.seaDays * r.fuelCostPerDay * fuelMult);
             const port = r.portFeesPerCall;
             v.voyExp += fuel + port;
             s.cash -= fuel + port;
             s.stats.totExp += fuel + port;
-            if (fuelMult > 1) {
-                const extra = Math.round(leg.seaDays * r.fuelCostPerDay * (fuelMult - 1));
-                this.addFeed(`${w.typhoon ? '🌀 ' + T('weather.typhoon') : '🌊 ' + T('weather.highWave')} — +$${extra.toLocaleString()}`, 'alert');
+            if (fuelMult > 1.1) {
+                const baseFuel = Math.round(leg.seaDays * r.fuelCostPerDay);
+                const extra = fuel - baseFuel;
+                const reasons = [];
+                if (oil.mult > 1.05) reasons.push(`🛢️${T('oil.high')}`);
+                if (w.typhoon) reasons.push('🌀' + T('weather.typhoon'));
+                else if (w.wave >= 4) reasons.push('🌊' + T('weather.highWave'));
+                this.addFeed(`${reasons.join(' + ')} — ${T('oil.fuelExtra')} +$${extra.toLocaleString()}`, 'alert');
             }
 
             // Unload cargo at destination
@@ -4552,6 +4561,15 @@ const Game = {
         if (cargoTeu) cargoTeu.textContent = `${teu}/${s.ship.capacity} TEU`;
         if (cargoPct) cargoPct.textContent = `(${Math.round(teu / s.ship.capacity * 100)}%)`;
 
+        // Oil price display
+        const oilEl = document.getElementById('hud-oil');
+        if (oilEl) {
+            const oil = this.getOilPrice();
+            const oilColor = oil.trend === 'crisis' ? 'var(--red)' : oil.trend === 'high' ? '#FF9800' : oil.trend === 'cheap' ? 'var(--green)' : oil.trend === 'low' ? '#8BC34A' : 'var(--t2)';
+            oilEl.textContent = `$${oil.price}`;
+            oilEl.style.color = oilColor;
+        }
+
         // Cash warning
         this.checkCashWarning();
 
@@ -4716,6 +4734,14 @@ const Game = {
             items.push({ text: T('ticker.highWave', this.getPortName(r.ports[0])), cls: 'warn' });
         }
 
+        // === OIL PRICE ===
+        const oilInfo = this.getOilPrice();
+        if (oilInfo.trend === 'crisis' || (oilInfo.spike && oilInfo.mult >= 1.15)) {
+            items.push({ text: T('ticker.oilSpike', oilInfo.price), cls: 'warn' });
+        } else if (oilInfo.trend === 'cheap') {
+            items.push({ text: T('ticker.oilCheap', oilInfo.price), cls: 'good' });
+        }
+
         // === MARKET SEASON ===
         if (typeof MARKET_SEASONS !== 'undefined') {
             const boomPorts = [], slumpPorts = [];
@@ -4810,6 +4836,50 @@ const Game = {
         const dateStr = `${d.getFullYear()}.${months[month]} ${d.getDate()}${T('common.day')}`;
         const season = month <= 1 || month === 11 ? 'winter' : (month <= 4 ? 'spring' : (month <= 8 ? 'summer' : 'autumn'));
         return { date: d, month, dateStr, season, year: d.getFullYear() };
+    },
+
+    // Get current oil price multiplier (affects all fuel costs)
+    getOilPrice() {
+        if (typeof OIL_PRICE === 'undefined') return { mult: 1.0, price: 80, trend: 'normal', spike: null };
+        const s = this.state;
+        const month = this.getGameDate().month;
+        let baseMult = OIL_PRICE.monthly[month];
+
+        // Check for active spike event
+        if (!s.oilSpike) s.oilSpike = null;
+        let spike = s.oilSpike;
+        if (spike && s.gameDay > spike.endDay) {
+            s.oilSpike = null;
+            spike = null;
+        }
+
+        const spikeMult = spike ? spike.mult : 1.0;
+        const finalMult = Math.round(baseMult * spikeMult * 100) / 100;
+        const price = Math.round(OIL_PRICE.basePrice * finalMult);
+        const trend = finalMult >= 1.20 ? 'crisis' : finalMult >= 1.08 ? 'high' : finalMult <= 0.85 ? 'cheap' : finalMult <= 0.95 ? 'low' : 'normal';
+        return { mult: finalMult, price, trend, spike: spike ? spike.name : null };
+    },
+
+    // Check for oil spike events (called daily)
+    checkOilSpike() {
+        if (typeof OIL_PRICE === 'undefined') return;
+        const s = this.state;
+        if (s.oilSpike && s.gameDay <= s.oilSpike.endDay) return; // already active
+
+        for (const sp of OIL_PRICE.spikes) {
+            if (Math.random() < sp.prob) {
+                const mult = sp.mult[0] + Math.random() * (sp.mult[1] - sp.mult[0]);
+                const duration = Math.round(sp.duration[0] + Math.random() * (sp.duration[1] - sp.duration[0]));
+                s.oilSpike = {
+                    id: sp.id, name: D(sp, 'name'), icon: sp.icon,
+                    mult: Math.round(mult * 100) / 100,
+                    endDay: s.gameDay + duration,
+                };
+                const oil = this.getOilPrice();
+                this.addFeed(`${sp.icon} ${D(sp,'name')}! ${T('oil.barrel')}: $${oil.price} (${duration}${T('common.day')})`, 'alert');
+                break;
+            }
+        }
     },
 
     // Get market condition for a port (seasonal rate/volume multipliers)
@@ -4981,6 +5051,7 @@ const Game = {
             s.ownedRoutes.forEach(or => { if (!or.voyage) or.voyage = { dayCounter: 0 }; if (or.status === 'setup') or.status = 'active'; });
             if (!s.market) s.market = this.initMarket(s.route);
             if (!s.lastActiveTime) s.lastActiveTime = Date.now();
+            if (s.oilSpike === undefined) s.oilSpike = null;
 
             // Ensure all ports have container entries
             s.route.ports.forEach(p => {

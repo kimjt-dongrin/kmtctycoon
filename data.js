@@ -1199,6 +1199,27 @@ const SHIP_ACCIDENTS = [
       severity: 'moderate', prob: 0.1 },
 ];
 
+// Oil Price Cycle — 월간 유가 배율 (1.0 = 기준가 $80/배럴)
+// 연료비(fuelCostPerDay)에 직접 곱해짐. 급등 이벤트 시 추가 스파이크.
+const OIL_PRICE = {
+    basePrice: 80, // 기준 유가 ($/barrel)
+    //           Jan   Feb   Mar   Apr   May   Jun   Jul   Aug   Sep   Oct   Nov   Dec
+    monthly:   [0.95, 0.92, 0.98, 1.02, 1.05, 1.08, 1.12, 1.10, 1.05, 1.00, 0.95, 0.90],
+    // 유가 급등 이벤트 — 확률적으로 발생, 일정 기간 유지
+    spikes: [
+        { id: 'oil_geopolitical', name: '중동 지정학적 긴장', nameJa: '中東地政学的緊張', icon: '⚠️',
+          mult: [1.25, 1.45], duration: [20, 60], prob: 0.003 },
+        { id: 'oil_opec_cut', name: 'OPEC 감산 합의', nameJa: 'OPEC減産合意', icon: '🛢️',
+          mult: [1.15, 1.30], duration: [30, 90], prob: 0.002 },
+        { id: 'oil_hurricane', name: '허리케인 — 정유시설 피해', nameJa: 'ハリケーン — 製油所被害', icon: '🌀',
+          mult: [1.20, 1.40], duration: [15, 45], prob: 0.002 },
+        { id: 'oil_glut', name: '원유 공급 과잉', nameJa: '原油供給過剰', icon: '📉',
+          mult: [0.70, 0.85], duration: [30, 60], prob: 0.002 },
+        { id: 'oil_demand_drop', name: '글로벌 수요 둔화', nameJa: 'グローバル需要鈍化', icon: '📊',
+          mult: [0.75, 0.88], duration: [20, 50], prob: 0.002 },
+    ],
+};
+
 // Market Cycle — 포트별 월간 운임·물량 배율 (1.0 = 평년, >1 = 성수기, <1 = 비수기)
 // 실제 해운 시장 사이클 반영: 춘절 후 → 여름 성수기 → 크리스마스 러시 → 비수기
 // rateMultiplier: 운임 배율, volMultiplier: 물량 배율

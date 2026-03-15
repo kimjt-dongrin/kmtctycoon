@@ -3255,6 +3255,8 @@ const Game = {
         document.getElementById('hud-voy').textContent = `V.${String(s.voyage.num).padStart(3, '0')}`;
         const gd = this.getGameDate();
         document.getElementById('hud-day').textContent = `${gd.dateStr} ${String(s.gameHour).padStart(2,'0')}:00`;
+        const ddayEl = document.getElementById('hud-dday');
+        if (ddayEl) ddayEl.textContent = `D+${s.gameDay}`;
 
         const teu = this.getTEU();
         const cargoTeu = document.getElementById('cargo-teu');
@@ -3801,7 +3803,7 @@ const Game = {
         let html = `
         <div style="text-align:center;margin-bottom:12px">
             <div style="font-size:13px;font-weight:700">${s.co}</div>
-            <div style="font-size:11px;color:var(--t3)">${s.ceo} | ${gd.dateStr} (Day ${s.gameDay})</div>
+            <div style="font-size:11px;color:var(--t3)">${s.ceo} | ${gd.dateStr} (D+${s.gameDay})</div>
             <div style="font-size:10px;color:var(--t3);margin-top:4px">마지막 저장: ${saveTime}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px">
@@ -3814,6 +3816,21 @@ const Game = {
             <button class="btn-sm" onclick="Game.closeSaveMenu()" style="width:100%;background:var(--card2);margin-top:4px">
                 ▶ 게임으로 돌아가기
             </button>
+        </div>
+        <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+            <button class="btn-sm" id="btn-newco-init" onclick="document.getElementById('btn-newco-init').style.display='none';document.getElementById('newco-confirm').style.display='block'" style="width:100%;background:var(--card2);color:var(--t3);font-size:11px">
+                🏢 새 회사 설립 (현재 회사 포기)
+            </button>
+            <div id="newco-confirm" style="display:none;margin-top:8px;padding:10px;background:rgba(255,23,68,.08);border:1px solid rgba(255,23,68,.3);border-radius:8px">
+                <div style="font-size:11px;color:#ff5252;margin-bottom:8px;line-height:1.4">
+                    ⚠️ 현재 회사 <strong>${s.co}</strong>의 모든 데이터가 삭제됩니다.<br>
+                    랭킹 기록은 유지됩니다. 이 작업은 되돌릴 수 없습니다.
+                </div>
+                <div style="display:flex;gap:8px">
+                    <button class="btn-sm" onclick="Game.startNewCompany()" style="flex:1;background:#b71c1c;color:white;font-weight:700">확인 — 새로 시작</button>
+                    <button class="btn-sm" onclick="document.getElementById('btn-newco-init').style.display='';document.getElementById('newco-confirm').style.display='none'" style="flex:1;background:var(--card2)">취소</button>
+                </div>
+            </div>
         </div>
         <div style="font-size:9px;color:var(--t3);text-align:center;margin-top:10px;line-height:1.5">
             게임은 매일 자동 저장됩니다.<br>
@@ -3828,6 +3845,20 @@ const Game = {
     closeSaveMenu() {
         this.closeModal('modal-savemenu');
         this.startTick();
+    },
+
+    startNewCompany() {
+        // Save final leaderboard entry before deleting
+        this.saveToLeaderboard();
+        // Clear save data (leaderboard is preserved separately)
+        localStorage.removeItem('kmtc_save');
+        this.stopTick();
+        this.closeModal('modal-savemenu');
+        this.state = {};
+        // Go to title — show new game button, hide load button
+        this.showScreen('screen-title');
+        document.getElementById('btn-load').style.display = 'none';
+        this.toast('기존 회사가 정리되었습니다. 새 회사를 설립하세요!', 'ok');
     },
 
     manualSave() {

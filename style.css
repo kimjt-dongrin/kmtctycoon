@@ -73,6 +73,7 @@ h1{font-size:32px;font-weight:300;letter-spacing:6px;margin-bottom:6px}
 .hud-company{font-weight:700;font-size:15px}
 .hud-voy{font-size:11px;background:var(--blue);padding:2px 8px;border-radius:4px}
 .hud-c{display:flex;align-items:center;gap:12px}
+.hud-dday{font-size:11px;font-weight:700;color:var(--yellow);background:rgba(255,193,7,.15);padding:2px 8px;border-radius:10px;letter-spacing:1px}
 .hud-day{font-size:14px;font-weight:600;color:var(--accent);min-width:80px}
 .speed-btns{display:flex;gap:4px}
 .spd{padding:3px 8px;font-size:10px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--t2);cursor:pointer;transition:all .15s}

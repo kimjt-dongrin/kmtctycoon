@@ -27,7 +27,7 @@ const Game = {
     // ==================== ROUTE SELECTION ====================
     renderRoutes() {
         document.getElementById('route-cards').innerHTML = ROUTES.map(r => {
-            const portStr = r.ports.map(p => `<span class="ptag">${r.portNames[p]}</span>`).join('<span class="parr">→</span>');
+            const portStr = r.ports.map(p => `<span class="ptag">${(CURRENT_LANG==='ja'&&r.portNamesJa?r.portNamesJa:r.portNames)[p]}</span>`).join('<span class="parr">→</span>');
             const locked = r.unlockRevenue > 0;
             return `
             <div class="route-card ${locked ? 'locked' : ''}" onclick="${locked ? '' : `Game.pickRoute('${r.id}')`}" style="border-top:4px solid ${r.color};${locked ? 'opacity:.5;cursor:default' : ''}">
@@ -223,7 +223,7 @@ const Game = {
         const vn = document.getElementById('vessel-name');
         if (vn) vn.textContent = s.vessel;
         const pl = document.getElementById('port-label');
-        if (pl) pl.textContent = `${s.route.portNames[s.route.ports[0]]}${T('common.port')}`;
+        if (pl) pl.textContent = `${this.getPortName(s.route.ports[0])}${T('common.port')}`;
         this.updateAll();
         this.updateTicker();
         this.startTick();
@@ -587,7 +587,7 @@ const Game = {
             s.route.ports.forEach(p => {
                 const selected = plan.focusPort === p;
                 html += `<div class="assign-cust ${selected ? 'selected' : ''}" onclick="Game.setPlan('${stId}','focusPort','${p}')">
-                    <span>${s.route.portNames[p]}</span></div>`;
+                    <span>${this.getPortName(p)}</span></div>`;
             });
             // Slot charter ports
             (s.slotCharters || []).filter(sc => sc.active).forEach(sc => {
@@ -596,7 +596,7 @@ const Game = {
                 scDef.ports.filter(p => !s.route.ports.includes(p)).forEach(p => {
                     const selected = plan.focusPort === p;
                     html += `<div class="assign-cust ${selected ? 'selected' : ''}" onclick="Game.setPlan('${stId}','focusPort','${p}')" style="border-left:3px solid ${scDef.color || 'var(--accent2)'}">
-                        <span>${scDef.portNames[p]} <span style="font-size:9px;color:var(--accent2)">${T('legend.slot')}</span></span></div>`;
+                        <span>${this._pn(scDef, p)} <span style="font-size:9px;color:var(--accent2)">${T('legend.slot')}</span></span></div>`;
                 });
             });
             html += '</div>';
@@ -765,6 +765,11 @@ const Game = {
         return port;
     },
 
+    // Get port name from a specific data object (for items not yet in state)
+    _pn(obj, port) {
+        return (CURRENT_LANG === 'ja' && obj.portNamesJa && obj.portNamesJa[port]) ? obj.portNamesJa[port] : (obj.portNames[port] || port);
+    },
+
     // Pick next customer based on strategy
     pickCustomerByStrategy(st) {
         const s = this.state, r = s.route;
@@ -887,7 +892,7 @@ const Game = {
                         st.actTargetPort = port;
                         st.actProgress = 0;
                         st.actDaysLeft = act.duration;
-                        this.addFeed(T('feed.prospectStart', st.avatar, st.name, s.route.portNames[port]), 'activity');
+                        this.addFeed(T('feed.prospectStart', st.avatar, st.name, this.getPortName(port)), 'activity');
                     }
                 } else {
                     const target = this.pickCustomerByStrategy(st);
@@ -980,7 +985,7 @@ const Game = {
     completeProspect(st, act) {
         const s = this.state;
         const port = st.actTargetPort;
-        const portName = s.route.portNames[port] || port;
+        const portName = this.getPortName(port);
 
         // Cost & exp
         s.cash -= act.costPerAct;
@@ -1130,11 +1135,13 @@ const Game = {
         }
 
         const portNames = { ...r.portNames };
+        const portNamesJa = { ...(r.portNamesJa || {}) };
         // Merge slot charter + owned route port names
-        if (s.slotCharters) s.slotCharters.forEach(sc => { const d = SLOT_CHARTERS.find(x => x.id === sc.id); if (d) Object.assign(portNames, d.portNames); });
-        if (s.ownedRoutes) s.ownedRoutes.forEach(or => { const d = NEW_ROUTE_PACKAGES.find(x => x.id === or.id); if (d) Object.assign(portNames, d.portNames); });
+        if (s.slotCharters) s.slotCharters.forEach(sc => { const d = SLOT_CHARTERS.find(x => x.id === sc.id); if (d) { Object.assign(portNames, d.portNames); if (d.portNamesJa) Object.assign(portNamesJa, d.portNamesJa); } });
+        if (s.ownedRoutes) s.ownedRoutes.forEach(or => { const d = NEW_ROUTE_PACKAGES.find(x => x.id === or.id); if (d) { Object.assign(portNames, d.portNames); if (d.portNamesJa) Object.assign(portNamesJa, d.portNamesJa); } });
 
-        this.addFeed(T('feed.booked', cust.icon, D(cust,'name'), portNames[port] || port, portNames[dest] || dest, avail20 + avail40 * 2, revenue.toLocaleString()), 'booking');
+        const _bn = (p) => (CURRENT_LANG === 'ja' && portNamesJa[p]) ? portNamesJa[p] : (portNames[p] || p);
+        this.addFeed(T('feed.booked', cust.icon, D(cust,'name'), _bn(port), _bn(dest), avail20 + avail40 * 2, revenue.toLocaleString()), 'booking');
         this.toast(T('feed.bookedToast', D(cust,'name'), avail20 + avail40 * 2), 'ok');
 
         this.updateBayGrid();
@@ -1332,8 +1339,8 @@ const Game = {
 
         // Show as event modal
         this.stopTick();
-        const fromName = r.portNames[fromPort] || fromPort;
-        const toName = r.portNames[toPort] || toPort;
+        const fromName = this.getPortName(fromPort);
+        const toName = this.getPortName(toPort);
         document.getElementById('evt-title').textContent = T('spot.title', template.icon);
         document.getElementById('evt-desc').innerHTML =
             `<strong>${D(template,'name')}</strong><br>${D(template,'desc')}<br><br>` +
@@ -1417,7 +1424,7 @@ const Game = {
         const totalVoyages = Math.round(template.duration * 30 / r.rotationDays);
 
         this.stopTick();
-        const fromName = r.portNames[fromPort] || fromPort;
+        const fromName = this.getPortName(fromPort);
         const diffStars = '⭐'.repeat(template.difficulty);
         document.getElementById('evt-title').textContent = T('bsa.title');
         document.getElementById('evt-desc').innerHTML =
@@ -1505,7 +1512,7 @@ const Game = {
             if (p === r.ports[0]) return; // skip home port
             const total = s.ctr[p]['20'] + s.ctr[p]['40'];
             if (total > 15 && s.gameDay > 7) {
-                this.addFeed(T('ctr.congestionFeed', r.portNames[p], total), 'alert');
+                this.addFeed(T('ctr.congestionFeed', this.getPortName(p), total), 'alert');
             }
         });
     },
@@ -1640,7 +1647,7 @@ const Game = {
             s.pendingRepos.forEach(rp => {
                 s.ctr[rp.to]['20'] += rp.q20;
                 s.ctr[rp.to]['40'] += rp.q40;
-                this.addFeed(`${T('ctr.arrived')} ${s.route.portNames[rp.to]} 20'×${rp.q20}+40'×${rp.q40} ${T('ctr.placed')}`, 'booking');
+                this.addFeed(`${T('ctr.arrived')} ${this.getPortName(rp.to)} 20'×${rp.q20}+40'×${rp.q40} ${T('ctr.placed')}`, 'booking');
             });
             s.pendingRepos = [];
         }
@@ -1703,7 +1710,7 @@ const Game = {
             v.unloads.push({ port: dest, un20, un40, unRev });
 
             if (unRev > 0) {
-                this.addFeed(T('voyage.unload', r.portNames[dest], un20 + un40 * 2, unRev.toLocaleString()), 'booking');
+                this.addFeed(T('voyage.unload', this.getPortName(dest), un20 + un40 * 2, unRev.toLocaleString()), 'booking');
             }
 
             // Event check
@@ -1816,7 +1823,7 @@ const Game = {
                 const c = MAP_PORTS[p]; if (!c) return;
                 svg += `<circle cx="${c.x}" cy="${c.y}" r="4" fill="${clr}" stroke="#fff" stroke-width="1" filter="url(#gl)"/>`;
                 const labelBelow = ['HCM','LCB','JKT','SBY','BKK'].includes(p);
-                svg += `<text x="${c.x}" y="${c.y + (labelBelow ? 14 : -9)}" text-anchor="middle" fill="rgba(200,220,255,.7)" font-size="9">${scDef.portNames[p]}</text>`;
+                svg += `<text x="${c.x}" y="${c.y + (labelBelow ? 14 : -9)}" text-anchor="middle" fill="rgba(200,220,255,.7)" font-size="9">${this._pn(scDef, p)}</text>`;
             });
         });
 
@@ -1861,7 +1868,7 @@ const Game = {
                 const c = MAP_PORTS[p]; if (!c) return;
                 svg += `<circle cx="${c.x}" cy="${c.y}" r="4" fill="${clr}" stroke="#fff" stroke-width="1" filter="url(#gl)"/>`;
                 const labelBelow = ['HCM','LCB','JKT','SBY','BKK','PKL','MAA','BOM','PEN'].includes(p);
-                svg += `<text x="${c.x}" y="${c.y + (labelBelow ? 14 : -9)}" text-anchor="middle" fill="rgba(200,220,255,.7)" font-size="9">${pkg.portNames[p]}</text>`;
+                svg += `<text x="${c.x}" y="${c.y + (labelBelow ? 14 : -9)}" text-anchor="middle" fill="rgba(200,220,255,.7)" font-size="9">${this._pn(pkg, p)}</text>`;
                 uniquePorts.push(p); // prevent duplicate port labels
             });
         });
@@ -1880,7 +1887,7 @@ const Game = {
             const isActive = p === from || p === to;
             const color = p === to ? '#FF6B35' : (p === from ? '#4CAF50' : '#0054A6');
             svg += `<circle cx="${c.x}" cy="${c.y}" r="${isActive ? 5 : 3}" fill="${color}" stroke="#fff" stroke-width="1" filter="url(#gl)"/>`;
-            svg += `<text x="${c.x}" y="${c.y + (p === 'NBO' || p === 'SHA' ? 14 : -9)}" text-anchor="middle" fill="${isActive ? '#fff' : 'rgba(200,220,255,.6)'}" font-size="${isActive ? 11 : 9}" ${isActive ? 'font-weight="700"' : ''}>${r.portNames[p]}</text>`;
+            svg += `<text x="${c.x}" y="${c.y + (p === 'NBO' || p === 'SHA' ? 14 : -9)}" text-anchor="middle" fill="${isActive ? '#fff' : 'rgba(200,220,255,.6)'}" font-size="${isActive ? 11 : 9}" ${isActive ? 'font-weight="700"' : ''}>${this.getPortName(p)}</text>`;
             // Weather icon near port
             const w = this.getWeather(p);
             svg += `<text x="${c.x + 12}" y="${c.y - 12}" font-size="14" text-anchor="start">${w.icon}</text>`;
@@ -1941,9 +1948,9 @@ const Game = {
 
         // Overlay info bar
         const totalProgress = ((v.legIdx + v.sailProgress) / v.totalLegs) * 100;
-        const fromN = r.portNames[from], toN = r.portNames[to];
+        const fromN = this.getPortName(from), toN = this.getPortName(to);
         const lastUnload = v.unloads[v.unloads.length - 1];
-        const unloadInfo = lastUnload && lastUnload.unRev > 0 ? ` | ${T('voyage.unload', r.portNames[lastUnload.port], lastUnload.un20 + lastUnload.un40 * 2, lastUnload.unRev.toLocaleString())}` : '';
+        const unloadInfo = lastUnload && lastUnload.unRev > 0 ? ` | ${T('voyage.unload', this.getPortName(lastUnload.port), lastUnload.un20 + lastUnload.un40 * 2, lastUnload.unRev.toLocaleString())}` : '';
 
         const gd = this.getGameDate();
         const destW = this.getWeather(to);
@@ -1982,7 +1989,7 @@ const Game = {
             this.renderPortMapView();
         } else {
             scene.innerHTML = `
-                <div class="port-ground" id="port-ground"><div class="port-label" id="port-label">${s.route.portNames[s.route.ports[0]]}${T('common.port')}</div></div>
+                <div class="port-ground" id="port-ground"><div class="port-label" id="port-label">${this.getPortName(s.route.ports[0])}${T('common.port')}</div></div>
                 <div class="crane" id="crane"><div class="crane-arm"></div><div class="crane-cable"></div><div class="crane-hook"></div></div>
                 <div class="game-ship" id="game-ship">
                     <div class="hull"></div>
@@ -2077,7 +2084,7 @@ const Game = {
                 const c = MAP_PORTS[p]; if (!c) return;
                 svg += `<circle cx="${c.x}" cy="${c.y}" r="4" fill="${clr}" stroke="#fff" stroke-width="1" filter="url(#gl)"/>`;
                 const lb = ['HCM','LCB','JKT','SBY','BKK'].includes(p);
-                svg += `<text x="${c.x}" y="${c.y + (lb ? 14 : -9)}" text-anchor="middle" fill="rgba(200,220,255,.7)" font-size="9">${scDef.portNames[p]}</text>`;
+                svg += `<text x="${c.x}" y="${c.y + (lb ? 14 : -9)}" text-anchor="middle" fill="rgba(200,220,255,.7)" font-size="9">${this._pn(scDef, p)}</text>`;
                 uniquePorts.push(p);
             });
         });
@@ -2111,7 +2118,7 @@ const Game = {
                 const c = MAP_PORTS[p]; if (!c) return;
                 svg += `<circle cx="${c.x}" cy="${c.y}" r="4" fill="${clr}" stroke="#fff" stroke-width="1" filter="url(#gl)"/>`;
                 const lb = ['HCM','LCB','JKT','SBY','BKK','PKL','MAA','BOM','PEN'].includes(p);
-                svg += `<text x="${c.x}" y="${c.y + (lb ? 14 : -9)}" text-anchor="middle" fill="rgba(200,220,255,.7)" font-size="9">${pkg.portNames[p]}</text>`;
+                svg += `<text x="${c.x}" y="${c.y + (lb ? 14 : -9)}" text-anchor="middle" fill="rgba(200,220,255,.7)" font-size="9">${this._pn(pkg, p)}</text>`;
                 uniquePorts.push(p);
             });
         });
@@ -2123,7 +2130,7 @@ const Game = {
             const color = isMain ? '#4CAF50' : '#0054A6';
             svg += `<circle cx="${c.x}" cy="${c.y}" r="${isMain ? 5 : 3}" fill="${color}" stroke="#fff" stroke-width="1" filter="url(#gl)"/>`;
             const labelBelow = ['NBO','SHA','HCM','LCB','JKT','SBY','BKK','PKL','MAA','BOM','PEN'].includes(p);
-            svg += `<text x="${c.x}" y="${c.y + (labelBelow ? 14 : -9)}" text-anchor="middle" fill="${isMain ? '#fff' : 'rgba(200,220,255,.6)'}" font-size="${isMain ? 11 : 9}" ${isMain ? 'font-weight="700"' : ''}>${r.portNames[p] || p}</text>`;
+            svg += `<text x="${c.x}" y="${c.y + (labelBelow ? 14 : -9)}" text-anchor="middle" fill="${isMain ? '#fff' : 'rgba(200,220,255,.6)'}" font-size="${isMain ? 11 : 9}" ${isMain ? 'font-weight="700"' : ''}>${this.getPortName(p)}</text>`;
         });
 
         // Legend
@@ -2157,7 +2164,7 @@ const Game = {
             ${svg}
             <div style="position:absolute;bottom:0;left:0;right:0;z-index:11;background:rgba(0,10,20,.85);padding:6px 12px">
                 <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
-                    <span>⚓ <strong>${s.vessel}</strong> ${r.portNames[r.ports[0]]}${T('common.port')} ${T('ship.docked')} | 📦 ${teu}TEU | ${T('depart.countdown')} ${daysLeft}${T('depart.daysLeft')}</span>
+                    <span>⚓ <strong>${s.vessel}</strong> ${this.getPortName(r.ports[0])}${T('common.port')} ${T('ship.docked')} | 📦 ${teu}TEU | ${T('depart.countdown')} ${daysLeft}${T('depart.daysLeft')}</span>
                     <span>🌏 ${routeCount} | 🚢 ${routeCount}${T('common.ships')}</span>
                 </div>
             </div>`;
@@ -2167,7 +2174,7 @@ const Game = {
         const s = this.state, r = s.route, v = s.voyage;
         const leg = r.legs[Math.min(v.legIdx, r.legs.length - 1)];
         const from = leg.from, to = leg.to;
-        const fromN = r.portNames[from], toN = r.portNames[to];
+        const fromN = this.getPortName(from), toN = this.getPortName(to);
 
         // Build SVG map
         let svg = `<svg viewBox="50 80 650 380" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">`;
@@ -2223,7 +2230,7 @@ const Game = {
                 </circle>`;
             }
             svg += `<circle cx="${c.x}" cy="${c.y}" r="${radius}" fill="${color}" stroke="#fff" stroke-width="1.5" filter="url(#glow)"/>`;
-            svg += `<text x="${c.x}" y="${c.y + (p === 'NBO' || p === 'SHA' ? 16 : -10)}" text-anchor="middle" fill="${isActive ? '#fff' : 'rgba(200,220,255,.7)'}" font-size="${isActive ? 12 : 10}" ${isActive ? 'font-weight="700"' : ''}>${r.portNames[p]}</text>`;
+            svg += `<text x="${c.x}" y="${c.y + (p === 'NBO' || p === 'SHA' ? 16 : -10)}" text-anchor="middle" fill="${isActive ? '#fff' : 'rgba(200,220,255,.7)'}" font-size="${isActive ? 12 : 10}" ${isActive ? 'font-weight="700"' : ''}>${this.getPortName(p)}</text>`;
         });
         svg += '</svg>';
 
@@ -2234,7 +2241,7 @@ const Game = {
         info += `${fromN} → ${toN} (${leg.seaDays}${T('common.day')})`;
         const lastUnload = v.unloads[v.unloads.length - 1];
         if (lastUnload && lastUnload.unRev > 0) {
-            info += `<br>${T('voyage.unload', r.portNames[lastUnload.port], lastUnload.un20 + lastUnload.un40 * 2, lastUnload.unRev.toLocaleString())}`;
+            info += `<br>${T('voyage.unload', this.getPortName(lastUnload.port), lastUnload.un20 + lastUnload.un40 * 2, lastUnload.unRev.toLocaleString())}`;
         }
         document.getElementById('sail-info').innerHTML = info;
 
@@ -2299,8 +2306,8 @@ const Game = {
                     .sort((a, b) => a.difficulty - b.difficulty)
                     .slice(0, 3)
                     .map(c => `${c.icon}${D(c,'name')}`);
-                const sellTo = (r.salesPorts[p]?.sellTo || []).map(d => r.portNames[d]).join('/');
-                repoDetails.push({ port: p, portName: r.portNames[p], ex20, ex40, cost, targets, sellTo });
+                const sellTo = (r.salesPorts[p]?.sellTo || []).map(d => this.getPortName(d)).join('/');
+                repoDetails.push({ port: p, portName: this.getPortName(p), ex20, ex40, cost, targets, sellTo });
                 s.ctr[p]['20'] -= ex20; s.ctr[p]['40'] -= ex40;
                 s.ctr[home]['20'] += ex20; s.ctr[home]['40'] += ex40;
             }
@@ -2393,7 +2400,7 @@ const Game = {
             <div class="rpt-section"><h4>📦 ${T('fin.voyage')}</h4>
                 ${Object.entries(byLeg).map(([leg, d]) => {
                     const p = leg.split('-');
-                    return `<div class="rpt-ctr">${r.portNames[p[0]] || p[0]}→${r.portNames[p[1]] || p[1]}: ${d.teu}TEU / $${d.rev.toLocaleString()}</div>`;
+                    return `<div class="rpt-ctr">${this.getPortName(p[0])}→${this.getPortName(p[1])}: ${d.teu}TEU / $${d.rev.toLocaleString()}</div>`;
                 }).join('') || `<div class="rpt-ctr" style="color:var(--t3)">${T('voy.noCargo')}</div>`}
             </div>
             ${repoHtml}
@@ -3393,7 +3400,7 @@ const Game = {
                 const owned = s.ownedRoutes.find(o => o.id === pkg.id);
                 const unlocked = s.stats.totRev >= (pkg.unlockRevenue || 0);
                 const canBuy = !owned && unlocked && afford(pkg.totalInvestment);
-                const portList = pkg.ports.map(p => pkg.portNames[p]).join(' → ');
+                const portList = pkg.ports.map(p => this._pn(pkg, p)).join(' → ');
                 // Loan calculation: how much is needed beyond current cash
                 const shortage = Math.max(0, pkg.totalInvestment - Math.max(0, s.cash));
                 const needsLoan = unlocked && !canBuy && shortage > 0;
@@ -3489,7 +3496,7 @@ const Game = {
                                     <td style="text-align:right;font-weight:600">$${pkg.containerCost.toLocaleString()}</td>
                                 </tr>
                                 ${pkg.officePorts.map(op => `<tr style="border-bottom:1px solid var(--border)">
-                                    <td style="padding:4px 0">${T('inv.officeItem')} ${pkg.portNames[op]}</td>
+                                    <td style="padding:4px 0">${T('inv.officeItem')} ${this._pn(pkg, op)}</td>
                                     <td style="text-align:right;font-weight:600">$${pkg.officeCostEach.toLocaleString()}</td>
                                 </tr>`).join('')}
                                 <tr style="font-weight:700;color:var(--accent)">
@@ -3543,7 +3550,7 @@ const Game = {
             SLOT_CHARTERS.forEach(sc => {
                 const owned = s.slotCharters.find(o => o.id === sc.id);
                 const unlocked = s.stats.totRev >= (sc.unlockRevenue || 0);
-                const portList = sc.ports.map(p => sc.portNames[p]).join(' → ');
+                const portList = sc.ports.map(p => this._pn(sc, p)).join(' → ');
                 const scOfficePorts = sc.officePorts || sc.ports.filter(p => p !== 'PUS');
                 const scOfficeCost = (sc.officeCostEach || 25000) * scOfficePorts.length;
                 const scTotalCost = sc.slotCost + scOfficeCost;
@@ -3568,7 +3575,7 @@ const Game = {
                             <div class="invest-icon">🚢</div>
                             <div class="invest-info" style="flex:1">
                                 <div class="invest-name">${D(sc,'name')} <span style="font-size:9px;color:var(--green)">${T('inv.operating')}</span></div>
-                                <div class="invest-effect">${sc.carrier} ${sc.vesselName} | ${portList}</div>
+                                <div class="invest-effect">${D(sc,'carrier')} ${sc.vesselName} | ${portList}</div>
                                 <div style="font-size:10px;color:var(--t3);margin-top:2px">📦 ${sc.slotCapacity} TEU | 💰 ${T('inv.perVoyage')} $${sc.slotFeePerVoyage.toLocaleString()} | V.${owned.voyNum || 1}</div>
                             </div>
                             <button class="btn-sm" onclick="Game._expandedWithdrawSC=Game._expandedWithdrawSC==='${sc.id}'?null:'${sc.id}';Game.renderInvestments()" style="font-size:9px;padding:2px 6px;background:var(--card2);color:var(--red)">${scExpanded ? T('withdraw.collapse') : T('withdraw.btn')}</button>
@@ -3608,7 +3615,7 @@ const Game = {
                             <div class="invest-icon">🚢</div>
                             <div class="invest-info" style="flex:1;min-width:0">
                                 <div class="invest-name">${D(sc,'name')} ${!unlocked ? '🔒' : ''} <span style="font-size:9px;color:${sc.color}">${D(sc,'difficulty')}</span></div>
-                                <div class="invest-effect" style="word-break:break-word">${T('inv.slotVessel', sc.carrier, sc.slotCapacity)}</div>
+                                <div class="invest-effect" style="word-break:break-word">${T('inv.slotVessel', D(sc,'carrier'), sc.slotCapacity)}</div>
                                 <div style="font-size:10px;color:var(--t3);margin-top:2px">${T('inv.slotRotation', portList, sc.rotationDays)}</div>
                                 <div style="font-size:10px;color:var(--t2);margin-top:2px">
                                     ${T('inv.slotCostDetail', sc.slotCost.toLocaleString(), scOfficePorts.length, scOfficeCost.toLocaleString())}
@@ -4244,7 +4251,7 @@ const Game = {
         if (!this.canAfford(cost)) { this.toast(T('inv.debtOver'), 'err'); return; }
         s.cash -= cost; s.stats.totExp += cost;
         s.infra.offices[port] = true;
-        this.toast(`${s.route.portNames[port]} ${T('inv.establish')}!`, 'ok');
+        this.toast(`${this.getPortName(port)} ${T('inv.establish')}!`, 'ok');
         this.renderInvestments();
         this.updateHUD();
     },
@@ -4471,7 +4478,7 @@ const Game = {
             s.bsaContracts.forEach(c => {
                 const pct = Math.round((1 - c.voyagesLeft / c.totalVoyages) * 100);
                 html += `<div class="fin-row" style="flex-wrap:wrap">
-                    <span>📋 ${c.id.slice(-6)} | ${(s.route.portNames[c.fromPort]||c.fromPort)}→${(s.route.portNames[c.toPort]||c.toPort)}</span>
+                    <span>📋 ${c.id.slice(-6)} | ${this.getPortName(c.fromPort)}→${this.getPortName(c.toPort)}</span>
                     <span>${T('bsa.voyTerms', c.teuPerVoy, c.revPerVoy.toLocaleString())}</span>
                 </div>
                 <div style="background:var(--card2);border-radius:4px;height:6px;margin:2px 0 6px">
@@ -4608,12 +4615,12 @@ const Game = {
         r.ports.slice(1).forEach(p => {
             const total = (s.ctr[p]?.['20'] || 0) + (s.ctr[p]?.['40'] || 0);
             if (total > 15) {
-                const pn = r.portNames[p];
+                const pn = this.getPortName(p);
                 items.push({ text: T('ticker.ctrExcess', pn, total), cls: 'warn' });
             }
             // Suggest repositioning: home has many, foreign has few
             if (total <= 3 && homeEmpty > 20) {
-                const pn = r.portNames[p];
+                const pn = this.getPortName(p);
                 items.push({ text: T('ticker.ctrShortage', pn, total), cls: 'warn' });
             }
         });
@@ -4643,7 +4650,7 @@ const Game = {
         if (totalProspects > 0) {
             const portWithMost = Object.entries(s.prospectPool || {}).sort((a, b) => b[1].length - a[1].length)[0];
             if (portWithMost && portWithMost[1].length > 0) {
-                const pn = r.portNames[portWithMost[0]];
+                const pn = this.getPortName(portWithMost[0]);
                 items.push({ text: T('ticker.prospect', pn, portWithMost[1].length), cls: 'info' });
             }
         } else if (totalProspects === 0 && s.stats.totVoy >= 1) {
@@ -4666,7 +4673,7 @@ const Game = {
             const v = s.voyage;
             const leg = r.legs[Math.min(v.legIdx, r.legs.length - 1)];
             if (leg) {
-                items.push({ text: T('ticker.sailing', s.vessel, r.portNames[leg.from], r.portNames[leg.to], teu, lf), cls: 'info' });
+                items.push({ text: T('ticker.sailing', s.vessel, this.getPortName(leg.from), this.getPortName(leg.to), teu, lf), cls: 'info' });
             }
         }
 
@@ -4683,7 +4690,7 @@ const Game = {
         if (homeW.typhoon) {
             items.push({ text: T('ticker.typhoonWarn'), cls: 'warn' });
         } else if (homeW.wave >= 4) {
-            items.push({ text: T('ticker.highWave', r.portNames[r.ports[0]]), cls: 'warn' });
+            items.push({ text: T('ticker.highWave', this.getPortName(r.ports[0])), cls: 'warn' });
         }
 
         // === SPOT & BSA ===

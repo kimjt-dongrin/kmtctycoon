@@ -2373,23 +2373,24 @@ const Game = {
         s.stats.totTEU += totTEU;
         s.stats.lastProfit = profit;
 
-        // Calculate E/B and W/B load factors by matching bookings to leg bounds
+        // Calculate load factors per bound direction (EB/WB or SB/NB)
         const legBoundMap = {};
         r.legs.forEach(l => { legBoundMap[`${l.from}-${l.to}`] = l.bound || 'EB'; });
-        let ebTEU = 0, wbTEU = 0, ebLegs = 0, wbLegs = 0;
+        const bounds = this.getRouteBounds(r);
+        const b1 = bounds[0], b2 = bounds[1]; // e.g. ['WB','EB'] or ['SB','NB'] or ['EB','WB']
+        let b1TEU = 0, b2TEU = 0, b1Legs = 0, b2Legs = 0;
         r.legs.forEach(l => {
-            if ((l.bound || 'EB') === 'EB') ebLegs++; else wbLegs++;
+            if (l.bound === b1) b1Legs++; else b2Legs++;
         });
         s.bookings.forEach(b => {
             const bTEU = b.q20 + b.q40 * 2;
-            if (legBoundMap[b.leg] === 'WB') wbTEU += bTEU; else ebTEU += bTEU;
+            if (legBoundMap[b.leg] === b2) b2TEU += bTEU; else b1TEU += bTEU;
         });
-        // Average TEU per leg for each bound direction
-        const ebAvg = ebLegs > 0 ? Math.round(ebTEU / ebLegs) : 0;
-        const wbAvg = wbLegs > 0 ? Math.round(wbTEU / wbLegs) : 0;
-        const lfEB = Math.min(100, Math.round((ebAvg / s.ship.capacity) * 100));
-        const lfWB = Math.min(100, Math.round((wbAvg / s.ship.capacity) * 100));
-        const lfTotal = Math.round(((ebAvg + wbAvg) / 2 / s.ship.capacity) * 100);
+        const b1Avg = b1Legs > 0 ? Math.round(b1TEU / b1Legs) : 0;
+        const b2Avg = b2Legs > 0 ? Math.round(b2TEU / b2Legs) : 0;
+        const lfEB = Math.min(100, Math.round((b1Avg / s.ship.capacity) * 100));
+        const lfWB = Math.min(100, Math.round((b2Avg / s.ship.capacity) * 100));
+        const lfTotal = Math.round(((b1Avg + b2Avg) / 2 / s.ship.capacity) * 100);
         s.stats.lastLoadFactor = lfTotal;
         // Calculate sales activity costs during this voyage period
         const voyStartDay = s.gameDay - r.rotationDays;
@@ -2435,11 +2436,16 @@ const Game = {
         const lf = lastH.lf || s.stats.lastLoadFactor;
         const lfEB = lastH.lfEB || 0;
         const lfWB = lastH.lfWB || 0;
+        const bounds = this.getRouteBounds(r);
+        const b1Short = this.getBoundShort(bounds[0]);
+        const b2Short = this.getBoundShort(bounds[1]);
+        const b1Label = this.getBoundLabel(r, bounds[0]);
+        const b2Label = this.getBoundLabel(r, bounds[1]);
         const byLeg = {};
         const legBoundMap = {};
-        r.legs.forEach(l => { legBoundMap[`${l.from}-${l.to}`] = l.bound || 'EB'; });
+        r.legs.forEach(l => { legBoundMap[`${l.from}-${l.to}`] = l.bound || bounds[0]; });
         s.bookings.forEach(b => {
-            if (!byLeg[b.leg]) byLeg[b.leg] = { rev: 0, teu: 0, bound: legBoundMap[b.leg] || 'EB' };
+            if (!byLeg[b.leg]) byLeg[b.leg] = { rev: 0, teu: 0, bound: legBoundMap[b.leg] || bounds[0] };
             byLeg[b.leg].rev += b.revenue;
             byLeg[b.leg].teu += b.q20 + b.q40 * 2;
         });
@@ -2471,13 +2477,13 @@ const Game = {
                 <div class="rpt-stat"><span class="v" style="color:var(--green)">$${v.voyRev.toLocaleString()}</span><span class="l">${T('fin.freightRev')}</span></div>
                 <div class="rpt-stat"><span class="v" style="color:var(--red)">$${v.voyExp.toLocaleString()}</span><span class="l">${T('voy.expense')}</span></div>
                 <div class="rpt-stat"><span class="v" style="color:${profit >= 0 ? 'var(--green)' : 'var(--red)'}">$${profit.toLocaleString()}</span><span class="l">${T('fin.profit')}</span></div>
-                <div class="rpt-stat"><span class="v" style="font-size:14px"><span style="color:${lfEB >= 50 ? 'var(--green)' : 'var(--red)'}">E ${lfEB}%</span> / <span style="color:${lfWB >= 50 ? 'var(--green)' : 'var(--red)'}">W ${lfWB}%</span></span><span class="l">${T('fin.loadFactor')}</span></div>
+                <div class="rpt-stat"><span class="v" style="font-size:13px"><span style="color:${lfEB >= 50 ? 'var(--green)' : 'var(--red)'}">${b1Short} ${lfEB}%</span> / <span style="color:${lfWB >= 50 ? 'var(--green)' : 'var(--red)'}">${b2Short} ${lfWB}%</span></span><span class="l" style="font-size:9px">${b1Label} / ${b2Label}</span></div>
             </div>
             <div class="rpt-section"><h4>📦 ${T('fin.voyage')}</h4>
                 ${Object.entries(byLeg).map(([leg, d]) => {
                     const p = leg.split('-');
-                    const bLabel = d.bound === 'WB' ? 'W/B' : 'E/B';
-                    const bColor = d.bound === 'WB' ? '#FF9800' : '#4CAF50';
+                    const bLabel = this.getBoundShort(d.bound);
+                    const bColor = d.bound === bounds[1] ? '#FF9800' : '#4CAF50';
                     return `<div class="rpt-ctr"><span style="display:inline-block;width:30px;font-size:9px;color:${bColor};font-weight:700">${bLabel}</span> ${this.getPortName(p[0])}→${this.getPortName(p[1])}: ${d.teu}TEU / $${d.rev.toLocaleString()}</div>`;
                 }).join('') || `<div class="rpt-ctr" style="color:var(--t3)">${T('voy.noCargo')}</div>`}
             </div>
@@ -4450,13 +4456,16 @@ const Game = {
                     <div><div style="font-weight:700;color:var(--green)">$${avgRev.toLocaleString()}</div><div style="font-size:9px;color:var(--t3)">${T('fin.rev')}</div></div>
                     <div><div style="font-weight:700;color:var(--red)">$${avgExp.toLocaleString()}</div><div style="font-size:9px;color:var(--t3)">${T('fin.exp')}</div></div>
                     <div><div style="font-weight:700;color:${avgProfit >= 0 ? 'var(--green)' : 'var(--red)'}">$${avgProfit.toLocaleString()}</div><div style="font-size:9px;color:var(--t3)">${T('fin.profit')}</div></div>
-                    <div><div style="font-weight:700"><span style="color:${avgEB >= 50 ? 'var(--green)' : 'var(--red)'}">E${avgEB}</span>/<span style="color:${avgWB >= 50 ? 'var(--green)' : 'var(--red)'}">W${avgWB}</span>%</div><div style="font-size:9px;color:var(--t3)">${T('fin.loadFactor')}</div></div>
+                    <div><div style="font-weight:700"><span style="color:${avgEB >= 50 ? 'var(--green)' : 'var(--red)'}">${fB1.charAt(0)}${avgEB}</span>/<span style="color:${avgWB >= 50 ? 'var(--green)' : 'var(--red)'}">${fB2.charAt(0)}${avgWB}</span>%</div><div style="font-size:9px;color:var(--t3)">${T('fin.loadFactor')}</div></div>
                 </div>
             </div>`;
 
             // Per-voyage table with expandable detail
             html += '<div style="background:var(--card2);border-radius:8px;padding:10px">';
-            html += `<div style="display:grid;grid-template-columns:60px 1fr 1fr 1fr 70px;gap:4px;font-size:10px;color:var(--t3);padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:4px"><span>${T('fin.voyage')}</span><span style="text-align:right">${T('fin.rev')}</span><span style="text-align:right">${T('fin.exp')}</span><span style="text-align:right">${T('fin.profit')}</span><span style="text-align:right">E/B · W/B</span></div>`;
+            const fBounds = this.getRouteBounds(r);
+            const fB1 = this.getBoundShort(fBounds[0]);
+            const fB2 = this.getBoundShort(fBounds[1]);
+            html += `<div style="display:grid;grid-template-columns:60px 1fr 1fr 1fr 70px;gap:4px;font-size:10px;color:var(--t3);padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:4px"><span>${T('fin.voyage')}</span><span style="text-align:right">${T('fin.rev')}</span><span style="text-align:right">${T('fin.exp')}</span><span style="text-align:right">${T('fin.profit')}</span><span style="text-align:right">${fB1}·${fB2}</span></div>`;
             [...s.stats.history].reverse().forEach((h, idx) => {
                 const profitColor = h.profit >= 0 ? 'var(--green)' : 'var(--red)';
                 const hEB = h.lfEB != null ? h.lfEB : h.lf;
@@ -4643,21 +4652,22 @@ const Game = {
         const cargoTeu = document.getElementById('cargo-teu');
         const cargoPct = document.getElementById('cargo-pct');
         if (cargoTeu) cargoTeu.textContent = `${teu}/${s.ship.capacity} TEU`;
-        // Show E/B and W/B load factor in real-time
+        // Show bound-direction load factor in real-time
         if (cargoPct && s.route.legs) {
+            const hBounds = this.getRouteBounds(s.route);
             const legBoundMap = {};
-            s.route.legs.forEach(l => { legBoundMap[`${l.from}-${l.to}`] = l.bound || 'EB'; });
-            let ebT = 0, wbT = 0, ebL = 0, wbL = 0;
-            s.route.legs.forEach(l => { if ((l.bound || 'EB') === 'EB') ebL++; else wbL++; });
+            s.route.legs.forEach(l => { legBoundMap[`${l.from}-${l.to}`] = l.bound || hBounds[0]; });
+            let b1T = 0, b2T = 0, b1L = 0, b2L = 0;
+            s.route.legs.forEach(l => { if (l.bound === hBounds[0]) b1L++; else b2L++; });
             (s.bookings || []).forEach(b => {
                 const bt = b.q20 + b.q40 * 2;
-                if (legBoundMap[b.leg] === 'WB') wbT += bt; else ebT += bt;
+                if (legBoundMap[b.leg] === hBounds[1]) b2T += bt; else b1T += bt;
             });
-            const eAvg = ebL > 0 ? Math.round(ebT / ebL) : 0;
-            const wAvg = wbL > 0 ? Math.round(wbT / wbL) : 0;
-            const ePct = Math.min(100, Math.round(eAvg / s.ship.capacity * 100));
-            const wPct = Math.min(100, Math.round(wAvg / s.ship.capacity * 100));
-            cargoPct.innerHTML = `<span style="color:${ePct >= 50 ? 'var(--green)' : 'var(--t2)'}">E${ePct}%</span> <span style="color:${wPct >= 50 ? 'var(--green)' : 'var(--t2)'}">W${wPct}%</span>`;
+            const p1 = b1L > 0 ? Math.min(100, Math.round(b1T / b1L / s.ship.capacity * 100)) : 0;
+            const p2 = b2L > 0 ? Math.min(100, Math.round(b2T / b2L / s.ship.capacity * 100)) : 0;
+            const s1 = this.getBoundShort(hBounds[0]).charAt(0);
+            const s2 = this.getBoundShort(hBounds[1]).charAt(0);
+            cargoPct.innerHTML = `<span style="color:${p1 >= 50 ? 'var(--green)' : 'var(--t2)'}">${s1}${p1}%</span> <span style="color:${p2 >= 50 ? 'var(--green)' : 'var(--t2)'}">${s2}${p2}%</span>`;
         }
 
         // Oil price display
@@ -4989,6 +4999,28 @@ const Game = {
                 break;
             }
         }
+    },
+
+    // Get the two bound directions for a route (e.g. ['WB','EB'], ['EB','WB'], ['SB','NB'])
+    getRouteBounds(route) {
+        const boundSet = new Set();
+        (route.legs || []).forEach(l => boundSet.add(l.bound || 'EB'));
+        const arr = [...boundSet];
+        if (arr.length >= 2) return arr;
+        return arr.length === 1 ? [arr[0], arr[0]] : ['EB', 'WB'];
+    },
+
+    // Get bound label text for display (e.g. 'W/B 한국→중국')
+    getBoundLabel(route, boundCode) {
+        const bl = route.boundLabels;
+        if (!bl) return boundCode;
+        const lang = (typeof currentLang !== 'undefined' && currentLang === 'ja') ? boundCode + 'ja' : boundCode;
+        return bl[lang] || bl[boundCode] || boundCode;
+    },
+
+    // Get short bound display (e.g. 'W/B', 'S/B')
+    getBoundShort(boundCode) {
+        return boundCode.charAt(0) + '/' + boundCode.charAt(1);
     },
 
     // Get market condition for a port (seasonal rate/volume multipliers)

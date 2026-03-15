@@ -1,0 +1,491 @@
+/* KMTC Shipping Tycoon v4 - Idle Management */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+    --blue:#0054A6;--dark:#003366;--accent:#FF6B35;
+    --bg:#0a1628;--card:#112240;--card2:#1a3358;
+    --t1:#e6f1ff;--t2:#8892b0;--t3:#5a6785;
+    --green:#4CAF50;--red:#ef5350;--yellow:#FFB300;--border:#1e3a5f;
+    --sea:#1565C0;
+}
+body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--t1);overflow:hidden;height:100vh;width:100vw}
+
+/* Screens */
+.screen{display:none;position:absolute;inset:0}
+.screen.active{display:flex}
+
+/* Title */
+#screen-title{flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(180deg,var(--bg),#0d3b66 60%,#1565C0);overflow:hidden}
+.title-bg{position:absolute;bottom:0;left:0;width:100%;height:40%}
+.ocean-wave{position:absolute;bottom:0;width:200%;height:80px;background:linear-gradient(180deg,transparent,rgba(21,101,192,.4));border-radius:50% 50% 0 0;animation:wave 6s ease-in-out infinite}
+.wave2{bottom:8px;animation-delay:-2s;opacity:.6}
+@keyframes wave{0%,100%{transform:translateX(0) scaleY(1)}50%{transform:translateX(-25%) scaleY(1.3)}}
+.title-content{position:relative;z-index:10;text-align:center}
+.kmtc-logo{display:inline-block;font-size:56px;font-weight:900;letter-spacing:12px;color:#fff;padding:8px 28px;border:3px solid rgba(255,255,255,.3);border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--dark));margin-bottom:12px;text-shadow:0 0 30px rgba(0,84,166,.8)}
+h1{font-size:32px;font-weight:300;letter-spacing:6px;margin-bottom:6px}
+.subtitle{font-size:16px;color:var(--t2);letter-spacing:4px}
+.title-ship-wrap{margin:24px 0;animation:float 3s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.title-ship{width:180px;height:50px;margin:0 auto;background:var(--dark);border-radius:0 0 30% 20%;position:relative}
+.title-ship::before{content:'';position:absolute;top:-20px;right:15px;width:30px;height:25px;background:#fff;border-radius:3px 3px 0 0}
+.title-ship::after{content:'';position:absolute;top:-35px;right:22px;width:12px;height:18px;background:var(--blue);border-radius:2px 2px 0 0}
+.ver{margin-top:16px;font-size:11px;color:var(--t3);letter-spacing:2px}
+
+/* Buttons */
+.btn-primary{padding:12px 36px;font-size:15px;font-weight:600;color:#fff;background:linear-gradient(135deg,var(--blue),#1976D2);border:none;border-radius:10px;cursor:pointer;transition:all .2s;box-shadow:0 4px 15px rgba(0,84,166,.4)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(0,84,166,.6)}
+.btn-primary:disabled{opacity:.4;cursor:default;transform:none}
+.btn-pulse{animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 4px 15px rgba(0,84,166,.4)}50%{box-shadow:0 4px 30px rgba(0,84,166,.8)}}
+.btn-sm{padding:5px 10px;font-size:11px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--t1);cursor:pointer;transition:all .2s}
+.btn-sm:hover{border-color:var(--blue)}
+.btn-sm:disabled{opacity:.3;cursor:default}
+.badge{background:var(--accent);color:#fff;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700}
+
+/* Route Cards */
+#screen-route{flex-direction:column;align-items:center;padding:40px;background:var(--bg);overflow-y:auto}
+.screen-hdr{text-align:center;margin-bottom:32px}.screen-hdr h2{font-size:28px;margin-bottom:6px}.screen-hdr p{color:var(--t2)}
+.route-cards{display:flex;gap:24px;flex-wrap:wrap;justify-content:center}
+.route-card{width:320px;background:var(--card);border-radius:14px;padding:24px;cursor:pointer;transition:all .3s;border:1px solid var(--border)}
+.route-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.rc-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.rc-hdr h3{font-size:18px}.diff{font-size:11px;padding:3px 10px;border-radius:20px}
+.rc-ports{display:flex;align-items:center;gap:4px;margin:12px 0;flex-wrap:wrap}
+.ptag{background:var(--card2);padding:3px 8px;border-radius:4px;font-size:12px}.parr{color:var(--t3);font-size:10px}
+.rc-stats{display:flex;gap:16px;margin:12px 0}.rc-stat{font-size:12px;color:var(--t2)}.rc-stat span:first-child{margin-right:4px}
+.rc-foot{text-align:center;margin-top:12px}.rc-cost{font-size:22px;font-weight:700;color:var(--accent)}.rc-cost-lbl{font-size:10px;color:var(--t3)}
+
+/* Setup */
+#screen-setup{align-items:center;justify-content:center;background:var(--bg)}
+.setup-card{background:var(--card);padding:36px;border-radius:16px;width:400px;border:1px solid var(--border)}
+.setup-card h2{margin-bottom:16px;text-align:center}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:12px;color:var(--t2);margin-bottom:4px}
+.form-group input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--t1);font-size:14px}
+.info-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px}
+.info-row .lbl{color:var(--t2)}
+
+/* ==================== MAIN GAME ==================== */
+#screen-game{flex-direction:column}
+
+/* HUD */
+.hud{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:rgba(0,20,40,.9);border-bottom:1px solid var(--border);height:48px;flex-shrink:0}
+.hud-l{display:flex;align-items:center;gap:10px}
+.hud-company{font-weight:700;font-size:15px}
+.hud-voy{font-size:11px;background:var(--blue);padding:2px 8px;border-radius:4px}
+.hud-c{display:flex;align-items:center;gap:12px}
+.hud-day{font-size:14px;font-weight:600;color:var(--accent);min-width:80px}
+.speed-btns{display:flex;gap:4px}
+.spd{padding:3px 8px;font-size:10px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--t2);cursor:pointer;transition:all .15s}
+.spd.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.spd:hover{border-color:var(--blue)}
+.hud-r{display:flex;gap:16px}
+.hud-money{text-align:right;line-height:1.2}
+.hud-money small{font-size:9px;color:var(--t3);display:block}
+.cash-val{font-size:14px;font-weight:700;color:var(--green)}
+.debt-val{font-size:14px;font-weight:700;color:var(--red)}
+
+/* Game Body */
+.game-body{display:flex;flex:1;overflow:hidden}
+.game-left{width:55%;display:flex;flex-direction:column;border-right:1px solid var(--border)}
+.game-right{width:45%;display:flex;flex-direction:column}
+
+/* Ship Scene */
+.ship-scene{position:relative;height:45%;background:linear-gradient(180deg,#0a1628 0%,#0d2040 60%,#1a4a7a 100%);overflow:hidden}
+.port-ground{position:absolute;bottom:0;left:0;width:25%;height:55%;background:linear-gradient(90deg,#3a3a3a,#2a2a2a);border-radius:0 8px 0 0;z-index:3}
+.port-label{position:absolute;top:8px;left:8px;font-size:11px;color:var(--t2);font-weight:600}
+.crane{position:absolute;left:18%;bottom:20%;z-index:4;width:30px;height:120px}
+.crane-arm{position:absolute;top:0;left:0;width:80px;height:6px;background:#666;border-radius:2px}
+.crane-cable{position:absolute;top:6px;right:0;width:2px;height:40px;background:#888}
+.crane-hook{position:absolute;top:46px;right:-3px;width:8px;height:8px;border:2px solid #aaa;border-top:none;border-radius:0 0 4px 4px}
+.game-ship{position:absolute;bottom:8%;left:25%;width:70%;height:42%;z-index:2;animation:float 4s ease-in-out infinite}
+.hull{position:absolute;bottom:0;left:0;width:100%;height:30%;background:linear-gradient(180deg,#333,#1a1a1a);border-radius:0 0 40% 25%;clip-path:polygon(3% 0%,97% 0%,100% 40%,93% 100%,7% 100%,0% 40%)}
+.vessel-name{position:absolute;bottom:14%;left:50%;transform:translateX(-50%);font-size:15px;font-weight:800;color:rgba(255,255,255,.95);letter-spacing:3px;z-index:6;text-shadow:0 2px 6px rgba(0,0,0,.9),0 0 12px rgba(21,101,192,.4);white-space:nowrap}
+.bridge{position:absolute;bottom:28%;right:5%;width:14%;height:35%;background:linear-gradient(180deg,#fff,#ccc);border-radius:3px 3px 0 0}
+.funnel{position:absolute;bottom:60%;right:8%;width:4%;height:18%;background:var(--blue);border-radius:2px 2px 0 0;z-index:2}
+.fstripe{position:absolute;top:30%;width:100%;height:3px;background:white}
+.bay-grid{position:absolute;bottom:30%;left:10%;width:72%;height:45%;display:grid;grid-template-columns:repeat(10,1fr);grid-template-rows:repeat(5,1fr);gap:1px;padding:2px}
+.bay-cell{background:rgba(255,255,255,.08);border-radius:1px;transition:background .3s}
+.bay-cell.filled{background:var(--blue);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.bay-cell.loading{animation:loadAnim .5s ease}
+@keyframes loadAnim{0%{transform:scale(0)}100%{transform:scale(1)}}
+.sea-layer{position:absolute;bottom:0;left:0;width:100%;height:12%;background:linear-gradient(180deg,rgba(21,101,192,.3),rgba(21,101,192,.5));z-index:1}
+.cargo-info{position:absolute;top:8px;right:8px;font-size:11px;color:var(--t2);z-index:5;display:flex;gap:6px;background:rgba(0,0,0,.5);padding:4px 10px;border-radius:6px}
+.ship-status{position:absolute;bottom:2%;left:50%;transform:translateX(-50%);font-size:11px;color:var(--accent);z-index:5;background:rgba(0,0,0,.7);padding:4px 14px;border-radius:12px;white-space:nowrap}
+
+/* Ship departed animation */
+.game-ship.departed{animation:sailAway 2s forwards}
+@keyframes sailAway{to{transform:translateX(120%)}}
+
+/* Activity Feed */
+.activity-feed{flex:1;display:flex;flex-direction:column;background:var(--card);border-top:1px solid var(--border);overflow:hidden}
+.feed-title{padding:8px 12px;font-size:12px;font-weight:600;color:var(--t2);border-bottom:1px solid var(--border);flex-shrink:0}
+.feed-list{flex:1;overflow-y:auto;padding:4px 8px;font-size:11px}
+.feed-item{padding:4px 8px;border-radius:4px;margin-bottom:2px;display:flex;align-items:center;gap:6px;animation:feedIn .3s ease}
+.feed-item.booking{background:rgba(76,175,80,.1);border-left:3px solid var(--green)}
+.feed-item.activity{background:rgba(0,84,166,.08);border-left:3px solid var(--blue)}
+.feed-item.alert{background:rgba(255,107,53,.1);border-left:3px solid var(--accent)}
+.feed-item .feed-time{color:var(--t3);min-width:45px;font-size:10px}
+@keyframes feedIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Tabs */
+.tab-bar{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{flex:1;padding:10px 4px;font-size:12px;border:none;background:transparent;color:var(--t2);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.tab.active{color:var(--t1);border-bottom-color:var(--blue);background:rgba(0,84,166,.1)}
+.tab:hover{color:var(--t1)}
+.tab-content{flex:1;overflow-y:auto;padding:12px}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* Sales Team Cards */
+.sales-card{background:var(--card2);border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.sales-avatar{font-size:28px;width:40px;text-align:center}
+.sales-info{flex:1}
+.sales-name{font-weight:600;font-size:13px}
+.sales-stats{font-size:11px;color:var(--t2);display:flex;gap:8px;margin-top:2px}
+.sales-bar{height:4px;background:var(--bg);border-radius:2px;margin-top:4px;overflow:hidden}
+.sales-bar-fill{height:100%;border-radius:2px;transition:width .3s}
+.sales-activity{font-size:11px;color:var(--accent);display:flex;align-items:center;gap:4px;white-space:nowrap}
+.sales-activity .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.skill-stars{color:var(--yellow)}
+
+/* Customer Cards */
+.cust-card{background:var(--card2);border-radius:8px;padding:10px 12px;margin-bottom:6px;border:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.cust-icon{font-size:22px;width:30px;text-align:center}
+.cust-info{flex:1}
+.cust-name{font-size:12px;font-weight:600}
+.cust-detail{font-size:10px;color:var(--t2)}
+.cust-share{text-align:right}
+.cust-share-val{font-size:14px;font-weight:700}
+.cust-difficulty{font-size:10px;color:var(--yellow)}
+.share-bar{width:60px;height:4px;background:var(--bg);border-radius:2px;margin-top:2px}
+.share-bar-fill{height:100%;background:var(--green);border-radius:2px;transition:width .3s}
+
+/* Investment */
+.invest-section{margin-bottom:16px}
+.invest-section h4{font-size:13px;color:var(--t2);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.invest-item{display:flex;align-items:center;gap:10px;padding:10px;background:var(--card2);border-radius:8px;margin-bottom:6px;border:1px solid var(--border)}
+.invest-item.locked{opacity:.4}
+.invest-item.done{border-color:var(--green)}
+.invest-icon{font-size:24px;width:36px;text-align:center}
+.invest-info{flex:1}
+.invest-name{font-size:12px;font-weight:600}
+.invest-effect{font-size:10px;color:var(--t2)}
+.invest-cost{font-size:13px;font-weight:700;color:var(--accent)}
+.invest-btn{padding:5px 12px;font-size:11px;border:1px solid var(--green);border-radius:5px;background:transparent;color:var(--green);cursor:pointer}
+.invest-btn:hover{background:rgba(76,175,80,.15)}
+.invest-btn:disabled{border-color:var(--t3);color:var(--t3);cursor:default}
+
+/* Finance */
+.fin-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.fin-card{background:var(--card2);border-radius:8px;padding:12px;text-align:center;border:1px solid var(--border)}
+.fin-val{font-size:20px;font-weight:700;display:block}
+.fin-label{font-size:10px;color:var(--t2)}
+.fin-history{margin-top:12px}
+.fin-row{display:flex;justify-content:space-between;padding:4px 0;font-size:11px;border-bottom:1px solid rgba(255,255,255,.04)}
+
+/* Depart Area */
+.depart-area{padding:12px;border-top:1px solid var(--border);background:rgba(0,20,40,.5);flex-shrink:0}
+.depart-info{display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-bottom:8px}
+.btn-depart{width:100%;padding:14px;font-size:16px}
+
+/* ==================== SAILING ==================== */
+#screen-sailing{align-items:center;justify-content:center;background:var(--bg);flex-direction:column;gap:12px;padding:16px}
+.sail-view{text-align:center;width:min(95vw,800px)}
+.sail-map{height:min(55vh,450px);background:linear-gradient(180deg,#0a1e3d,#0d2847 30%,#122d4f);border-radius:14px;overflow:hidden;margin-bottom:12px;border:1px solid var(--border);box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.sail-info{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;font-size:14px}
+.sail-progress{height:8px;background:var(--card);border-radius:4px;overflow:hidden;margin-bottom:12px}
+.sail-progress-bar{height:100%;background:linear-gradient(90deg,var(--green),var(--accent));border-radius:4px;transition:width .5s;width:0%}
+
+/* ==================== REPORT ==================== */
+#screen-report{align-items:center;justify-content:center;background:var(--bg);padding:20px;overflow-y:auto}
+.report-wrap{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:30px;width:min(95vw,600px);max-height:90vh;overflow-y:auto}
+.rpt-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:16px 0}
+.rpt-stat{background:var(--card2);border-radius:10px;padding:14px;text-align:center;border:1px solid var(--border)}
+.rpt-stat .v{font-size:22px;font-weight:700;display:block}
+.rpt-stat .l{font-size:10px;color:var(--t2)}
+.rpt-section{margin:16px 0}.rpt-section h4{font-size:13px;margin-bottom:8px;color:var(--t2)}
+.rpt-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px}
+.rpt-row .lbl{color:var(--t2)}
+.pos{color:var(--green)}.neg{color:var(--red)}
+.rpt-warn{background:rgba(239,83,80,.1);border:1px solid var(--red);border-radius:8px;padding:10px;margin:12px 0;font-size:12px;color:var(--red)}
+.rpt-tip{background:var(--card2);border-radius:8px;padding:10px;margin-top:12px;font-size:11px;color:var(--t2)}
+.rpt-ctr{font-size:12px;padding:3px 0;color:var(--t2)}
+
+/* ==================== MODALS ==================== */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center}
+.modal.active{display:flex}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;width:min(90vw,380px);text-align:center;max-height:85vh;overflow-y:auto}
+.modal-box h3{margin-bottom:10px;font-size:20px}
+.modal-box p{color:var(--t2);margin-bottom:16px;font-size:13px}
+.modal-box button{margin:4px;min-width:120px}
+.milestone-box{border-color:var(--yellow)}
+.milestone-box h3{color:var(--yellow)}
+
+/* Toast */
+#toast-box{position:fixed;top:60px;right:16px;z-index:200;display:flex;flex-direction:column;gap:6px}
+.toast{padding:10px 18px;border-radius:8px;font-size:12px;background:var(--card);border:1px solid var(--border);animation:toastIn .3s ease,toastOut .3s ease 2.7s forwards;box-shadow:0 4px 15px rgba(0,0,0,.4)}
+.toast.ok{border-color:var(--green);color:var(--green)}
+.toast.err{border-color:var(--red);color:var(--red)}
+.toast.warn{border-color:var(--yellow);color:var(--yellow)}
+@keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{to{opacity:0;transform:translateX(40px)}}
+
+/* Assignment Modal */
+.assign-cust{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;margin:3px 0;background:var(--card2);border-radius:6px;border:1px solid var(--border);cursor:pointer;font-size:12px;transition:all .15s}
+.assign-cust:hover{border-color:var(--blue);background:rgba(0,84,166,.15)}
+.assign-cust.locked{opacity:.4;cursor:default;pointer-events:none}
+.act-choices{display:flex;flex-direction:column;gap:6px}
+.act-choice{padding:10px 12px;background:var(--card2);border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s}
+.act-choice:hover{border-color:var(--green);background:rgba(76,175,80,.1)}
+.act-choice.locked{opacity:.4;cursor:default;pointer-events:none}
+.act-choice-hdr{font-size:13px;font-weight:600;margin-bottom:3px}
+.act-choice-detail{font-size:10px;color:var(--t2)}
+
+/* Selected item in plan config */
+.assign-cust.selected{border-color:var(--blue);background:rgba(0,84,166,.2);box-shadow:inset 0 0 0 1px var(--blue)}
+
+/* Plan badge on sales card */
+.plan-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(0,84,166,.15);color:var(--blue);border:1px solid rgba(0,84,166,.3);margin-top:3px}
+.plan-badge span{opacity:.7}
+
+/* Trait bars in sales card */
+.trait-mini{display:flex;gap:6px;margin-top:3px;font-size:9px;color:var(--t3)}
+.trait-mini span{display:flex;align-items:center;gap:2px}
+
+/* Trait tooltip */
+.trait-mini span{position:relative;cursor:help}
+.trait-mini span::after{content:attr(data-tip);position:absolute;bottom:120%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.9);color:#fff;padding:4px 8px;border-radius:4px;font-size:10px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .2s;z-index:50}
+.trait-mini span:hover::after{opacity:1}
+
+/* Salesperson detail modal */
+.sp-detail{text-align:left}
+.sp-detail-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.sp-detail-avatar{font-size:42px}
+.sp-detail-traits{display:flex;gap:12px;margin:10px 0;font-size:12px}
+.sp-detail-traits .trait-bar{flex:1}
+.sp-detail-traits .trait-label{color:var(--t2);font-size:10px;margin-bottom:2px}
+.sp-detail-traits .trait-fill{height:6px;border-radius:3px;background:var(--blue)}
+.sp-sw{margin:8px 0;padding:8px 10px;border-radius:6px;font-size:11px}
+.sp-sw.str{background:rgba(76,175,80,.1);border-left:3px solid var(--green)}
+.sp-sw.wk{background:rgba(239,83,80,.1);border-left:3px solid var(--red)}
+.sp-rename{margin-top:10px;display:flex;gap:6px}
+.sp-rename input{flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--t1);font-size:12px}
+
+/* Cash warning banner */
+.cash-warning{padding:8px 12px;background:rgba(239,83,80,.15);border:1px solid var(--red);border-radius:8px;margin-bottom:8px;font-size:11px;color:var(--red);animation:cashPulse 2s ease-in-out infinite}
+@keyframes cashPulse{0%,100%{opacity:1}50%{opacity:.7}}
+
+/* Promo card */
+.promo-item{display:flex;align-items:center;gap:10px;padding:10px;background:var(--card2);border-radius:8px;margin-bottom:6px;border:1px solid var(--border)}
+.promo-item.active-promo{border-color:var(--yellow);background:rgba(255,179,0,.08)}
+.promo-icon{font-size:24px;width:36px;text-align:center}
+.promo-info{flex:1}
+.promo-name{font-size:12px;font-weight:600}
+.promo-effect{font-size:10px;color:var(--t2)}
+.promo-cost{font-size:13px;font-weight:700;color:var(--accent)}
+
+/* Idle salesperson highlight */
+.sales-card.idle{animation:idlePulse 2s ease-in-out infinite}
+@keyframes idlePulse{0%,100%{border-color:var(--accent)}50%{border-color:var(--border)}}
+
+/* News Ticker */
+.news-ticker{display:flex;align-items:center;background:linear-gradient(90deg,#1a1a2e,#16213e);border-bottom:1px solid var(--border);height:26px;overflow:hidden;position:relative}
+.ticker-label{background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 10px;white-space:nowrap;z-index:1;letter-spacing:1px}
+.ticker-track{flex:1;overflow:hidden;position:relative;height:100%}
+.ticker-content{display:flex;align-items:center;height:100%;white-space:nowrap;animation:tickerScroll 30s linear infinite;font-size:11px;color:var(--t2);gap:40px;padding-left:100%}
+.ticker-content .ticker-item{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.ticker-content .ticker-item.warn{color:var(--red)}
+.ticker-content .ticker-item.good{color:var(--green)}
+.ticker-content .ticker-item.info{color:var(--yellow)}
+.ticker-content .ticker-sep{color:var(--t3);margin:0 8px}
+@keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
+
+/* ==================== DRAFT SCREEN ==================== */
+#screen-draft{flex-direction:column;align-items:center;padding:20px;background:var(--bg);overflow-y:auto}
+.draft-cards{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;padding:10px 0;max-width:1200px}
+.draft-card{width:155px;background:var(--card);border-radius:12px;padding:14px 10px;cursor:pointer;transition:all .25s;border:2px solid var(--border);text-align:center;position:relative;overflow:hidden}
+.draft-card:hover{transform:translateY(-4px);box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.draft-card.picked{border-color:var(--green);box-shadow:0 0 20px rgba(76,175,80,.4);transform:translateY(-4px)}
+.draft-card.picked::after{content:'✅ 선택';position:absolute;top:8px;right:6px;font-size:10px;background:var(--green);color:#fff;padding:2px 6px;border-radius:4px;font-weight:700}
+.draft-card.disabled{opacity:.35;cursor:default;transform:none}
+.dc-header{display:flex;justify-content:center;align-items:center;gap:8px;margin-bottom:6px}
+.dc-avatar{font-size:36px}
+.dc-overall{font-size:22px;font-weight:900;color:#fff;padding:2px 8px;border-radius:6px;min-width:36px;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.5)}
+.dc-name{font-size:14px;font-weight:700;margin-bottom:2px}
+.dc-position{font-size:11px;font-weight:600;margin-bottom:4px}
+.dc-salary{font-size:10px;color:var(--t3);margin-bottom:6px}
+.dc-bars{margin-bottom:8px}
+.dc-desc{font-size:10px;color:var(--t2);margin-bottom:8px;line-height:1.4;min-height:36px}
+.dc-sw{text-align:left;margin-bottom:6px}
+.dc-str{font-size:9px;color:var(--green);margin-bottom:3px;line-height:1.3}
+.dc-wk{font-size:9px;color:var(--red);line-height:1.3}
+.dc-passive{font-size:9px;color:var(--yellow);background:rgba(255,179,0,.08);padding:4px 6px;border-radius:4px;margin-top:4px}
+
+.draft-footer{position:sticky;bottom:0;background:rgba(10,22,40,.95);backdrop-filter:blur(8px);padding:12px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:16px;width:100%;max-width:1200px}
+.draft-selected{display:flex;gap:10px;align-items:center}
+.draft-pick-mini{display:flex;align-items:center;gap:4px;background:var(--card2);padding:6px 10px;border-radius:8px;border:1px solid var(--green);font-size:12px}
+.draft-pick-empty{font-size:11px;color:var(--t3);padding:6px 10px;border:1px dashed var(--border);border-radius:8px}
+
+/* Ranking */
+.ranking-list{background:var(--card);border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.rank-row:hover{background:rgba(255,255,255,.03)}
+.rank-me{background:rgba(0,84,166,.15)!important;border-left:3px solid var(--accent)!important}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ==================== MOBILE RESPONSIVE ==================== */
+@media (max-width: 768px) {
+    body{overflow:auto;height:auto;min-height:100vh}
+
+    /* Draft Screen */
+    #screen-draft{padding:12px 8px}
+    .screen-hdr h2{font-size:20px}
+    .draft-cards{gap:8px}
+    .draft-card{width:calc(50% - 8px);padding:10px 8px}
+    .dc-avatar{font-size:28px}
+    .dc-overall{font-size:18px}
+    .dc-name{font-size:12px}
+    .dc-desc{font-size:9px;min-height:auto}
+    .dc-passive{font-size:8px}
+    .draft-footer{flex-direction:column;gap:8px;padding:10px}
+    .draft-selected{flex-wrap:wrap;justify-content:center}
+
+    /* Title Screen */
+    .kmtc-logo{font-size:36px;letter-spacing:8px;padding:6px 18px}
+    h1{font-size:22px;letter-spacing:4px}
+    .subtitle{font-size:13px}
+    .title-ship{width:120px;height:35px}
+    .btn-primary{padding:10px 24px;font-size:14px}
+
+    /* Route Cards */
+    #screen-route{padding:20px 12px}
+    .screen-hdr h2{font-size:22px}
+    .route-cards{flex-direction:column;align-items:center;gap:12px}
+    .route-card{width:100%;max-width:340px}
+
+    /* Setup */
+    .setup-card{width:90vw;padding:24px 20px}
+
+    /* HUD - 2 rows */
+    .hud{flex-wrap:wrap;height:auto;padding:6px 10px;gap:4px}
+    .hud-l{order:1;flex:1;min-width:0}
+    .hud-company{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px}
+    .hud-voy{font-size:10px;padding:1px 5px}
+    .hud-c{order:3;width:100%;justify-content:center;padding-top:2px;border-top:1px solid var(--border);margin-top:2px}
+    .hud-day{font-size:12px;min-width:auto}
+    .speed-btns{gap:2px}
+    .spd{padding:4px 10px;font-size:11px}
+    .hud-r{order:2;gap:8px}
+    .hud-money small{font-size:8px}
+    .cash-val,.debt-val{font-size:12px}
+
+    /* News Ticker */
+    .news-ticker{height:22px}
+    .ticker-label{font-size:9px;padding:2px 6px}
+    .ticker-content{font-size:10px;gap:24px}
+
+    /* Game Body - vertical stack */
+    .game-body{flex-direction:column;overflow-y:auto;overflow-x:hidden}
+    .game-left{width:100%;border-right:none;border-bottom:1px solid var(--border)}
+    .game-right{width:100%;min-height:0}
+
+    /* Ship Scene - compact */
+    .ship-scene{height:160px;min-height:160px}
+    .port-ground{width:20%;height:50%}
+    .crane{height:80px;left:15%}
+    .cargo-info{font-size:10px;padding:3px 6px}
+    .ship-status{font-size:9px;padding:3px 10px}
+    .vessel-name{font-size:11px;letter-spacing:2px}
+
+    /* Activity Feed - compact */
+    .activity-feed{max-height:120px;min-height:80px}
+    .feed-title{padding:5px 8px;font-size:11px}
+    .feed-list{font-size:10px;padding:2px 6px}
+    .feed-item{padding:3px 6px;gap:4px}
+    .feed-item .feed-time{min-width:30px;font-size:9px}
+
+    /* Tabs - horizontal scroll */
+    .tab-bar{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+    .tab-bar::-webkit-scrollbar{display:none}
+    .tab{flex:0 0 auto;padding:10px 12px;font-size:11px;white-space:nowrap}
+    .tab-content{padding:10px 8px}
+
+    /* Sales Cards */
+    .sales-card{padding:10px;gap:8px;flex-wrap:wrap}
+    .sales-avatar{font-size:24px;width:32px}
+    .sales-name{font-size:12px}
+    .sales-stats{font-size:10px;flex-wrap:wrap;gap:4px}
+    .sales-activity{font-size:10px}
+    .plan-badge{font-size:8px;padding:1px 4px}
+    .trait-mini{font-size:8px;gap:4px}
+
+    /* Customer Cards */
+    .cust-card{padding:8px 10px;gap:6px}
+    .cust-icon{font-size:18px;width:24px}
+    .cust-name{font-size:11px}
+    .cust-detail{font-size:9px}
+    .cust-share-val{font-size:12px}
+    .share-bar{width:50px}
+
+    /* Investment */
+    .invest-item{padding:8px;gap:8px;flex-wrap:wrap}
+    .invest-icon{font-size:20px;width:28px}
+    .invest-name{font-size:11px}
+    .invest-effect{font-size:9px}
+    .invest-cost{font-size:12px}
+    .invest-btn{padding:6px 14px;font-size:11px}
+
+    /* Promo */
+    .promo-item{padding:8px;gap:8px;flex-wrap:wrap}
+    .promo-icon{font-size:20px;width:28px}
+
+    /* Finance */
+    .fin-grid{grid-template-columns:1fr 1fr;gap:6px}
+    .fin-card{padding:10px}
+    .fin-val{font-size:16px}
+
+    /* Depart Area */
+    .depart-area{padding:8px 10px;position:sticky;bottom:0;z-index:20;background:rgba(10,22,40,.95);backdrop-filter:blur(8px)}
+    .depart-info{font-size:10px;margin-bottom:4px}
+    .btn-depart{padding:12px;font-size:15px}
+
+    /* Modals - full width on mobile */
+    .modal-box{width:95vw!important;max-width:none!important;padding:20px 16px;border-radius:12px;max-height:90vh!important}
+    .modal-box h3{font-size:17px}
+    .modal-box p{font-size:12px}
+
+    /* Assign modal - larger touch targets */
+    .assign-cust{padding:10px 12px;margin:4px 0;font-size:12px;min-height:44px}
+    .btn-sm{padding:8px 14px;font-size:12px;min-height:40px}
+
+    /* Report modal */
+    .rpt-grid{grid-template-columns:1fr 1fr;gap:6px}
+    .rpt-stat{padding:10px}
+    .rpt-stat .v{font-size:18px}
+    .rpt-row{font-size:11px}
+
+    /* Toast */
+    #toast-box{top:auto;bottom:80px;right:8px;left:8px}
+    .toast{padding:10px 14px;font-size:12px;text-align:center}
+
+    /* Plan config selects/inputs - larger on mobile */
+    #screen-game select,#screen-game input[type="number"]{
+        font-size:14px!important;padding:8px!important;min-height:40px
+    }
+}
+
+/* Extra small phones */
+@media (max-width: 380px) {
+    .hud-company{max-width:60px}
+    .hud-r{gap:6px}
+    .cash-val,.debt-val{font-size:11px}
+    .ship-scene{height:130px;min-height:130px}
+    .activity-feed{max-height:90px}
+    .tab{padding:8px 10px;font-size:10px}
+    .kmtc-logo{font-size:28px;letter-spacing:5px}
+    h1{font-size:18px}
+}

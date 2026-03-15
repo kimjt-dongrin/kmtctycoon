@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KMTC Shipping Tycoon</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- TITLE -->
+    <div id="screen-title" class="screen active">
+        <div class="title-bg"><div class="ocean-wave"></div><div class="ocean-wave wave2"></div></div>
+        <div class="title-content">
+            <div class="kmtc-logo">KMTC</div>
+            <h1>SHIPPING TYCOON</h1>
+            <p class="subtitle">해운왕의 길</p>
+            <div class="title-ship-wrap"><div class="title-ship"></div></div>
+            <button class="btn-primary btn-pulse" onclick="Game.showScreen('screen-route');Game.renderRoutes()">🚢 새 회사 설립</button>
+            <button class="btn-primary" onclick="Game.loadGame()" id="btn-load" style="display:none;margin-top:8px;background:var(--card2)">📂 이어하기</button>
+            <p class="ver">v4 — Idle Management</p>
+        </div>
+    </div>
+
+    <!-- ROUTE SELECT -->
+    <div id="screen-route" class="screen">
+        <div class="screen-hdr"><h2>항로 선택</h2><p>첫 위클리 서비스를 선택하세요</p></div>
+        <div id="route-cards" class="route-cards"></div>
+    </div>
+
+    <!-- SETUP -->
+    <div id="screen-setup" class="screen">
+        <div class="setup-card">
+            <h2>회사 설립</h2>
+            <div id="setup-info"></div>
+            <div class="form-group"><label>회사명</label><input id="inp-company" placeholder="예: 동방해운" maxlength="20"></div>
+            <div class="form-group"><label>대표이사</label><input id="inp-ceo" placeholder="예: 홍길동" maxlength="10"></div>
+            <div class="form-group"><label>모선명</label><input id="inp-vessel" placeholder="예: KMTC BUSAN" maxlength="20"></div>
+            <button class="btn-primary" onclick="Game.showScreen('screen-draft');Game.renderDraft()">다음 →</button>
+        </div>
+    </div>
+
+    <!-- TEAM DRAFT -->
+    <div id="screen-draft" class="screen">
+        <div class="screen-hdr"><h2>영업팀 드래프트</h2><p>9명의 후보 중 5명을 선택하세요 — 나머지는 스카우트 풀로 이동</p></div>
+        <div id="draft-cards" class="draft-cards"></div>
+        <div class="draft-footer">
+            <div id="draft-selected" class="draft-selected"></div>
+            <button class="btn-primary" id="btn-draft-go" onclick="Game.launch()" disabled>🚀 이 팀으로 시작 (5명 선택)</button>
+        </div>
+    </div>
+
+    <!-- MAIN GAME SCREEN -->
+    <div id="screen-game" class="screen">
+        <!-- HUD -->
+        <div class="hud">
+            <div class="hud-l">
+                <span id="hud-co" class="hud-company">-</span>
+                <span id="hud-voy" class="hud-voy">V.001</span>
+            </div>
+            <div class="hud-c">
+                <span id="hud-day" class="hud-day">Day 1</span>
+                <div class="speed-btns">
+                    <button class="spd active" onclick="Game.setSpeed(1)">▶1x</button>
+                    <button class="spd" onclick="Game.setSpeed(2)">▶▶2x</button>
+                    <button class="spd" onclick="Game.setSpeed(4)">▶▶▶4x</button>
+                    <button class="spd" onclick="Game.setSpeed(8)">⏩8x</button>
+                </div>
+            </div>
+            <div class="hud-r">
+                <div class="hud-money"><small>현금</small><span id="hud-cash" class="cash-val">$0</span></div>
+                <div class="hud-money"><small>부채</small><span id="hud-debt" class="debt-val">$0</span></div>
+            </div>
+        </div>
+
+        <!-- News Ticker -->
+        <div class="news-ticker" id="news-ticker">
+            <span class="ticker-label">📰 속보</span>
+            <div class="ticker-track"><div class="ticker-content" id="ticker-content"></div></div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="game-body">
+            <!-- Left: Ship & Port View -->
+            <div class="game-left">
+                <div class="ship-scene" id="ship-scene">
+                    <div class="port-ground" id="port-ground">
+                        <div class="port-label" id="port-label">부산항</div>
+                    </div>
+                    <div class="crane" id="crane">
+                        <div class="crane-arm"></div><div class="crane-cable"></div><div class="crane-hook"></div>
+                    </div>
+                    <div class="game-ship" id="game-ship">
+                        <div class="hull"></div>
+                        <div class="vessel-name" id="vessel-name">KMTC BUSAN</div>
+                        <div class="bridge"></div>
+                        <div class="funnel"><div class="fstripe"></div></div>
+                        <div class="bay-grid" id="bay-grid"></div>
+                    </div>
+                    <div class="sea-layer"></div>
+                    <div class="cargo-info" id="cargo-info">
+                        <span id="cargo-teu">0/100 TEU</span>
+                        <span id="cargo-pct">(0%)</span>
+                    </div>
+                    <div class="ship-status" id="ship-status">⚓ 정박 중 — 영업 진행 중</div>
+                </div>
+
+                <!-- Activity Feed -->
+                <div class="activity-feed" id="activity-feed">
+                    <div class="feed-title">📋 실시간 영업활동</div>
+                    <div class="feed-list" id="feed-list"></div>
+                </div>
+            </div>
+
+            <!-- Right: Tabs & Controls -->
+            <div class="game-right">
+                <div class="tab-bar">
+                    <button class="tab active" onclick="Game.showTab('tab-sales')">👥 영업팀</button>
+                    <button class="tab" onclick="Game.showTab('tab-customers')">🏭 화주</button>
+                    <button class="tab" onclick="Game.showTab('tab-containers')">📦 컨테이너</button>
+                    <button class="tab" onclick="Game.showTab('tab-invest')">💰 투자</button>
+                    <button class="tab" onclick="Game.showTab('tab-report')">📋 보고서</button>
+                    <button class="tab" onclick="Game.showTab('tab-finance')">📊 재무</button>
+                    <button class="tab" onclick="Game.showTab('tab-ranking')">🏆 순위</button>
+                </div>
+                <div class="tab-content" id="tab-content">
+                    <!-- Tab: Sales Team -->
+                    <div class="tab-panel active" id="tab-sales">
+                        <div id="sales-team-list"></div>
+                        <div id="sales-recruit" style="margin-top:12px"></div>
+                    </div>
+                    <!-- Tab: Customers -->
+                    <div class="tab-panel" id="tab-customers">
+                        <div id="customer-list"></div>
+                    </div>
+                    <!-- Tab: Containers -->
+                    <div class="tab-panel" id="tab-containers">
+                        <div id="container-view"></div>
+                    </div>
+                    <!-- Tab: Investment -->
+                    <div class="tab-panel" id="tab-invest">
+                        <div id="invest-list"></div>
+                    </div>
+                    <!-- Tab: Activity Report -->
+                    <div class="tab-panel" id="tab-report">
+                        <div id="report-view"></div>
+                    </div>
+                    <!-- Tab: Finance -->
+                    <div class="tab-panel" id="tab-finance">
+                        <div id="finance-view"></div>
+                    </div>
+                    <!-- Tab: Ranking -->
+                    <div class="tab-panel" id="tab-ranking">
+                        <div id="ranking-view"></div>
+                    </div>
+                </div>
+
+                <!-- Depart Button -->
+                <div class="depart-area">
+                    <div class="depart-info">
+                        <span id="depart-bookings">📦 0 TEU 적재</span>
+                        <span id="depart-countdown">자동 출항: 7일 후</span>
+                    </div>
+                    <button class="btn-primary btn-depart" onclick="Game.manualDepart()" id="btn-depart">🚢 출항</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ASSIGN TASK MODAL -->
+    <div id="modal-assign" class="modal">
+        <div class="modal-box" style="width:min(90vw,450px);text-align:left">
+            <h3 id="assign-title">📋 업무 지시</h3>
+            <div id="assign-body"></div>
+            <button class="btn-primary" onclick="Game.savePlanAndClose()" style="width:100%;margin-top:8px">💾 변경 내용 저장</button>
+            <button class="btn-sm" onclick="Game.closeModal('modal-assign')" style="width:100%;margin-top:6px;background:var(--card2)">닫기</button>
+        </div>
+    </div>
+
+    <!-- VOYAGE REPORT MODAL -->
+    <div id="modal-report" class="modal">
+        <div class="modal-box" style="width:min(90vw,600px);max-height:80vh;overflow-y:auto">
+            <div id="report-content"></div>
+            <button class="btn-primary" onclick="Game.closeModal('modal-report')" style="width:100%;margin-top:12px">확인</button>
+        </div>
+    </div>
+
+    <!-- EVENT MODAL -->
+    <div id="modal-event" class="modal">
+        <div class="modal-box">
+            <h3 id="evt-title"></h3>
+            <p id="evt-desc"></p>
+            <div id="evt-actions"></div>
+        </div>
+    </div>
+
+    <!-- MILESTONE MODAL -->
+    <div id="modal-milestone" class="modal">
+        <div class="modal-box milestone-box">
+            <h3 id="ms-title"></h3>
+            <p id="ms-desc"></p>
+            <div id="ms-reward"></div>
+            <button class="btn-primary" onclick="Game.closeModal('modal-milestone')">확인</button>
+        </div>
+    </div>
+
+    <!-- ALERT MODAL -->
+    <div id="modal-alert" class="modal">
+        <div class="modal-box">
+            <h3 id="alert-title"></h3>
+            <p id="alert-desc"></p>
+            <button class="btn-primary" onclick="Game.closeModal('modal-alert')">확인</button>
+        </div>
+    </div>
+
+    <div id="toast-box"></div>
+
+    <script src="data.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>

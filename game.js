@@ -1436,36 +1436,56 @@ const Game = {
         const template = eligible[Math.floor(Math.random() * eligible.length)];
         const teuPerVoy = template.teuPerVoyage.min + Math.floor(Math.random() * (template.teuPerVoyage.max - template.teuPerVoyage.min + 1));
 
-        // Pick a random valid leg for revenue calculation
-        const ports = r.ports.filter(p => r.salesPorts[p] && r.salesPorts[p].sellTo.length > 0);
-        const fromPort = ports[Math.floor(Math.random() * ports.length)];
-        const toPort = r.salesPorts[fromPort].sellTo[0];
-        const leg = `${fromPort}-${toPort}`;
+        // Pick a random valid leg — can be any direction (forward or reverse)
+        const allLegs = r.legs.map(l => `${l.from}-${l.to}`);
+        const leg = allLegs[Math.floor(Math.random() * allLegs.length)];
+        const [fromPort, toPort] = leg.split('-');
         const rate = BASE_RATES[leg];
         if (!rate) return;
 
+        // Determine container flow direction (forward = toward deficit, reverse = from deficit)
+        const homePort = r.ports[0];
+        const fromHome = (s.ctr[fromPort]?.['20'] || 0) + (s.ctr[fromPort]?.['40'] || 0);
+        const toHome = (s.ctr[toPort]?.['20'] || 0) + (s.ctr[toPort]?.['40'] || 0);
+        const isForward = fromHome >= toHome; // from surplus → to deficit = forward (순방향)
+
         const rateAdj = 1 + template.basePremium;
         const revPerVoy = Math.round(teuPerVoy * 0.5 * rate['20'] * rateAdj + teuPerVoy * 0.25 * rate['40'] * rateAdj);
-        const totalVoyages = Math.round(template.duration * 30 / r.rotationDays);
+        const contractDuration = 6; // 6개월 고정
+        const totalVoyages = Math.round(contractDuration * 30 / r.rotationDays);
 
         this.stopTick();
         const fromName = this.getPortName(fromPort);
+        const toName = this.getPortName(toPort);
         const diffStars = '⭐'.repeat(template.difficulty);
+        const flowIcon = isForward ? '✅' : '⚠️';
+        const flowText = isForward ? T('bsa.flowForward') : T('bsa.flowReverse');
+
         document.getElementById('evt-title').textContent = T('bsa.title');
         document.getElementById('evt-desc').innerHTML =
             `<strong>${template.icon} ${D(template,'name')}</strong><br>${D(template,'desc')}<br><br>` +
+            `📍 ${fromName} → ${toName} <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${isForward ? 'rgba(76,175,80,0.2)' : 'rgba(255,152,0,0.2)'}">${flowIcon} ${flowText}</span><br>` +
             `${T('bsa.difficulty')} ${diffStars}<br>` +
-            `${T('bsa.voyDetail', teuPerVoy, totalVoyages, template.duration)}<br>` +
+            `${T('bsa.voyDetail', teuPerVoy, totalVoyages, contractDuration)}<br>` +
             `${T('bsa.revPerVoy', revPerVoy.toLocaleString())}<br>` +
             `${T('bsa.totalValue', (revPerVoy * totalVoyages).toLocaleString())}`;
 
-        // Bidding: player chooses discount level → affects win probability
+        // Bidding: 4 options — full price / 10% / 20% / 30% discount
         const bidId = 'bsa_' + Date.now();
+        const baseWin = Math.max(10, 50 - template.difficulty * 10);
+        const disc10Win = Math.min(90, baseWin + 15);
+        const disc20Win = Math.min(90, baseWin + 30);
+        const disc30Win = Math.min(95, baseWin + 45);
+
         document.getElementById('evt-actions').innerHTML =
-            `<button class="btn-primary" onclick="Game.bidBsa('${bidId}',${teuPerVoy},${revPerVoy},${totalVoyages},'${fromPort}','${toPort}',${template.difficulty},0)" style="margin-bottom:4px">` +
-                `${T('bsa.fullPrice', Math.max(10, 60 - template.difficulty * 12))}</button>` +
-            `<button class="btn-primary" onclick="Game.bidBsa('${bidId}',${teuPerVoy},${Math.round(revPerVoy * 0.9)},${totalVoyages},'${fromPort}','${toPort}',${template.difficulty},1)" style="margin-bottom:4px;background:var(--accent2)">` +
-                `${T('bsa.discounted', Math.max(10, 80 - template.difficulty * 10))}</button>` +
+            `<button class="btn-primary" onclick="Game.bidBsa('${bidId}',${teuPerVoy},${revPerVoy},${totalVoyages},'${fromPort}','${toPort}',${template.difficulty},0)" style="margin-bottom:4px;width:100%">` +
+                `💪 ${T('bsa.bid0', baseWin)}</button>` +
+            `<button class="btn-primary" onclick="Game.bidBsa('${bidId}',${teuPerVoy},${Math.round(revPerVoy * 0.9)},${totalVoyages},'${fromPort}','${toPort}',${template.difficulty},1)" style="margin-bottom:4px;width:100%;background:var(--accent2)">` +
+                `📉 ${T('bsa.bid10', disc10Win)}</button>` +
+            `<button class="btn-primary" onclick="Game.bidBsa('${bidId}',${teuPerVoy},${Math.round(revPerVoy * 0.8)},${totalVoyages},'${fromPort}','${toPort}',${template.difficulty},2)" style="margin-bottom:4px;width:100%;background:#7B1FA2">` +
+                `📉 ${T('bsa.bid20', disc20Win)}</button>` +
+            `<button class="btn-primary" onclick="Game.bidBsa('${bidId}',${teuPerVoy},${Math.round(revPerVoy * 0.7)},${totalVoyages},'${fromPort}','${toPort}',${template.difficulty},3)" style="margin-bottom:4px;width:100%;background:#E65100">` +
+                `📉 ${T('bsa.bid30', disc30Win)}</button>` +
             `<button class="btn-sm" onclick="Game.closeModal('modal-event');Game.startTick()" style="width:100%;background:var(--card2)">${T('bsa.decline')}</button>`;
         document.getElementById('modal-event').classList.add('active');
     },
@@ -1476,11 +1496,13 @@ const Game = {
         const allCusts = Object.values(s.custs).flat();
         const rep = allCusts.length > 0 ? allCusts.reduce((sum, c) => sum + c.share, 0) / allCusts.length : 0;
 
-        // Win probability based on reputation, discount, difficulty
-        let winRate = 0.50 + rep * 0.003 - difficulty * 0.12;
-        if (discountLevel === 1) winRate += 0.20; // discount bid improves odds
+        // Win probability: base + reputation + discount bonus - difficulty penalty
+        let winRate = 0.50 + rep * 0.003 - difficulty * 0.10;
+        if (discountLevel === 1) winRate += 0.15;       // 10% discount
+        else if (discountLevel === 2) winRate += 0.30;   // 20% discount
+        else if (discountLevel === 3) winRate += 0.45;   // 30% discount
         winRate += s.infra.training * 0.03 + (s.infra.systems || s.infra.it || 0) * 0.02;
-        winRate = Math.max(0.10, Math.min(0.90, winRate));
+        winRate = Math.max(0.10, Math.min(0.95, winRate));
 
         const won = Math.random() < winRate;
         this.closeModal('modal-event');

@@ -1405,17 +1405,17 @@ const SPOT_CARGO_POOL = [
 
 // BSA Bidding (장기 계약 입찰)
 const BSA_BIDDING_POOL = [
-    { name:'글로벌전자 연간계약', nameJa:'グローバル電子 年間契約', icon:'🏢', difficulty:4, teuPerVoyage:{ min:8, max:15 }, duration:12, basePremium:0.05,
-      desc:'대기업 연간 물량 입찰. 안정적 수익 보장', descJa:'大企業年間物量入札。安定収益保証', minRep:60 },
-    { name:'스카이상사 반기계약', nameJa:'スカイ商事 半期契約', icon:'💼', difficulty:3, teuPerVoyage:{ min:5, max:10 }, duration:6, basePremium:0.0,
-      desc:'종합상사 반기 물량. 다양한 품목', descJa:'総合商社半期物量。多様な品目', minRep:40 },
-    { name:'한중무역 분기계약', nameJa:'韓中貿易 四半期契約', icon:'🤝', difficulty:2, teuPerVoyage:{ min:3, max:7 }, duration:3, basePremium:-0.05,
-      desc:'소규모 무역상 분기 계약. 낮은 운임', descJa:'小規模貿易商四半期契約。低運賃', minRep:20 },
-    { name:'텍스타일코리아 연간', nameJa:'テキスタイルコリア 年間', icon:'👔', difficulty:3, teuPerVoyage:{ min:4, max:8 }, duration:12, basePremium:0.08,
+    { name:'글로벌전자 계약', nameJa:'グローバル電子 契約', icon:'🏢', difficulty:4, teuPerVoyage:{ min:8, max:15 }, duration:6, basePremium:0.05,
+      desc:'대기업 물량 입찰. 안정적 수익 보장', descJa:'大企業物量入札。安定収益保証', minRep:60 },
+    { name:'스카이상사 계약', nameJa:'スカイ商事 契約', icon:'💼', difficulty:3, teuPerVoyage:{ min:5, max:10 }, duration:6, basePremium:0.0,
+      desc:'종합상사 물량. 다양한 품목', descJa:'総合商社物量。多様な品目', minRep:40 },
+    { name:'한중무역 계약', nameJa:'韓中貿易 契約', icon:'🤝', difficulty:2, teuPerVoyage:{ min:3, max:7 }, duration:6, basePremium:-0.05,
+      desc:'소규모 무역상 계약. 낮은 운임', descJa:'小規模貿易商契約。低運賃', minRep:20 },
+    { name:'텍스타일코리아 계약', nameJa:'テキスタイルコリア 契約', icon:'👔', difficulty:3, teuPerVoyage:{ min:4, max:8 }, duration:6, basePremium:0.08,
       desc:'섬유 수출 대형 화주. 꾸준한 물량', descJa:'繊維輸出大口荷主。安定した物量', minRep:50 },
-    { name:'화학공업 반기계약', nameJa:'化学工業 半期契約', icon:'🧪', difficulty:3, teuPerVoyage:{ min:6, max:12 }, duration:6, basePremium:0.03,
+    { name:'화학공업 계약', nameJa:'化学工業 契約', icon:'🧪', difficulty:3, teuPerVoyage:{ min:6, max:12 }, duration:6, basePremium:0.03,
       desc:'위험물 포함 화학 물량. 전문 취급 필요', descJa:'危険物含む化学物量。専門取扱必要', minRep:35 },
-    { name:'신선식품 계절계약', nameJa:'生鮮食品 季節契約', icon:'🍎', difficulty:1, teuPerVoyage:{ min:2, max:5 }, duration:3, basePremium:-0.03,
+    { name:'신선식품 계약', nameJa:'生鮮食品 契約', icon:'🍎', difficulty:1, teuPerVoyage:{ min:2, max:5 }, duration:6, basePremium:-0.03,
       desc:'계절 과일 수출. 진입이 쉽지만 마진 낮음', descJa:'季節果物輸出。参入しやすいがマージン低い', minRep:10 },
 ];
 

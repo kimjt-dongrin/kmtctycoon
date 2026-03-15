@@ -4513,8 +4513,7 @@ const Game = {
         document.getElementById('hud-day').textContent = `${gd.dateStr} ${String(s.gameHour).padStart(2,'0')}:00`;
         const ddayEl = document.getElementById('hud-dday');
         if (ddayEl) {
-            const realDays = s.startedAt ? Math.floor((Date.now() - s.startedAt) / 86400000) + 1 : s.gameDay;
-            ddayEl.textContent = `D+${realDays}`;
+            ddayEl.textContent = `D+${s.gameDay}`;
         }
 
         const teu = this.getTEU();

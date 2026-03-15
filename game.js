@@ -176,7 +176,7 @@ const Game = {
             co, ceo, vessel, route: r,
             cash: Math.round(r.investmentCost * 0.5),
             debt: Math.round(r.investmentCost * 0.5),
-            gameDay: 1, gameHour: 0, speed: 1,
+            gameDay: 1, gameHour: 0, speed: 1, startedAt: Date.now(),
             ship: { capacity: r.vesselSize, condition: 100, fuel: 100 },
             captain: { ...STARTING_CAPTAIN },
             ctr, custs, salesTeam,
@@ -3332,7 +3332,10 @@ const Game = {
         const gd = this.getGameDate();
         document.getElementById('hud-day').textContent = `${gd.dateStr} ${String(s.gameHour).padStart(2,'0')}:00`;
         const ddayEl = document.getElementById('hud-dday');
-        if (ddayEl) ddayEl.textContent = `D+${s.gameDay}`;
+        if (ddayEl) {
+            const realDays = s.startedAt ? Math.floor((Date.now() - s.startedAt) / 86400000) + 1 : s.gameDay;
+            ddayEl.textContent = `D+${realDays}`;
+        }
 
         const teu = this.getTEU();
         const cargoTeu = document.getElementById('cargo-teu');
@@ -3577,9 +3580,10 @@ const Game = {
         return this.state.bookings.reduce((s, b) => s + b.q20 + b.q40 * 2, 0);
     },
 
-    // Convert gameDay to actual date (starting 2025-01-01)
+    // Convert gameDay to actual date (starting from user's real start date)
     getGameDate() {
-        const baseDate = new Date(2025, 0, 1); // Jan 1 2025
+        const baseDate = this.state.startedAt ? new Date(this.state.startedAt) : new Date(2025, 0, 1);
+        baseDate.setHours(0, 0, 0, 0);
         const d = new Date(baseDate.getTime() + (this.state.gameDay - 1) * 86400000);
         const month = d.getMonth(); // 0-11
         const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -3675,6 +3679,7 @@ const Game = {
             if (!s.activityLog) s.activityLog = [];
             if (!s.milestones) s.milestones = [];
             if (!s.alerts) s.alerts = [];
+            if (!s.startedAt) s.startedAt = Date.now();
             if (!s.spotOffers) s.spotOffers = [];
             if (!s.bsaContracts) s.bsaContracts = [];
             if (!s.benchPool) s.benchPool = [];
@@ -3942,7 +3947,7 @@ const Game = {
         let html = `
         <div style="text-align:center;margin-bottom:12px">
             <div style="font-size:13px;font-weight:700">${s.co}</div>
-            <div style="font-size:11px;color:var(--t3)">${s.ceo} | ${gd.dateStr} (D+${s.gameDay})</div>
+            <div style="font-size:11px;color:var(--t3)">${s.ceo} | ${gd.dateStr} (D+${s.startedAt ? Math.floor((Date.now() - s.startedAt) / 86400000) + 1 : s.gameDay})</div>
             <div style="font-size:10px;color:var(--t3);margin-top:4px">마지막 저장: ${saveTime}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px">

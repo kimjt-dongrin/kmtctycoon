@@ -2781,6 +2781,13 @@ const Game = {
                 const unlocked = s.stats.totRev >= (pkg.unlockRevenue || 0);
                 const canBuy = !owned && unlocked && afford(pkg.totalInvestment);
                 const portList = pkg.ports.map(p => pkg.portNames[p]).join(' → ');
+                // Loan calculation: how much is needed beyond current cash
+                const shortage = Math.max(0, pkg.totalInvestment - Math.max(0, s.cash));
+                const needsLoan = unlocked && !canBuy && shortage > 0;
+                const loanRate = shortage <= 500000 ? 6 : shortage <= 2000000 ? 5 : 4.5;
+                const loanFee = Math.round(shortage * 0.01);
+                const monthlyRepay = Math.round(shortage / 24); // 24개월 상환
+                const monthlyInterest = Math.round(shortage * loanRate / 100 / 12);
 
                 if (owned) {
                     html += `<div class="invest-item active-promo" style="border-left:3px solid ${pkg.color}">
@@ -2792,26 +2799,26 @@ const Game = {
                         <div style="font-size:10px;color:var(--green)">활성</div>
                     </div>`;
                 } else {
-                    // Detailed cost breakdown
                     const shipTotal = pkg.shipCount * pkg.shipCostEach;
                     const officeTotal = pkg.officePorts.length * pkg.officeCostEach;
                     const expanded = this._expandedRoute === pkg.id;
 
-                    html += `<div class="invest-item ${!unlocked ? 'locked' : ''}" style="border-left:3px solid ${pkg.color};flex-wrap:wrap">
+                    html += `<div class="invest-item" style="border-left:3px solid ${pkg.color};flex-wrap:wrap;${!unlocked ? 'opacity:.5' : ''}">
                         <div style="display:flex;align-items:center;gap:8px;width:100%">
                             <div class="invest-icon">🌏</div>
-                            <div class="invest-info" style="flex:1">
+                            <div class="invest-info" style="flex:1;min-width:0">
                                 <div class="invest-name">${pkg.nameKo} ${!unlocked ? '🔒' : ''} <span style="font-size:9px;color:${pkg.color}">${pkg.difficulty}</span></div>
-                                <div class="invest-effect">${portList} | ${pkg.vesselSize}TEU × ${pkg.shipCount}척 | ${pkg.rotationDays}일 로테이션</div>
-                                ${!unlocked ? `<div style="font-size:9px;color:var(--yellow);margin-top:2px">매출 $${(pkg.unlockRevenue/1e6).toFixed(0)}M 달성 시 해금</div>` : ''}
+                                <div class="invest-effect" style="word-break:break-word">${portList}</div>
+                                <div style="font-size:10px;color:var(--t3)">${pkg.vesselSize}TEU × ${pkg.shipCount}척 | ${pkg.rotationDays}일 로테이션</div>
+                                ${!unlocked ? `<div style="font-size:10px;color:var(--yellow);margin-top:3px;font-weight:600">🔒 해금 조건: 누적 매출 $${pkg.unlockRevenue >= 1e6 ? (pkg.unlockRevenue/1e6).toFixed(0)+'M' : (pkg.unlockRevenue/1e3).toFixed(0)+'K'}<br><span style="font-size:9px;font-weight:400">현재 매출: $${this._shortNum(s.stats.totRev)} (${Math.min(100, Math.round(s.stats.totRev / pkg.unlockRevenue * 100))}%)</span></div>` : ''}
                             </div>
-                            <div style="text-align:right">
+                            <div style="text-align:right;flex-shrink:0">
                                 <div class="invest-cost">$${pkg.totalInvestment.toLocaleString()}</div>
-                                <button class="btn-sm" onclick="Game._expandedRoute=Game._expandedRoute==='${pkg.id}'?null:'${pkg.id}';Game.renderInvestments()" style="font-size:9px;padding:2px 6px;margin-top:3px">${expanded ? '▲ 접기' : '▼ 상세'}</button>
+                                ${unlocked ? `<button class="btn-sm" onclick="Game._expandedRoute=Game._expandedRoute==='${pkg.id}'?null:'${pkg.id}';Game.renderInvestments()" style="font-size:9px;padding:2px 6px;margin-top:3px">${expanded ? '▲ 접기' : '▼ 상세'}</button>` : ''}
                             </div>
                         </div>`;
 
-                    if (expanded) {
+                    if (expanded && unlocked) {
                         html += `<div style="width:100%;margin-top:8px;padding:10px;background:var(--bg);border-radius:8px;font-size:11px">
                             <div style="font-weight:700;margin-bottom:8px;color:var(--t1)">📋 투자 내역서</div>
                             <table style="width:100%;border-collapse:collapse;font-size:11px">
@@ -2833,13 +2840,33 @@ const Game = {
                                 </tr>
                             </table>
                             <div style="margin-top:8px;padding:6px;background:var(--card2);border-radius:6px;font-size:10px;color:var(--t3)">
-                                <div>💰 자기자본: $${Math.round(pkg.totalInvestment * (1 - pkg.debtRatio)).toLocaleString()} | 부채: $${Math.round(pkg.totalInvestment * pkg.debtRatio).toLocaleString()} (${Math.round(pkg.debtRatio * 100)}%)</div>
                                 <div>⛽ 연료비/일: $${pkg.fuelCostPerDay.toLocaleString()} | 항비/기항: $${pkg.portFeesPerCall.toLocaleString()} | 고정비/주: $${pkg.weeklyFixedCost.toLocaleString()}</div>
-                            </div>
-                            <button class="btn-primary" onclick="Game.buyNewRoute('${pkg.id}')" ${canBuy ? '' : 'disabled'} style="width:100%;margin-top:10px;font-size:12px">
-                                🌏 항로 개척 ($${pkg.totalInvestment.toLocaleString()})
-                            </button>
-                        </div>`;
+                            </div>`;
+
+                        if (canBuy) {
+                            html += `<button class="btn-primary" onclick="Game.buyNewRoute('${pkg.id}')" style="width:100%;margin-top:10px;font-size:12px">
+                                🌏 항로 개척 — 현금 결제 ($${pkg.totalInvestment.toLocaleString()})
+                            </button>`;
+                        } else if (needsLoan) {
+                            html += `<div style="margin-top:10px;padding:10px;background:rgba(33,150,243,.1);border:1px solid var(--accent);border-radius:8px">
+                                <div style="font-weight:700;font-size:12px;color:var(--accent);margin-bottom:6px">🏦 대출로 항로 개척</div>
+                                <div style="font-size:10px;color:var(--t2);display:grid;grid-template-columns:1fr 1fr;gap:4px">
+                                    <span>보유 현금: $${Math.round(Math.max(0, s.cash)).toLocaleString()}</span>
+                                    <span>부족금액: <strong style="color:var(--red)">$${shortage.toLocaleString()}</strong></span>
+                                    <span>대출 연이율: <strong style="color:var(--yellow)">${loanRate}%</strong></span>
+                                    <span>대출 수수료: $${loanFee.toLocaleString()}</span>
+                                    <span>월 상환금: ~$${monthlyRepay.toLocaleString()}</span>
+                                    <span>월 이자: ~$${monthlyInterest.toLocaleString()}</span>
+                                </div>
+                                <div style="font-size:9px;color:var(--t3);margin-top:4px">* 24개월 분할상환 | 부족금액만큼 자동 대출 실행</div>
+                                <button class="btn-primary" onclick="Game.buyNewRouteWithLoan('${pkg.id}')" style="width:100%;margin-top:8px;font-size:12px;background:#1565C0">
+                                    🏦 대출 실행 + 항로 개척
+                                </button>
+                            </div>`;
+                        } else {
+                            html += `<button class="btn-primary" disabled style="width:100%;margin-top:10px;font-size:12px">현금 부족</button>`;
+                        }
+                        html += `</div>`;
                     }
                     html += '</div>';
                 }
@@ -2857,6 +2884,12 @@ const Game = {
                 const unlocked = s.stats.totRev >= (sc.unlockRevenue || 0);
                 const canBuy = !owned && unlocked && afford(sc.slotCost);
                 const portList = sc.ports.map(p => sc.portNames[p]).join(' → ');
+                const scShortage = Math.max(0, sc.slotCost - Math.max(0, s.cash));
+                const scNeedsLoan = unlocked && !canBuy && !owned && scShortage > 0;
+                const scLoanRate = 8;
+                const scMonthlyRepay = Math.round(scShortage / 12);
+                const scMonthlyInterest = Math.round(scShortage * scLoanRate / 100 / 12);
+
                 if (owned) {
                     html += `<div class="invest-item active-promo" style="border-left:3px solid ${sc.color}">
                         <div class="invest-icon">🚢</div>
@@ -2868,18 +2901,37 @@ const Game = {
                         <div style="font-size:10px;color:var(--green)">활성</div>
                     </div>`;
                 } else {
-                    html += `<div class="invest-item ${!unlocked ? 'locked' : ''}" style="border-left:3px solid ${sc.color}">
-                        <div class="invest-icon">🚢</div>
-                        <div class="invest-info">
-                            <div class="invest-name">${sc.nameKo} ${!unlocked ? '🔒' : ''} <span style="font-size:9px;color:${sc.color}">${sc.difficulty}</span></div>
-                            <div class="invest-effect">${sc.carrier} 모선 선복 ${sc.slotCapacity} TEU 구매</div>
-                            <div style="font-size:10px;color:var(--t3);margin-top:2px">${portList} | ${sc.rotationDays}일 로테이션</div>
-                            <div style="font-size:10px;color:var(--yellow);margin-top:2px">항차당 슬롯비: $${sc.slotFeePerVoyage.toLocaleString()}</div>
-                            ${!unlocked ? `<div style="font-size:9px;color:var(--yellow);margin-top:2px">매출 $${(sc.unlockRevenue/1e3).toFixed(0)}K 달성 시 해금</div>` : ''}
-                        </div>
-                        <div class="invest-cost">$${sc.slotCost.toLocaleString()}</div>
-                        <button class="invest-btn" onclick="Game.buySlotCharter('${sc.id}')" ${canBuy ? '' : 'disabled'}>구매</button>
-                    </div>`;
+                    html += `<div class="invest-item" style="border-left:3px solid ${sc.color};flex-wrap:wrap;${!unlocked ? 'opacity:.5' : ''}">
+                        <div style="display:flex;align-items:center;gap:8px;width:100%">
+                            <div class="invest-icon">🚢</div>
+                            <div class="invest-info" style="flex:1;min-width:0">
+                                <div class="invest-name">${sc.nameKo} ${!unlocked ? '🔒' : ''} <span style="font-size:9px;color:${sc.color}">${sc.difficulty}</span></div>
+                                <div class="invest-effect" style="word-break:break-word">${sc.carrier} 모선 선복 ${sc.slotCapacity} TEU</div>
+                                <div style="font-size:10px;color:var(--t3);margin-top:2px">${portList} | ${sc.rotationDays}일 로테이션</div>
+                                <div style="font-size:10px;color:var(--yellow);margin-top:2px">항차당 슬롯비: $${sc.slotFeePerVoyage.toLocaleString()}</div>
+                                ${!unlocked ? `<div style="font-size:10px;color:var(--yellow);margin-top:3px;font-weight:600">🔒 해금 조건: 누적 매출 $${sc.unlockRevenue >= 1e6 ? (sc.unlockRevenue/1e6).toFixed(0)+'M' : (sc.unlockRevenue/1e3).toFixed(0)+'K'}<br><span style="font-size:9px;font-weight:400">현재 매출: $${this._shortNum(s.stats.totRev)} (${Math.min(100, Math.round(s.stats.totRev / sc.unlockRevenue * 100))}%)</span></div>` : ''}
+                            </div>
+                            <div style="text-align:right;flex-shrink:0">
+                                <div class="invest-cost">$${sc.slotCost.toLocaleString()}</div>
+                                ${canBuy ? `<button class="invest-btn" onclick="Game.buySlotCharter('${sc.id}')">구매</button>` : ''}
+                            </div>
+                        </div>`;
+
+                    if (scNeedsLoan) {
+                        html += `<div style="width:100%;margin-top:8px;padding:8px;background:rgba(33,150,243,.1);border:1px solid var(--accent);border-radius:8px;font-size:10px">
+                            <div style="font-weight:700;color:var(--accent);margin-bottom:4px">🏦 대출로 슬롯 차터</div>
+                            <div style="color:var(--t2);display:flex;gap:8px;flex-wrap:wrap">
+                                <span>부족: <strong style="color:var(--red)">$${scShortage.toLocaleString()}</strong></span>
+                                <span>연이율: <strong style="color:var(--yellow)">${scLoanRate}%</strong></span>
+                                <span>월 상환: ~$${scMonthlyRepay.toLocaleString()}</span>
+                                <span>월 이자: ~$${scMonthlyInterest.toLocaleString()}</span>
+                            </div>
+                            <button class="btn-primary" onclick="Game.buySlotCharterWithLoan('${sc.id}')" style="width:100%;margin-top:6px;font-size:11px;background:#1565C0;padding:6px">
+                                🏦 대출 실행 + 슬롯 차터 ($${sc.slotCost.toLocaleString()})
+                            </button>
+                        </div>`;
+                    }
+                    html += '</div>';
                 }
             });
             html += '</div>';
@@ -3038,6 +3090,85 @@ const Game = {
 
         this.toast(`🚢 ${sc.nameKo} 슬롯 차터 개시!`, 'ok');
         this.addFeed(`🚢 ${sc.carrier} ${sc.vesselName} 선복 구매! ${sc.slotCapacity}TEU 슬롯 확보`, 'alert');
+        this.renderInvestments();
+        this.updateHUD();
+    },
+
+    buySlotCharterWithLoan(scId) {
+        const s = this.state;
+        const sc = SLOT_CHARTERS.find(x => x.id === scId);
+        if (!sc) return;
+        if (s.stats.totRev < (sc.unlockRevenue || 0)) { this.toast('매출 조건 미달!', 'err'); return; }
+        if (!s.slotCharters) s.slotCharters = [];
+        if (s.slotCharters.find(o => o.id === sc.id)) { this.toast('이미 운영 중!', 'err'); return; }
+
+        const shortage = Math.max(0, sc.slotCost - Math.max(0, s.cash));
+        const loanRate = 8;
+        const loanFee = Math.round(shortage * 0.02);
+
+        // Take loan for shortage amount
+        s.debt += shortage;
+        s.stats.totExp += loanFee;
+        if (!s.loans) s.loans = [];
+        s.loans.push({ id: 'loan_slot_' + sc.id, name: `슬롯차터 대출 (${sc.nameKo})`, amount: shortage, rate: loanRate, fee: loanFee, day: s.gameDay, ts: Date.now() });
+
+        // Now proceed with purchase (cash covers what we have, loan covers the rest)
+        s.cash -= sc.slotCost;
+        s.stats.totExp += sc.slotCost;
+        s.debt += Math.round(sc.slotCost * 0.5);
+
+        s.slotCharters.push({ id: sc.id, voyNum: 1, daysSinceLast: 0, status: 'port', legIdx: 0, sailProgress: 0, bookings: [] });
+        sc.ports.forEach(p => {
+            if (!s.custs[p] && CUSTOMERS[p]) s.custs[p] = CUSTOMERS[p].map(c => ({ ...c }));
+            if (!s.ctr[p]) s.ctr[p] = { '20': 10, '40': 10 };
+        });
+        if (!s.slotSalesPorts) s.slotSalesPorts = {};
+        for (const port in sc.salesPorts) s.slotSalesPorts[port] = sc.salesPorts[port];
+
+        this.toast(`🏦 대출 $${shortage.toLocaleString()} 실행 → 🚢 ${sc.nameKo} 슬롯 차터 개시!`, 'ok');
+        this.addFeed(`🏦 대출 $${shortage.toLocaleString()} (연 ${loanRate}%) → 🚢 ${sc.nameKo} 슬롯 확보!`, 'alert');
+        this.renderInvestments();
+        this.updateHUD();
+    },
+
+    buyNewRouteWithLoan(pkgId) {
+        const s = this.state;
+        const pkg = NEW_ROUTE_PACKAGES.find(x => x.id === pkgId);
+        if (!pkg) return;
+        if (s.stats.totRev < (pkg.unlockRevenue || 0)) { this.toast('매출 조건 미달!', 'err'); return; }
+        if (!s.ownedRoutes) s.ownedRoutes = [];
+        if (s.ownedRoutes.find(o => o.id === pkg.id)) { this.toast('이미 운영 중!', 'err'); return; }
+
+        const shortage = Math.max(0, pkg.totalInvestment - Math.max(0, s.cash));
+        const loanRate = shortage <= 500000 ? 6 : shortage <= 2000000 ? 5 : 4.5;
+        const loanFee = Math.round(shortage * 0.01);
+
+        // Take loan
+        s.debt += shortage;
+        s.stats.totExp += loanFee;
+        if (!s.loans) s.loans = [];
+        s.loans.push({ id: 'loan_route_' + pkg.id, name: `항로개척 대출 (${pkg.nameKo})`, amount: shortage, rate: loanRate, fee: loanFee, day: s.gameDay, ts: Date.now() });
+
+        // Deduct total investment (cash goes negative then loan covers it)
+        s.cash -= pkg.totalInvestment;
+        s.stats.totExp += pkg.totalInvestment;
+        s.debt += Math.round(pkg.totalInvestment * pkg.debtRatio);
+
+        // Initialize route
+        s.ownedRoutes.push({ id: pkg.id, voyNum: 0, status: 'setup', activatedDay: s.gameDay });
+
+        // Setup containers and ports
+        pkg.ports.forEach(p => {
+            if (!s.custs[p] && CUSTOMERS[p]) s.custs[p] = CUSTOMERS[p].map(c => ({ ...c }));
+            if (!s.ctr[p]) s.ctr[p] = { '20': Math.round((pkg.containerSet['20'] || 40) / pkg.ports.length), '40': Math.round((pkg.containerSet['40'] || 20) / pkg.ports.length) };
+        });
+        pkg.officePorts.forEach(p => { if (!s.infra.offices[p]) s.infra.offices[p] = true; });
+
+        if (!s.slotSalesPorts) s.slotSalesPorts = {};
+        for (const port in pkg.salesPorts) s.slotSalesPorts[port] = pkg.salesPorts[port];
+
+        this.toast(`🏦 대출 $${shortage.toLocaleString()} 실행 → 🌏 ${pkg.nameKo} 항로 개척!`, 'ok');
+        this.addFeed(`🏦 대출 $${shortage.toLocaleString()} (연 ${loanRate}%) → 🌏 ${pkg.nameKo} 개통!`, 'alert');
         this.renderInvestments();
         this.updateHUD();
     },

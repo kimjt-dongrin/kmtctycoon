@@ -371,11 +371,6 @@ const Game = {
             }
         }
 
-        // Crisis relief — when cash is deeply negative, offer bailout every 15 days
-        if (s.cash < -20000 && s.gameDay % 15 === 0) {
-            this.triggerCrisisRelief();
-        }
-
         // Check milestones
         this.checkMilestones();
 
@@ -1074,8 +1069,11 @@ const Game = {
         // Volume based on share, destPort weight, and customer size
         const destWeight = cust.destPorts?.[dest] || (1 / sp.sellTo.length);
         const shareMultiplier = 0.4 + (cust.share / 100) * 0.6;
-        let vol20 = Math.max(0, Math.round((cust.maxVol20 * shareMultiplier) * (0.6 + Math.random() * 0.4)));
-        let vol40 = Math.max(0, Math.round((cust.maxVol40 * shareMultiplier) * (0.6 + Math.random() * 0.4)));
+
+        // Market season affects volume demand
+        const mkt = this.getMarketCondition(port);
+        let vol20 = Math.max(0, Math.round((cust.maxVol20 * shareMultiplier * mkt.volMult) * (0.6 + Math.random() * 0.4)));
+        let vol40 = Math.max(0, Math.round((cust.maxVol40 * shareMultiplier * mkt.volMult) * (0.6 + Math.random() * 0.4)));
         if (vol20 + vol40 === 0) {
             // Ensure at least 1 container when sales succeeds
             if (cust.maxVol20 > 0) vol20 = 1;
@@ -1093,10 +1091,10 @@ const Game = {
         const newTEU = avail20 + avail40 * 2;
         if (currentTEU + newTEU > s.ship.capacity) return;
 
-        // Discount based on customer relationship
+        // Discount based on customer relationship, rates adjusted by market season
         const discount = cust.baseDiscount * (1 - cust.loyalty / 200);
-        const r20 = Math.round(rate['20'] * (1 - discount));
-        const r40 = Math.round(rate['40'] * (1 - discount));
+        const r20 = Math.round(rate['20'] * mkt.rateMult * (1 - discount));
+        const r40 = Math.round(rate['40'] * mkt.rateMult * (1 - discount));
         const revenue = avail20 * r20 + avail40 * r40;
 
         // Book it
@@ -1594,45 +1592,6 @@ const Game = {
         this.openModal('modal-event');
 
         this.addFeed(T('accident.feed', accident.icon, D(accident,'name'), totalCost.toLocaleString(), insuredClaim.toLocaleString()), 'alert');
-    },
-
-    triggerCrisisRelief() {
-        const s = this.state;
-        const deficit = Math.abs(s.cash);
-        // Relief amount: cover 60-80% of deficit, capped at $80,000
-        const reliefBase = Math.round(deficit * (0.6 + Math.random() * 0.2));
-        const reliefAmount = Math.min(reliefBase, 80000);
-
-        // Pick random relief type
-        const reliefTypes = [
-            { icon: '🏛️', name: '정부 긴급 지원금', nameJa: '政府緊急支援金',
-              desc: '해운업 경영 안정을 위한 정부 긴급 지원금이 승인되었습니다.',
-              descJa: '海運業経営安定のための政府緊急支援金が承認されました。' },
-            { icon: '🤝', name: '본사 특별 지원', nameJa: '本社特別支援',
-              desc: 'KMTC 본사에서 경영 정상화를 위한 특별 지원금을 배정했습니다.',
-              descJa: 'KMTC本社から経営正常化のための特別支援金が配分されました。' },
-            { icon: '📋', name: '보험사 특별 보상', nameJa: '保険会社特別補償',
-              desc: '보험사에서 연속 사고에 대한 특별 보상금을 지급합니다.',
-              descJa: '保険会社から連続事故に対する特別補償金が支給されます。' },
-            { icon: '💰', name: '화주 선급금 수령', nameJa: '荷主前受金受領',
-              desc: '대형 화주로부터 장기계약 선급금이 입금되었습니다.',
-              descJa: '大手荷主から長期契約の前受金が入金されました。' },
-        ];
-        const relief = reliefTypes[Math.floor(Math.random() * reliefTypes.length)];
-
-        s.cash += reliefAmount;
-
-        document.getElementById('evt-title').textContent = `${relief.icon} ${D(relief,'name')}`;
-        document.getElementById('evt-desc').innerHTML = `
-            <p>${D(relief,'desc')}</p>
-            <div style="margin-top:10px;padding:12px;background:var(--card2);border-radius:8px;text-align:center">
-                <div style="font-size:20px;font-weight:700;color:var(--green)">+$${reliefAmount.toLocaleString()}</div>
-                <div style="font-size:11px;color:var(--t3);margin-top:4px">${T('crisis.cashAfter')}: $${s.cash.toLocaleString()}</div>
-            </div>`;
-        document.getElementById('evt-actions').innerHTML = `<button class="btn-primary" onclick="Game.closeModal('modal-event')" style="width:100%;margin-top:8px">${T('accident.confirm')}</button>`;
-        this.openModal('modal-event');
-
-        this.addFeed(`${relief.icon} ${D(relief,'name')}: +$${reliefAmount.toLocaleString()}`, 'good');
     },
 
     checkMilestones() {
@@ -2555,11 +2514,31 @@ const Game = {
     renderSalesTeam() {
         const s = this.state;
 
+        // Market condition bar (port-level seasonal indicators)
+        let html = '';
+        if (typeof MARKET_SEASONS !== 'undefined') {
+            html += '<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">';
+            s.route.ports.forEach(p => {
+                const mc = this.getMarketCondition(p);
+                const pn = this.getPortName(p);
+                const trendIcon = mc.trend === 'boom' ? '🔥' : mc.trend === 'up' ? '📈' : mc.trend === 'slump' ? '📉' : mc.trend === 'down' ? '↘️' : '➡️';
+                const trendColor = mc.trend === 'boom' ? 'var(--green)' : mc.trend === 'up' ? '#8BC34A' : mc.trend === 'slump' ? 'var(--red)' : mc.trend === 'down' ? '#FF9800' : 'var(--t3)';
+                const ratePct = Math.round((mc.rateMult - 1) * 100);
+                const sign = ratePct >= 0 ? '+' : '';
+                html += `<div style="flex:1;min-width:60px;padding:6px 8px;background:var(--card2);border-radius:6px;border-left:3px solid ${trendColor};font-size:10px;text-align:center">
+                    <div style="font-weight:600">${pn}</div>
+                    <div style="font-size:14px">${trendIcon}</div>
+                    <div style="color:${trendColor};font-weight:700">${sign}${ratePct}%</div>
+                </div>`;
+            });
+            html += '</div>';
+        }
+
         // Global strategy button
         const gs = s.globalStrategy || { strategy: 'lowest-share', actPreset: 'balanced' };
         const gsStrat = SALES_STRATEGIES.find(x => x.id === gs.strategy);
         const gsPreset = ACTIVITY_PRESETS.find(x => x.id === gs.actPreset);
-        let html = `<div style="margin-bottom:10px;padding:10px;background:var(--card2);border-radius:8px;border:1px solid var(--border);cursor:pointer" onclick="Game.openPlanConfig('global')">
+        html += `<div style="margin-bottom:10px;padding:10px;background:var(--card2);border-radius:8px;border:1px solid var(--border);cursor:pointer" onclick="Game.openPlanConfig('global')">
             <div style="font-size:12px;font-weight:600;margin-bottom:4px">${T('sales.globalStrategy')}</div>
             <div style="font-size:11px;color:var(--t2)">${gsStrat ? gsStrat.icon + ' ' + ({'lowest-share':'strategy.lowestShare','largest-first':'strategy.largestFirst','easiest-first':'strategy.easiestFirst','cheap-cargo':'strategy.cheapCargo','port-focus':'strategy.portFocus','steal-cargo':'strategy.stealCargo'}[gsStrat.id] ? T({'lowest-share':'strategy.lowestShare','largest-first':'strategy.largestFirst','easiest-first':'strategy.easiestFirst','cheap-cargo':'strategy.cheapCargo','port-focus':'strategy.portFocus','steal-cargo':'strategy.stealCargo'}[gsStrat.id]) : gsStrat.name) : '-'} | ${gsPreset ? gsPreset.icon + ' ' + ({'balanced':'preset.balanced','email-phone':'preset.emailPhone','visit-main':'preset.visitMain','entertain-main':'preset.entertainMain','pioneer':'preset.pioneer'}[gsPreset.id] ? T({'balanced':'preset.balanced','email-phone':'preset.emailPhone','visit-main':'preset.visitMain','entertain-main':'preset.entertainMain','pioneer':'preset.pioneer'}[gsPreset.id]) : gsPreset.name) : T('preset.balanced')}</div>
         </div>`;
@@ -4737,6 +4716,23 @@ const Game = {
             items.push({ text: T('ticker.highWave', this.getPortName(r.ports[0])), cls: 'warn' });
         }
 
+        // === MARKET SEASON ===
+        if (typeof MARKET_SEASONS !== 'undefined') {
+            const boomPorts = [], slumpPorts = [];
+            r.ports.forEach(p => {
+                const mc = this.getMarketCondition(p);
+                const pn = this.getPortName(p);
+                if (mc.trend === 'boom') boomPorts.push(pn);
+                else if (mc.trend === 'slump') slumpPorts.push(pn);
+            });
+            if (boomPorts.length > 0) {
+                items.push({ text: T('ticker.marketBoom', boomPorts.join(', ')), cls: 'good' });
+            }
+            if (slumpPorts.length > 0) {
+                items.push({ text: T('ticker.marketSlump', slumpPorts.join(', ')), cls: 'warn' });
+            }
+        }
+
         // === SPOT & BSA ===
         if (s.spotOffers && s.spotOffers.length > 0) {
             const urgent = s.spotOffers.find(o => o.daysLeft <= 1);
@@ -4814,6 +4810,22 @@ const Game = {
         const dateStr = `${d.getFullYear()}.${months[month]} ${d.getDate()}${T('common.day')}`;
         const season = month <= 1 || month === 11 ? 'winter' : (month <= 4 ? 'spring' : (month <= 8 ? 'summer' : 'autumn'));
         return { date: d, month, dateStr, season, year: d.getFullYear() };
+    },
+
+    // Get market condition for a port (seasonal rate/volume multipliers)
+    getMarketCondition(portCode) {
+        if (typeof MARKET_SEASONS === 'undefined') return { rateMult: 1.0, volMult: 1.0, trend: 'normal' };
+        const ms = MARKET_SEASONS[portCode];
+        if (!ms) return { rateMult: 1.0, volMult: 1.0, trend: 'normal' };
+        const month = this.getGameDate().month;
+        const rateMult = ms.rate[month];
+        const volMult = ms.vol[month];
+        // Add slight randomness (±5%) for variety
+        const noise = 0.95 + Math.random() * 0.10;
+        const finalRate = Math.round(rateMult * noise * 100) / 100;
+        const finalVol = Math.round(volMult * noise * 100) / 100;
+        const trend = finalRate >= 1.20 ? 'boom' : finalRate >= 1.05 ? 'up' : finalRate <= 0.85 ? 'slump' : finalRate <= 0.95 ? 'down' : 'normal';
+        return { rateMult: finalRate, volMult: finalVol, trend };
     },
 
     // Get current weather for a port

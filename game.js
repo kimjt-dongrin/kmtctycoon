@@ -371,6 +371,11 @@ const Game = {
             }
         }
 
+        // Crisis relief — when cash is deeply negative, offer bailout every 15 days
+        if (s.cash < -20000 && s.gameDay % 15 === 0) {
+            this.triggerCrisisRelief();
+        }
+
         // Check milestones
         this.checkMilestones();
 
@@ -1591,6 +1596,45 @@ const Game = {
         this.addFeed(T('accident.feed', accident.icon, D(accident,'name'), totalCost.toLocaleString(), insuredClaim.toLocaleString()), 'alert');
     },
 
+    triggerCrisisRelief() {
+        const s = this.state;
+        const deficit = Math.abs(s.cash);
+        // Relief amount: cover 60-80% of deficit, capped at $80,000
+        const reliefBase = Math.round(deficit * (0.6 + Math.random() * 0.2));
+        const reliefAmount = Math.min(reliefBase, 80000);
+
+        // Pick random relief type
+        const reliefTypes = [
+            { icon: '🏛️', name: '정부 긴급 지원금', nameJa: '政府緊急支援金',
+              desc: '해운업 경영 안정을 위한 정부 긴급 지원금이 승인되었습니다.',
+              descJa: '海運業経営安定のための政府緊急支援金が承認されました。' },
+            { icon: '🤝', name: '본사 특별 지원', nameJa: '本社特別支援',
+              desc: 'KMTC 본사에서 경영 정상화를 위한 특별 지원금을 배정했습니다.',
+              descJa: 'KMTC本社から経営正常化のための特別支援金が配分されました。' },
+            { icon: '📋', name: '보험사 특별 보상', nameJa: '保険会社特別補償',
+              desc: '보험사에서 연속 사고에 대한 특별 보상금을 지급합니다.',
+              descJa: '保険会社から連続事故に対する特別補償金が支給されます。' },
+            { icon: '💰', name: '화주 선급금 수령', nameJa: '荷主前受金受領',
+              desc: '대형 화주로부터 장기계약 선급금이 입금되었습니다.',
+              descJa: '大手荷主から長期契約の前受金が入金されました。' },
+        ];
+        const relief = reliefTypes[Math.floor(Math.random() * reliefTypes.length)];
+
+        s.cash += reliefAmount;
+
+        document.getElementById('evt-title').textContent = `${relief.icon} ${D(relief,'name')}`;
+        document.getElementById('evt-desc').innerHTML = `
+            <p>${D(relief,'desc')}</p>
+            <div style="margin-top:10px;padding:12px;background:var(--card2);border-radius:8px;text-align:center">
+                <div style="font-size:20px;font-weight:700;color:var(--green)">+$${reliefAmount.toLocaleString()}</div>
+                <div style="font-size:11px;color:var(--t3);margin-top:4px">${T('crisis.cashAfter')}: $${s.cash.toLocaleString()}</div>
+            </div>`;
+        document.getElementById('evt-actions').innerHTML = `<button class="btn-primary" onclick="Game.closeModal('modal-event')" style="width:100%;margin-top:8px">${T('accident.confirm')}</button>`;
+        this.openModal('modal-event');
+
+        this.addFeed(`${relief.icon} ${D(relief,'name')}: +$${reliefAmount.toLocaleString()}`, 'good');
+    },
+
     checkMilestones() {
         const s = this.state;
         MILESTONES.forEach(m => {
@@ -1680,9 +1724,9 @@ const Game = {
             // Leg complete — weather affects fuel cost
             const w = this.getWeather(leg.to);
             let fuelMult = 1.0;
-            if (w.typhoon) fuelMult = 1.8;
-            else if (w.wave >= 4) fuelMult = 1.4;
-            else if (w.wave >= 3) fuelMult = 1.15;
+            if (w.typhoon) fuelMult = 1.3;
+            else if (w.wave >= 4) fuelMult = 1.15;
+            else if (w.wave >= 3) fuelMult = 1.08;
             const fuel = Math.round(leg.seaDays * r.fuelCostPerDay * fuelMult);
             const port = r.portFeesPerCall;
             v.voyExp += fuel + port;
@@ -2453,7 +2497,7 @@ const Game = {
             const damaged = s.bookings.filter(b => !b.delivered);
             if (damaged.length > 0) {
                 const b = damaged[Math.floor(Math.random() * damaged.length)];
-                const loss = Math.round(b.revenue * 0.3);
+                const loss = Math.round(b.revenue * 0.12);
                 b.revenue -= loss;
                 v.voyRev -= loss;
                 this.toast(T('accident.cargoLoss', b.custName, loss.toLocaleString()), 'err');

@@ -537,6 +537,7 @@ const TEXTS = {
 'accident.shipCond': { ko: '선박 상태: {0}% → {1}% (-{2}%)', ja: '船体状態: {0}% → {1}% (-{2}%)' },
 'accident.confirm': { ko: '확인 (비용 차감됨)', ja: '確認（費用差引済み）' },
 'accident.feed': { ko: '{0} {1}! 비용 ${2} (보험 ${3} 보상)', ja: '{0} {1}！費用 ${2}（保険 ${3} 補償）' },
+'crisis.cashAfter': { ko: '지원 후 잔액', ja: '支援後残高' },
 'accident.hullToast': { ko: '선체 상태: {0}%', ja: '船体状態: {0}%' },
 'accident.cargoLoss': { ko: '⚠️ 화물 파손! {0} -${1}', ja: '⚠️ 貨物破損！{0} -${1}' },
 'insurance.premium': { ko: '🛡️ 월간 보험료 ${0} 납부 (상태:{1} | 사고{2}건)', ja: '🛡️ 月間保険料 ${0} 納付（状態:{1} | 事故{2}件）' },

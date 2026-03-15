@@ -1215,15 +1215,10 @@ const MARKET_VOLUME = {
     'MAA-BOM': 50, 'BOM-MAA': 40,
 };
 
-// NPC competitor carriers that share the market
-const NPC_CARRIERS = [
-    { id: 'HH', name: 'HH LINE', color: '#E91E63', strength: 0.25, desc: '글로벌 1위 선사, 공격적 영업' },
-    { id: 'EM', name: 'EVERMAX', color: '#9C27B0', strength: 0.20, desc: '아시아 최대 선사, 안정적 서비스' },
-    { id: 'CO', name: 'COSMO LINE', color: '#3F51B5', strength: 0.18, desc: '중국 국영 선사, 저가 전략' },
-    { id: 'YM', name: 'YANG MING', color: '#009688', strength: 0.12, desc: '대만 선사, 일본 항로 강세' },
-    { id: 'WH', name: 'WAN HAI', color: '#795548', strength: 0.10, desc: '근해 전문 선사, 동남아 강세' },
-    { id: 'OT', name: '기타 선사', color: '#607D8B', strength: 0.15, desc: '소형 선사 및 NVO' },
-];
+// Market carrier colors (assigned dynamically to ranking users)
+const CARRIER_COLORS = ['#E91E63','#9C27B0','#3F51B5','#009688','#FF5722','#795548','#FF9800','#4CAF50','#00BCD4','#8BC34A'];
+// "기타 선사" is always the last carrier in the market
+const OTHER_CARRIER = { id: 'OT', name: '기타 선사', color: '#607D8B' };
 
 // ==================== SPOT CARGO (부정기 물량) ====================
 const SPOT_CARGO_POOL = [

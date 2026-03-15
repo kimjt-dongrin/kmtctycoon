@@ -381,23 +381,78 @@ const Game = {
 
     initMarket(r) {
         // Initialize market share per trade lane
-        // Player starts with 0%, NPC carriers split the rest
+        // Player starts with 0%, 기타 선사 gets the rest
         const market = {};
         if (typeof MARKET_VOLUME !== 'undefined') {
             for (const lane in MARKET_VOLUME) {
                 const [from, to] = lane.split('-');
-                // Only init lanes relevant to player's starting route
                 if (r.ports.includes(from) || r.ports.includes(to)) {
-                    const shares = {};
-                    shares['player'] = 0; // player starts at 0
-                    NPC_CARRIERS.forEach(npc => {
-                        shares[npc.id] = Math.round(npc.strength * 100);
-                    });
-                    market[lane] = { totalVolume: MARKET_VOLUME[lane], shares };
+                    market[lane] = { totalVolume: MARKET_VOLUME[lane], shares: { player: 0, OT: 100 } };
                 }
             }
         }
         return market;
+    },
+
+    // Build carrier list from Firebase rankings (cached)
+    _marketCarriers: null,
+    _marketCarriersTime: 0,
+
+    getMarketCarriers() {
+        // Use cached rankings to build carrier list
+        const s = this.state;
+        const now = Date.now();
+        if (this._marketCarriers && now - this._marketCarriersTime < 60000) return this._marketCarriers;
+
+        const carriers = [];
+        const rankings = this._cachedRankings || [];
+        rankings.forEach((r, i) => {
+            if (r.co === s.co) return; // skip self
+            carriers.push({
+                id: 'R_' + r.co.replace(/[^a-zA-Z0-9가-힣]/g, '_'),
+                name: r.co,
+                color: CARRIER_COLORS[i % CARRIER_COLORS.length],
+                rev: r.totRev || 0,
+            });
+        });
+        // Always end with 기타 선사
+        carriers.push(OTHER_CARRIER);
+        this._marketCarriers = carriers;
+        this._marketCarriersTime = now;
+        return carriers;
+    },
+
+    // Sync market shares: distribute OT share among ranking users
+    syncMarketWithRankings() {
+        const s = this.state;
+        if (!s.market) return;
+        const carriers = this.getMarketCarriers();
+        const rankCarriers = carriers.filter(c => c.id !== 'OT');
+        if (rankCarriers.length === 0) return;
+
+        for (const lane in s.market) {
+            const m = s.market[lane];
+            // Calculate total revenue of ranking users for weight distribution
+            const totalRev = rankCarriers.reduce((sum, c) => sum + (c.rev || 1), 0);
+
+            // Check if ranking users already have shares
+            const hasRankShares = rankCarriers.some(c => (m.shares[c.id] || 0) > 0);
+            if (hasRankShares) continue; // already distributed
+
+            // Take from OT and distribute to ranking users
+            const otShare = m.shares.OT || 0;
+            const distributable = Math.round(otShare * 0.7); // keep 30% for 기타
+            if (distributable <= 0) continue;
+
+            let distributed = 0;
+            rankCarriers.forEach(c => {
+                const weight = (c.rev || 1) / totalRev;
+                const share = Math.max(1, Math.round(distributable * weight));
+                m.shares[c.id] = share;
+                distributed += share;
+            });
+            m.shares.OT = Math.max(0, otShare - distributed);
+        }
     },
 
     // Get player's market share % for a trade lane
@@ -407,14 +462,6 @@ const Game = {
         return m.shares?.player || 0;
     },
 
-    // Get player's TEU allocation for a trade lane based on market share
-    getPlayerVolume(lane) {
-        const m = this.state.market?.[lane];
-        if (!m) return 999; // no market limit if not initialized
-        const share = m.shares?.player || 0;
-        return Math.round(m.totalVolume * share / 100);
-    },
-
     // Transfer market share from one carrier to player
     transferMarketShare(lane, fromCarrierId, amount) {
         const m = this.state.market?.[lane];
@@ -422,39 +469,40 @@ const Game = {
         const available = m.shares[fromCarrierId] || 0;
         const actual = Math.min(amount, available);
         if (actual <= 0) return 0;
-        m.shares[fromCarrierId] = (m.shares[fromCarrierId] || 0) - actual;
+        m.shares[fromCarrierId] -= actual;
         m.shares.player = (m.shares.player || 0) + actual;
         return actual;
     },
 
-    // NPC carriers erode player share (called daily)
+    // Other carriers erode player share (called daily)
     marketErosion() {
         const s = this.state;
         if (!s.market) return;
 
-        // Calculate inactivity penalty
         const hoursSinceActive = (Date.now() - (s.lastActiveTime || Date.now())) / 3600000;
         const inactivityMult = hoursSinceActive > 24 ? 1.5 : (hoursSinceActive > 12 ? 1.2 : 1.0);
+
+        const carriers = this.getMarketCarriers();
 
         for (const lane in s.market) {
             const m = s.market[lane];
             if (!m.shares || m.shares.player <= 0) continue;
 
-            // Each NPC carrier has a small chance to steal from player
-            NPC_CARRIERS.forEach(npc => {
-                const stealChance = npc.strength * 0.08 * inactivityMult;
+            // Each carrier has a chance to steal from player
+            carriers.forEach(c => {
+                const share = m.shares[c.id] || 0;
+                const stealChance = Math.min(0.15, (share / 100) * 0.1) * inactivityMult;
                 if (Math.random() < stealChance) {
                     const steal = Math.round(0.5 + Math.random() * 1.5);
                     const actual = Math.min(steal, m.shares.player);
                     if (actual > 0) {
                         m.shares.player -= actual;
-                        m.shares[npc.id] = (m.shares[npc.id] || 0) + actual;
+                        m.shares[c.id] = (m.shares[c.id] || 0) + actual;
                     }
                 }
             });
         }
 
-        // Warn if significant inactivity
         if (hoursSinceActive > 48 && s.gameDay % 7 === 0) {
             this.addFeed(`⚠️ 장기간 영업관리 소홀! 경쟁사들이 화주를 빼앗아가고 있습니다!`, 'alert');
         }
@@ -465,15 +513,10 @@ const Game = {
         const s = this.state;
         if (!s.market) s.market = {};
         for (const lane in MARKET_VOLUME) {
-            if (s.market[lane]) continue; // already exists
+            if (s.market[lane]) continue;
             const [from, to] = lane.split('-');
             if (pkg.ports.includes(from) || pkg.ports.includes(to)) {
-                const shares = {};
-                shares['player'] = 0;
-                NPC_CARRIERS.forEach(npc => {
-                    shares[npc.id] = Math.round(npc.strength * 100);
-                });
-                s.market[lane] = { totalVolume: MARKET_VOLUME[lane], shares };
+                s.market[lane] = { totalVolume: MARKET_VOLUME[lane], shares: { player: 0, OT: 100 } };
             }
         }
     },
@@ -548,32 +591,21 @@ const Game = {
         }
 
         // Target carrier (if steal-cargo strategy)
-        if (plan.strategy === 'steal-cargo' && typeof NPC_CARRIERS !== 'undefined') {
+        if (plan.strategy === 'steal-cargo') {
             html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t2);margin-bottom:4px">⚔️ 공략 대상 선사</div>';
-            // Show NPC carriers with their current market share
-            NPC_CARRIERS.forEach(npc => {
-                const selected = plan.targetCarrier === npc.id;
-                // Calculate average market share for this carrier
+            const carriers = this.getMarketCarriers();
+            carriers.forEach(c => {
+                const selected = plan.targetCarrier === c.id;
                 let totalShare = 0, laneCount = 0;
                 for (const lane in s.market) {
-                    if (s.market[lane].shares[npc.id]) { totalShare += s.market[lane].shares[npc.id]; laneCount++; }
+                    if (s.market[lane].shares[c.id]) { totalShare += s.market[lane].shares[c.id]; laneCount++; }
                 }
                 const avgShare = laneCount > 0 ? Math.round(totalShare / laneCount) : 0;
-                html += `<div class="assign-cust ${selected ? 'selected' : ''}" onclick="Game.setPlan('${stId}','targetCarrier','${npc.id}')" style="border-left:3px solid ${npc.color}">
-                    <span>${npc.name} <span style="font-size:10px;color:var(--t3)">점유율 ~${avgShare}%</span></span>
-                    <span style="font-size:10px;color:var(--t3)">${npc.desc}</span>
+                if (avgShare <= 0 && c.id === 'OT') return; // skip empty 기타
+                html += `<div class="assign-cust ${selected ? 'selected' : ''}" onclick="Game.setPlan('${stId}','targetCarrier','${c.id}')" style="border-left:3px solid ${c.color}">
+                    <span>${c.name} <span style="font-size:10px;color:var(--t3)">점유율 ~${avgShare}%</span></span>
                 </div>`;
             });
-            // Also show Firebase ranking players
-            if (this._cachedRankings && this._cachedRankings.length > 0) {
-                html += '<div style="font-size:10px;color:var(--accent);margin:6px 0 4px">📊 실제 유저 (참고)</div>';
-                this._cachedRankings.slice(0, 5).forEach(r => {
-                    if (r.co === s.co) return; // skip self
-                    html += `<div style="padding:4px 8px;font-size:11px;color:var(--t2);border-left:3px solid var(--accent2);margin:2px 0;border-radius:4px;background:var(--card2)">
-                        🏢 ${r.co} — 매출 $${(r.rev || 0).toLocaleString()} <span style="color:var(--t3)">(NPC 대리)</span>
-                    </div>`;
-                });
-            }
             html += '</div>';
         }
 
@@ -4538,7 +4570,8 @@ const Game = {
     },
 
     async cloudSave(silent) {
-        if (!fbDb || !this.state || !this.state.co) return;
+        if (!this.state || !this.state.co) { if (!silent) this.toast('저장할 데이터 없음', 'err'); return; }
+        if (typeof fbDb === 'undefined' || !fbDb) { if (!silent) this.toast('☁️ Firebase 연결 안됨', 'err'); return; }
         try {
             const key = this.state.co.replace(/[.#$/\[\]]/g, '_');
             const saveData = JSON.stringify(this.state);
@@ -4552,8 +4585,8 @@ const Game = {
             });
             if (!silent) this.toast('☁️ 클라우드 저장 완료!', 'ok');
         } catch (e) {
-            console.warn('Cloud save failed:', e.message);
-            if (!silent) this.toast('☁️ 클라우드 저장 실패', 'err');
+            console.error('Cloud save failed:', e);
+            if (!silent) this.toast('☁️ 저장 실패: ' + (e.message || '권한 오류'), 'err');
         }
     },
 
@@ -4755,6 +4788,8 @@ const Game = {
             arr.sort((a, b) => b.netProfit - a.netProfit);
             this._fbRankingCache = arr;
             this._fbRankingTs = Date.now();
+            this._cachedRankings = arr; // for market carriers
+            this._marketCarriers = null; // reset carrier cache
             return arr;
         } catch(e) {
             console.warn('Firebase read failed:', e.message);
@@ -4847,22 +4882,18 @@ const Game = {
 
         // Market share section
         if (s.market && Object.keys(s.market).length > 0) {
+            // Sync market with latest rankings
+            this.syncMarketWithRankings();
+
             html += '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">';
             html += '<h4 style="font-size:13px;margin:0 0 8px">📊 항로별 시장 점유율</h4>';
 
-            // Group lanes by route
-            const laneGroups = {};
-            for (const lane in s.market) {
-                const [from] = lane.split('-');
-                const routeKey = s.route.ports.includes(from) ? s.route.id : 'other';
-                if (!laneGroups[routeKey]) laneGroups[routeKey] = [];
-                laneGroups[routeKey].push(lane);
-            }
+            const carriers = this.getMarketCarriers();
 
             for (const lane in s.market) {
                 const m = s.market[lane];
                 const playerShare = m.shares.player || 0;
-                if (playerShare <= 0 && m.totalVolume < 100) continue; // skip irrelevant lanes
+                if (playerShare <= 0 && m.totalVolume < 100) continue;
                 const [from, to] = lane.split('-');
                 const fromN = this.getPortName(from);
                 const toN = this.getPortName(to);
@@ -4873,25 +4904,27 @@ const Game = {
                 html += `<span style="color:var(--accent)">주간 ${m.totalVolume}TEU | 내 점유율 ${playerShare}%</span>`;
                 html += `</div>`;
 
-                // Share bar
                 html += `<div style="display:flex;height:14px;border-radius:3px;overflow:hidden;font-size:8px">`;
                 if (playerShare > 0) {
-                    html += `<div style="width:${playerShare}%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;min-width:${playerShare > 3 ? '0' : '0'}px">${playerShare > 5 ? playerShare + '%' : ''}</div>`;
+                    html += `<div style="width:${playerShare}%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:white;font-weight:700">${playerShare > 5 ? playerShare + '%' : ''}</div>`;
                 }
-                NPC_CARRIERS.forEach(npc => {
-                    const sh = m.shares[npc.id] || 0;
+                carriers.forEach(c => {
+                    const sh = m.shares[c.id] || 0;
                     if (sh > 0) {
-                        html += `<div style="width:${sh}%;background:${npc.color};display:flex;align-items:center;justify-content:center;color:white;opacity:.7;min-width:0" title="${npc.name} ${sh}%">${sh > 8 ? npc.name.substring(0, 4) : ''}</div>`;
+                        html += `<div style="width:${sh}%;background:${c.color};display:flex;align-items:center;justify-content:center;color:white;opacity:.7;min-width:0" title="${c.name} ${sh}%">${sh > 8 ? c.name.substring(0, 6) : ''}</div>`;
                     }
                 });
                 html += `</div></div>`;
             }
 
-            // NPC carrier legend
+            // Legend
             html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;font-size:9px">';
-            html += `<span style="display:flex;align-items:center;gap:2px"><span style="width:8px;height:8px;background:var(--accent);border-radius:2px;display:inline-block"></span> 내 회사</span>`;
-            NPC_CARRIERS.forEach(npc => {
-                html += `<span style="display:flex;align-items:center;gap:2px"><span style="width:8px;height:8px;background:${npc.color};border-radius:2px;display:inline-block"></span> ${npc.name}</span>`;
+            html += `<span style="display:flex;align-items:center;gap:2px"><span style="width:8px;height:8px;background:var(--accent);border-radius:2px;display:inline-block"></span> ${s.co}</span>`;
+            carriers.forEach(c => {
+                let hasShare = false;
+                for (const lane in s.market) { if ((s.market[lane].shares[c.id] || 0) > 0) { hasShare = true; break; } }
+                if (!hasShare) return;
+                html += `<span style="display:flex;align-items:center;gap:2px"><span style="width:8px;height:8px;background:${c.color};border-radius:2px;display:inline-block"></span> ${c.name}</span>`;
             });
             html += '</div></div>';
         }

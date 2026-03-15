@@ -224,6 +224,30 @@
 
     <div id="toast-box"></div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+    <script>
+        // Firebase 설정 — Firebase Console에서 복사한 값으로 교체하세요
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBk142KpT0kWeKmgsni90ZxuehjUuCPMUM",
+            authDomain: "kmtc-tycoon.firebaseapp.com",
+            databaseURL: "https://kmtc-tycoon-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "kmtc-tycoon",
+            storageBucket: "kmtc-tycoon.firebasestorage.app",
+            messagingSenderId: "669532424076",
+            appId: "1:669532424076:web:bfc384f4278f45c06a78a9"
+        };
+        let fbDb = null;
+        try {
+            firebase.initializeApp(FIREBASE_CONFIG);
+            fbDb = firebase.database();
+            console.log('Firebase connected');
+        } catch(e) {
+            console.warn('Firebase init failed, using local only:', e.message);
+        }
+    </script>
+
     <script src="data.js"></script>
     <script src="game.js"></script>
 </body>

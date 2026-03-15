@@ -50,6 +50,114 @@ const ROUTES = [
     },
 ];
 
+// New Route Expansion — build your own service with ships & infrastructure
+const NEW_ROUTE_PACKAGES = [
+    {
+        id: 'NR_KVS', nameKo: '한베트남항로 (KVS)', name: 'Korea-Vietnam Service',
+        description: '부산에서 베트남 주요 항구를 잇는 동남아 근해항로',
+        ports: ['PUS', 'HCM', 'HPH'],
+        portNames: { PUS: '부산', HCM: '호치민', HPH: '하이퐁' },
+        salesPorts: {
+            PUS: { sellTo: ['HCM', 'HPH'] },
+            HCM: { sellTo: ['PUS', 'HPH'] },
+            HPH: { sellTo: ['PUS', 'HCM'] },
+        },
+        legs: [
+            { from: 'PUS', to: 'HCM', seaDays: 5 },
+            { from: 'HCM', to: 'HPH', seaDays: 2 },
+            { from: 'HPH', to: 'PUS', seaDays: 4 },
+        ],
+        vesselSize: 300, rotationDays: 14,
+        fuelCostPerDay: 3000, portFeesPerCall: 4000, weeklyFixedCost: 30000,
+        color: '#66BB6A', difficulty: '보통',
+        unlockRevenue: 2000000, // 매출 $2M 달성 시 해금
+        // Investment breakdown
+        shipCount: 1, shipCostEach: 1500000,
+        containerSet: { '20': 120, '40': 80 }, containerCost: 200000,
+        officePorts: ['HCM', 'HPH'], officeCostEach: 30000,
+        totalInvestment: 1790000, // ships + containers + offices
+        debtRatio: 0.6, // 60% 부채
+    },
+    {
+        id: 'NR_KTS', nameKo: '한태국항로 (KTS)', name: 'Korea-Thailand Service',
+        description: '부산에서 태국 레무차방·방콕을 연결하는 항로',
+        ports: ['PUS', 'LCB', 'BKK'],
+        portNames: { PUS: '부산', LCB: '레무차방', BKK: '방콕' },
+        salesPorts: {
+            PUS: { sellTo: ['LCB', 'BKK'] },
+            LCB: { sellTo: ['PUS', 'BKK'] },
+            BKK: { sellTo: ['PUS', 'LCB'] },
+        },
+        legs: [
+            { from: 'PUS', to: 'LCB', seaDays: 6 },
+            { from: 'LCB', to: 'BKK', seaDays: 1 },
+            { from: 'BKK', to: 'PUS', seaDays: 6 },
+        ],
+        vesselSize: 350, rotationDays: 14,
+        fuelCostPerDay: 3200, portFeesPerCall: 3500, weeklyFixedCost: 28000,
+        color: '#42A5F5', difficulty: '보통',
+        unlockRevenue: 3000000,
+        shipCount: 1, shipCostEach: 1800000,
+        containerSet: { '20': 140, '40': 100 }, containerCost: 240000,
+        officePorts: ['LCB', 'BKK'], officeCostEach: 30000,
+        totalInvestment: 2100000,
+        debtRatio: 0.6,
+    },
+    {
+        id: 'NR_KMS', nameKo: '한말레이시아항로 (KMS)', name: 'Korea-Malaysia Service',
+        description: '부산에서 포트클랑·페낭을 잇는 말레이시아 항로',
+        ports: ['PUS', 'PKL', 'PEN'],
+        portNames: { PUS: '부산', PKL: '포트클랑', PEN: '페낭' },
+        salesPorts: {
+            PUS: { sellTo: ['PKL', 'PEN'] },
+            PKL: { sellTo: ['PUS', 'PEN'] },
+            PEN: { sellTo: ['PUS', 'PKL'] },
+        },
+        legs: [
+            { from: 'PUS', to: 'PKL', seaDays: 7 },
+            { from: 'PKL', to: 'PEN', seaDays: 1 },
+            { from: 'PEN', to: 'PUS', seaDays: 7 },
+        ],
+        vesselSize: 400, rotationDays: 21,
+        fuelCostPerDay: 3500, portFeesPerCall: 4500, weeklyFixedCost: 35000,
+        color: '#AB47BC', difficulty: '어려움',
+        unlockRevenue: 5000000,
+        shipCount: 2, shipCostEach: 2000000,
+        containerSet: { '20': 200, '40': 150 }, containerCost: 350000,
+        officePorts: ['PKL', 'PEN'], officeCostEach: 40000,
+        totalInvestment: 4430000,
+        debtRatio: 0.5,
+    },
+    {
+        id: 'NR_KIS', nameKo: '한인도항로 (KIS)', name: 'Korea-India Service',
+        description: '부산에서 인도 첸나이·뭄바이를 연결하는 원양항로',
+        ports: ['PUS', 'MAA', 'BOM'],
+        portNames: { PUS: '부산', MAA: '첸나이', BOM: '뭄바이' },
+        salesPorts: {
+            PUS: { sellTo: ['MAA', 'BOM'] },
+            MAA: { sellTo: ['PUS', 'BOM'] },
+            BOM: { sellTo: ['PUS', 'MAA'] },
+        },
+        legs: [
+            { from: 'PUS', to: 'MAA', seaDays: 10 },
+            { from: 'MAA', to: 'BOM', seaDays: 3 },
+            { from: 'BOM', to: 'PUS', seaDays: 12 },
+        ],
+        vesselSize: 500, rotationDays: 28,
+        fuelCostPerDay: 4000, portFeesPerCall: 5000, weeklyFixedCost: 45000,
+        color: '#FF7043', difficulty: '매우 어려움',
+        unlockRevenue: 10000000,
+        shipCount: 2, shipCostEach: 3000000,
+        containerSet: { '20': 300, '40': 200 }, containerCost: 500000,
+        officePorts: ['MAA', 'BOM'], officeCostEach: 50000,
+        totalInvestment: 6600000,
+        debtRatio: 0.5,
+    },
+];
+
+// Map coordinates & weather for new route expansion ports
+// (PKL, PEN, MAA, BOM are added here — HCM/HPH/LCB/BKK already in MAP_PORTS)
+
 // Slot Charter opportunities — buy space on competitor vessels
 const SLOT_CHARTERS = [
     {
@@ -148,6 +256,14 @@ const BASE_RATES = {
     // KIS (한인니) 슬롯차터
     'PUS-JKT': { '20': 620, '40': 1200 }, 'PUS-SBY': { '20': 600, '40': 1150 },
     'JKT-PUS': { '20': 420, '40': 800 }, 'SBY-PUS': { '20': 400, '40': 760 },
+    // KMS (Korea-Malaysia) rates
+    'PUS-PKL': { '20': 650, '40': 1250 }, 'PUS-PEN': { '20': 630, '40': 1200 },
+    'PKL-PUS': { '20': 450, '40': 860 }, 'PEN-PUS': { '20': 430, '40': 820 },
+    'PKL-PEN': { '20': 200, '40': 380 }, 'PEN-PKL': { '20': 200, '40': 380 },
+    // KIS (Korea-India) rates
+    'PUS-MAA': { '20': 800, '40': 1550 }, 'PUS-BOM': { '20': 850, '40': 1650 },
+    'MAA-PUS': { '20': 550, '40': 1050 }, 'BOM-PUS': { '20': 580, '40': 1100 },
+    'MAA-BOM': { '20': 250, '40': 480 }, 'BOM-MAA': { '20': 250, '40': 480 },
 };
 
 // Customers - difficulty ⭐1~4, higher = harder to win
@@ -895,6 +1011,9 @@ const MAP_PORTS = {
     HCM:{x:310,y:560}, HPH:{x:290,y:500},
     LCB:{x:245,y:570}, BKK:{x:220,y:555},
     JKT:{x:260,y:660}, SBY:{x:320,y:650},
+    // Malaysia & India (new route expansion)
+    PKL:{x:220,y:620}, PEN:{x:200,y:600},
+    MAA:{x:100,y:540}, BOM:{x:60,y:480},
 };
 
 // Coastline SVG paths
@@ -911,6 +1030,8 @@ const MAP_LAND = {
     indonesia_java: 'M220,660 L240,655 L260,650 L280,648 L300,650 L320,648 L340,650 L360,655 L370,658 L365,665 L345,662 L325,660 L305,658 L285,658 L265,660 L245,663 L230,665 L222,665 Z',
     indonesia_sumatra: 'M150,580 L165,590 L180,600 L195,615 L210,630 L220,645 L225,655 L218,658 L208,645 L195,630 L180,615 L165,600 L155,590 Z',
     borneo: 'M340,590 L360,580 L380,575 L400,580 L410,590 L405,605 L395,615 L380,620 L365,615 L350,605 L342,595 Z',
+    india: 'M50,400 L60,420 L65,440 L70,460 L80,480 L90,500 L100,520 L110,540 L115,560 L110,575 L100,570 L90,555 L80,535 L70,515 L60,495 L55,475 L50,455 L48,435 L50,415 Z',
+    srilanka: 'M112,572 L120,568 L125,575 L120,582 L114,578 Z',
 };
 
 const TIPS = [
@@ -1139,6 +1260,62 @@ const WEATHER_DATA = {
         { temp:28, wave:1, rain:0.15, snow:0, typhoon:0, desc:'우기 시작' },
         { temp:28, wave:2, rain:0.35, snow:0, typhoon:0, desc:'우기' },
         { temp:28, wave:2, rain:0.45, snow:0, typhoon:0, desc:'우기' },
+    ],
+    PKL: [ // Port Klang — tropical equatorial
+        { temp:27, wave:1, rain:0.15, snow:0, typhoon:0, desc:'건기' },
+        { temp:28, wave:1, rain:0.12, snow:0, typhoon:0, desc:'건기' },
+        { temp:28, wave:1, rain:0.20, snow:0, typhoon:0, desc:'우기 시작' },
+        { temp:28, wave:2, rain:0.35, snow:0, typhoon:0, desc:'우기' },
+        { temp:28, wave:2, rain:0.35, snow:0, typhoon:0, desc:'우기' },
+        { temp:28, wave:1, rain:0.20, snow:0, typhoon:0, desc:'건기 전환' },
+        { temp:27, wave:1, rain:0.15, snow:0, typhoon:0, desc:'건기' },
+        { temp:27, wave:1, rain:0.15, snow:0, typhoon:0, desc:'건기' },
+        { temp:27, wave:1, rain:0.20, snow:0, typhoon:0, desc:'우기 전환' },
+        { temp:28, wave:2, rain:0.40, snow:0, typhoon:0, desc:'우기' },
+        { temp:28, wave:2, rain:0.45, snow:0, typhoon:0, desc:'우기 최성기' },
+        { temp:27, wave:2, rain:0.30, snow:0, typhoon:0, desc:'우기' },
+    ],
+    PEN: [ // Penang — similar to PKL
+        { temp:27, wave:1, rain:0.10, snow:0, typhoon:0, desc:'건기' },
+        { temp:28, wave:1, rain:0.10, snow:0, typhoon:0, desc:'건기' },
+        { temp:28, wave:1, rain:0.18, snow:0, typhoon:0, desc:'봄비' },
+        { temp:28, wave:1, rain:0.30, snow:0, typhoon:0, desc:'우기 시작' },
+        { temp:28, wave:2, rain:0.35, snow:0, typhoon:0, desc:'우기' },
+        { temp:28, wave:1, rain:0.20, snow:0, typhoon:0, desc:'건기' },
+        { temp:27, wave:1, rain:0.15, snow:0, typhoon:0, desc:'건기' },
+        { temp:27, wave:1, rain:0.15, snow:0, typhoon:0, desc:'건기' },
+        { temp:27, wave:1, rain:0.22, snow:0, typhoon:0, desc:'우기 전환' },
+        { temp:28, wave:2, rain:0.40, snow:0, typhoon:0, desc:'우기' },
+        { temp:28, wave:2, rain:0.42, snow:0, typhoon:0, desc:'우기' },
+        { temp:27, wave:2, rain:0.28, snow:0, typhoon:0, desc:'우기 말' },
+    ],
+    MAA: [ // Chennai — tropical monsoon
+        { temp:25, wave:2, rain:0.08, snow:0, typhoon:0, desc:'건기, 쾌적' },
+        { temp:26, wave:1, rain:0.05, snow:0, typhoon:0, desc:'건기' },
+        { temp:28, wave:1, rain:0.03, snow:0, typhoon:0, desc:'더움' },
+        { temp:31, wave:1, rain:0.05, snow:0, typhoon:0, desc:'극서기' },
+        { temp:33, wave:1, rain:0.08, snow:0, typhoon:0, desc:'매우 더움' },
+        { temp:32, wave:2, rain:0.15, snow:0, typhoon:0, desc:'남서 몬순 시작' },
+        { temp:30, wave:2, rain:0.15, snow:0, typhoon:0, desc:'남서 몬순' },
+        { temp:30, wave:2, rain:0.20, snow:0, typhoon:0, desc:'남서 몬순' },
+        { temp:29, wave:2, rain:0.30, snow:0, typhoon:0, desc:'몬순' },
+        { temp:28, wave:3, rain:0.45, snow:0, typhoon:0.05, desc:'북동 몬순, 폭우' },
+        { temp:26, wave:3, rain:0.50, snow:0, typhoon:0.08, desc:'사이클론 주의' },
+        { temp:25, wave:2, rain:0.25, snow:0, typhoon:0.03, desc:'우기 말' },
+    ],
+    BOM: [ // Mumbai — tropical monsoon (extreme wet season)
+        { temp:24, wave:1, rain:0.02, snow:0, typhoon:0, desc:'건기, 쾌적' },
+        { temp:25, wave:1, rain:0.02, snow:0, typhoon:0, desc:'건기' },
+        { temp:28, wave:1, rain:0.02, snow:0, typhoon:0, desc:'더움' },
+        { temp:30, wave:1, rain:0.03, snow:0, typhoon:0, desc:'극서기' },
+        { temp:31, wave:1, rain:0.10, snow:0, typhoon:0, desc:'프리몬순' },
+        { temp:29, wave:3, rain:0.60, snow:0, typhoon:0.03, desc:'몬순 시작, 폭우' },
+        { temp:27, wave:3, rain:0.70, snow:0, typhoon:0.05, desc:'몬순 최성기' },
+        { temp:27, wave:3, rain:0.65, snow:0, typhoon:0.05, desc:'몬순' },
+        { temp:28, wave:3, rain:0.50, snow:0, typhoon:0.03, desc:'몬순 말' },
+        { temp:28, wave:2, rain:0.20, snow:0, typhoon:0.02, desc:'포스트 몬순' },
+        { temp:27, wave:2, rain:0.10, snow:0, typhoon:0, desc:'건기 시작' },
+        { temp:25, wave:1, rain:0.03, snow:0, typhoon:0, desc:'건기' },
     ],
 };
 

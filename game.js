@@ -2771,6 +2771,82 @@ const Game = {
         });
         html += '</div>';
 
+        // === New Route Expansion ===
+        if (typeof NEW_ROUTE_PACKAGES !== 'undefined') {
+            html += '<div class="invest-section"><h4>🌏 신규항로 개척 (자사선 투입)</h4>';
+            html += '<div style="font-size:10px;color:var(--t3);padding:4px 8px">자사 선박·컨테이너·해외사무실을 갖추고 새로운 항로를 개척합니다.</div>';
+            if (!s.ownedRoutes) s.ownedRoutes = [];
+            NEW_ROUTE_PACKAGES.forEach(pkg => {
+                const owned = s.ownedRoutes.find(o => o.id === pkg.id);
+                const unlocked = s.stats.totRev >= (pkg.unlockRevenue || 0);
+                const canBuy = !owned && unlocked && afford(pkg.totalInvestment);
+                const portList = pkg.ports.map(p => pkg.portNames[p]).join(' → ');
+
+                if (owned) {
+                    html += `<div class="invest-item active-promo" style="border-left:3px solid ${pkg.color}">
+                        <div class="invest-icon">🌏</div>
+                        <div class="invest-info">
+                            <div class="invest-name">${pkg.nameKo} <span style="font-size:9px;color:var(--green)">운영 중</span></div>
+                            <div class="invest-effect">${portList} | ${pkg.vesselSize}TEU × ${pkg.shipCount}척 | ${pkg.rotationDays}일</div>
+                        </div>
+                        <div style="font-size:10px;color:var(--green)">활성</div>
+                    </div>`;
+                } else {
+                    // Detailed cost breakdown
+                    const shipTotal = pkg.shipCount * pkg.shipCostEach;
+                    const officeTotal = pkg.officePorts.length * pkg.officeCostEach;
+                    const expanded = this._expandedRoute === pkg.id;
+
+                    html += `<div class="invest-item ${!unlocked ? 'locked' : ''}" style="border-left:3px solid ${pkg.color};flex-wrap:wrap">
+                        <div style="display:flex;align-items:center;gap:8px;width:100%">
+                            <div class="invest-icon">🌏</div>
+                            <div class="invest-info" style="flex:1">
+                                <div class="invest-name">${pkg.nameKo} ${!unlocked ? '🔒' : ''} <span style="font-size:9px;color:${pkg.color}">${pkg.difficulty}</span></div>
+                                <div class="invest-effect">${portList} | ${pkg.vesselSize}TEU × ${pkg.shipCount}척 | ${pkg.rotationDays}일 로테이션</div>
+                                ${!unlocked ? `<div style="font-size:9px;color:var(--yellow);margin-top:2px">매출 $${(pkg.unlockRevenue/1e6).toFixed(0)}M 달성 시 해금</div>` : ''}
+                            </div>
+                            <div style="text-align:right">
+                                <div class="invest-cost">$${pkg.totalInvestment.toLocaleString()}</div>
+                                <button class="btn-sm" onclick="Game._expandedRoute=Game._expandedRoute==='${pkg.id}'?null:'${pkg.id}';Game.renderInvestments()" style="font-size:9px;padding:2px 6px;margin-top:3px">${expanded ? '▲ 접기' : '▼ 상세'}</button>
+                            </div>
+                        </div>`;
+
+                    if (expanded) {
+                        html += `<div style="width:100%;margin-top:8px;padding:10px;background:var(--bg);border-radius:8px;font-size:11px">
+                            <div style="font-weight:700;margin-bottom:8px;color:var(--t1)">📋 투자 내역서</div>
+                            <table style="width:100%;border-collapse:collapse;font-size:11px">
+                                <tr style="border-bottom:1px solid var(--border)">
+                                    <td style="padding:4px 0">🚢 선박 (${pkg.vesselSize}TEU급 × ${pkg.shipCount}척)</td>
+                                    <td style="text-align:right;font-weight:600">$${shipTotal.toLocaleString()}</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid var(--border)">
+                                    <td style="padding:4px 0">📦 컨테이너 (20'×${pkg.containerSet['20']} + 40'×${pkg.containerSet['40']})</td>
+                                    <td style="text-align:right;font-weight:600">$${pkg.containerCost.toLocaleString()}</td>
+                                </tr>
+                                ${pkg.officePorts.map(op => `<tr style="border-bottom:1px solid var(--border)">
+                                    <td style="padding:4px 0">🏢 ${pkg.portNames[op]} 사무실 개설</td>
+                                    <td style="text-align:right;font-weight:600">$${pkg.officeCostEach.toLocaleString()}</td>
+                                </tr>`).join('')}
+                                <tr style="font-weight:700;color:var(--accent)">
+                                    <td style="padding:6px 0">총 투자금액</td>
+                                    <td style="text-align:right;font-size:13px">$${pkg.totalInvestment.toLocaleString()}</td>
+                                </tr>
+                            </table>
+                            <div style="margin-top:8px;padding:6px;background:var(--card2);border-radius:6px;font-size:10px;color:var(--t3)">
+                                <div>💰 자기자본: $${Math.round(pkg.totalInvestment * (1 - pkg.debtRatio)).toLocaleString()} | 부채: $${Math.round(pkg.totalInvestment * pkg.debtRatio).toLocaleString()} (${Math.round(pkg.debtRatio * 100)}%)</div>
+                                <div>⛽ 연료비/일: $${pkg.fuelCostPerDay.toLocaleString()} | 항비/기항: $${pkg.portFeesPerCall.toLocaleString()} | 고정비/주: $${pkg.weeklyFixedCost.toLocaleString()}</div>
+                            </div>
+                            <button class="btn-primary" onclick="Game.buyNewRoute('${pkg.id}')" ${canBuy ? '' : 'disabled'} style="width:100%;margin-top:10px;font-size:12px">
+                                🌏 항로 개척 ($${pkg.totalInvestment.toLocaleString()})
+                            </button>
+                        </div>`;
+                    }
+                    html += '</div>';
+                }
+            });
+            html += '</div>';
+        }
+
         // Slot Charters
         if (typeof SLOT_CHARTERS !== 'undefined') {
             html += '<div class="invest-section"><h4>🚢 슬롯 차터 (경쟁사 선복 구매)</h4>';
@@ -3664,63 +3740,124 @@ const Game = {
         }
     },
 
-    // ==================== LEADERBOARD (리더보드) ====================
-    saveToLeaderboard() {
+    // ==================== LEADERBOARD (리더보드 — Firebase 공유) ====================
+    _getUserId() {
+        let uid = localStorage.getItem('kmtc_uid');
+        if (!uid) {
+            uid = 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+            localStorage.setItem('kmtc_uid', uid);
+        }
+        return uid;
+    },
+
+    _buildLeaderboardEntry() {
         const s = this.state;
-        if (!s.co || s.stats.totVoy < 1) return; // Don't save if no voyage completed
-        const board = JSON.parse(localStorage.getItem('kmtc_leaderboard') || '[]');
+        if (!s.co || s.stats.totVoy < 1) return null;
         const netProfit = s.stats.totRev - s.stats.totExp;
         const avgLF = s.stats.history.length > 0
             ? Math.round(s.stats.history.reduce((sum, h) => sum + (h.lf || 0), 0) / s.stats.history.length)
             : 0;
-        const entry = {
+        return {
+            uid: this._getUserId(),
             co: s.co,
             ceo: s.ceo,
             route: s.route.nameKo || s.route.id,
-            totRev: s.stats.totRev,
-            totExp: s.stats.totExp,
-            netProfit,
+            totRev: Math.round(s.stats.totRev),
+            totExp: Math.round(s.stats.totExp),
+            netProfit: Math.round(netProfit),
             totVoy: s.stats.totVoy,
             totTEU: s.stats.totTEU,
             avgLF,
-            cash: s.cash,
-            debt: s.debt,
+            cash: Math.round(s.cash),
+            debt: Math.round(s.debt),
             day: s.gameDay,
             teamSize: s.salesTeam.length,
             bsaCount: (s.bsaContracts || []).length,
             updatedAt: Date.now(),
         };
-        // Update or add
-        const idx = board.findIndex(b => b.co === s.co && b.ceo === s.ceo);
-        if (idx >= 0) board[idx] = entry;
-        else board.push(entry);
-        // Keep max 50 entries
-        board.sort((a, b) => b.netProfit - a.netProfit);
-        localStorage.setItem('kmtc_leaderboard', JSON.stringify(board.slice(0, 50)));
     },
 
-    renderRanking() {
-        const s = this.state;
+    saveToLeaderboard() {
+        const entry = this._buildLeaderboardEntry();
+        if (!entry) return;
+
+        // Always save to localStorage as fallback
         const board = JSON.parse(localStorage.getItem('kmtc_leaderboard') || '[]');
-        // Update current company first
+        const idx = board.findIndex(b => b.uid === entry.uid);
+        if (idx >= 0) board[idx] = entry;
+        else board.push(entry);
+        board.sort((a, b) => b.netProfit - a.netProfit);
+        localStorage.setItem('kmtc_leaderboard', JSON.stringify(board.slice(0, 100)));
+
+        // Push to Firebase
+        if (typeof fbDb !== 'undefined' && fbDb) {
+            try {
+                fbDb.ref('rankings/' + entry.uid).set(entry);
+            } catch(e) { /* silent */ }
+        }
+    },
+
+    _fbRankingCache: null,
+    _fbRankingTs: 0,
+
+    async _fetchFirebaseRankings() {
+        // Cache for 30 seconds
+        if (this._fbRankingCache && Date.now() - this._fbRankingTs < 30000) {
+            return this._fbRankingCache;
+        }
+        if (typeof fbDb === 'undefined' || !fbDb) return null;
+        try {
+            const snap = await fbDb.ref('rankings').orderByChild('netProfit').limitToLast(100).once('value');
+            const data = snap.val();
+            if (!data) return [];
+            const arr = Object.values(data);
+            arr.sort((a, b) => b.netProfit - a.netProfit);
+            this._fbRankingCache = arr;
+            this._fbRankingTs = Date.now();
+            return arr;
+        } catch(e) {
+            console.warn('Firebase read failed:', e.message);
+            return null;
+        }
+    },
+
+    async renderRanking() {
+        const s = this.state;
+        const view = document.getElementById('ranking-view');
+
+        // Show loading
+        view.innerHTML = '<p style="color:var(--t3);font-size:12px;text-align:center;padding:20px">🔄 랭킹 불러오는 중...</p>';
+
+        // Update own entry first
         this.saveToLeaderboard();
-        const updated = JSON.parse(localStorage.getItem('kmtc_leaderboard') || '[]');
+
+        // Try Firebase first, fallback to localStorage
+        let rankings = await this._fetchFirebaseRankings();
+        let isOnline = rankings !== null;
+        if (!isOnline) {
+            rankings = JSON.parse(localStorage.getItem('kmtc_leaderboard') || '[]');
+        }
+
+        const uid = this._getUserId();
 
         let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
         html += '<h4 style="font-size:14px;margin:0">🏆 해운왕 랭킹</h4>';
-        html += `<span style="font-size:10px;color:var(--t3)">${updated.length}개 회사 등록</span>`;
-        html += '</div>';
+        html += `<span style="font-size:10px;color:var(--t3)">`;
+        html += isOnline
+            ? `🌐 온라인 — ${rankings.length}개 회사`
+            : `📴 오프라인 — ${rankings.length}개 회사 (로컬)`;
+        html += `</span></div>`;
 
-        if (updated.length === 0) {
+        if (rankings.length === 0) {
             html += '<p style="color:var(--t3);font-size:12px;text-align:center;padding:20px">아직 등록된 회사가 없습니다.<br>항차를 완료하면 자동으로 등록됩니다.</p>';
-            document.getElementById('ranking-view').innerHTML = html;
+            view.innerHTML = html;
             return;
         }
 
-        // Summary cards for current company
-        const me = updated.find(b => b.co === s.co && b.ceo === s.ceo);
+        // Summary for current company
+        const me = rankings.find(b => b.uid === uid);
         if (me) {
-            const rank = updated.indexOf(me) + 1;
+            const rank = rankings.indexOf(me) + 1;
             const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
             html += `<div style="background:linear-gradient(135deg,var(--card),var(--card2));border:1px solid var(--accent);border-radius:8px;padding:10px;margin-bottom:10px">
                 <div style="font-size:13px;font-weight:700">${medal} ${me.co} <span style="font-size:10px;color:var(--t2)">(내 회사)</span></div>
@@ -3733,17 +3870,16 @@ const Game = {
         }
 
         // Ranking table
-        html += '<div style="font-size:10px;color:var(--t3);margin-bottom:4px">순이익 기준 순위</div>';
+        html += `<div style="font-size:10px;color:var(--t3);margin-bottom:4px">순이익 기준 순위${isOnline ? ' (전체 유저)' : ''}</div>`;
         html += '<div class="ranking-list">';
-        updated.forEach((entry, i) => {
-            const isMe = entry.co === s.co && entry.ceo === s.ceo;
+        rankings.forEach((entry, i) => {
+            const isMe = entry.uid === uid;
             const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span style="color:var(--t3)">${i + 1}</span>`;
             const profitColor = entry.netProfit >= 0 ? 'var(--green)' : 'var(--red)';
-            const ago = this._timeAgo(entry.updatedAt);
             html += `<div class="rank-row ${isMe ? 'rank-me' : ''}" style="display:grid;grid-template-columns:30px 1fr 80px 80px 50px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;${isMe ? 'background:var(--accent)15;border-left:3px solid var(--accent)' : ''}">
                 <div style="text-align:center;font-size:13px">${medal}</div>
                 <div>
-                    <div style="font-weight:600">${entry.co}</div>
+                    <div style="font-weight:600">${entry.co}${isMe ? ' <span style="font-size:9px;color:var(--accent)">(나)</span>' : ''}</div>
                     <div style="font-size:9px;color:var(--t3)">${entry.ceo} | ${entry.route} | D${entry.day}</div>
                 </div>
                 <div style="text-align:right">
@@ -3759,17 +3895,20 @@ const Game = {
         });
         html += '</div>';
 
-        // Detail stats comparison
-        if (updated.length > 1) {
-            const best = updated[0];
-            const worst = updated[updated.length - 1];
+        if (rankings.length > 1) {
+            const best = rankings[0];
             html += '<div style="margin-top:10px;font-size:10px;color:var(--t3);display:flex;justify-content:space-between">';
             html += `<span>🏆 최고: ${best.co} ($${this._shortNum(best.netProfit)})</span>`;
-            html += `<span>📊 평균 적재율: ${Math.round(updated.reduce((s,e) => s + e.avgLF, 0) / updated.length)}%</span>`;
+            html += `<span>📊 평균 적재율: ${Math.round(rankings.reduce((s,e) => s + (e.avgLF||0), 0) / rankings.length)}%</span>`;
             html += '</div>';
         }
 
-        document.getElementById('ranking-view').innerHTML = html;
+        // Refresh button
+        html += `<div style="text-align:center;margin-top:10px">
+            <button class="btn-sm" onclick="Game._fbRankingCache=null;Game.renderRanking()" style="font-size:10px;padding:4px 12px;background:var(--card2)">🔄 새로고침</button>
+        </div>`;
+
+        view.innerHTML = html;
     },
 
     _shortNum(n) {
@@ -3850,6 +3989,8 @@ const Game = {
     startNewCompany() {
         // Save final leaderboard entry before deleting
         this.saveToLeaderboard();
+        // Generate new uid so old company stays in rankings
+        localStorage.removeItem('kmtc_uid');
         // Clear save data (leaderboard is preserved separately)
         localStorage.removeItem('kmtc_save');
         this.stopTick();

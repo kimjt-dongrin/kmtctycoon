@@ -324,6 +324,24 @@ const Game = {
         // Check container alerts
         this.checkContainerAlerts();
 
+        // Insurance premium (monthly — deducted every 30 days)
+        if (s.gameDay % 30 === 0) {
+            this.chargeInsurance();
+        }
+
+        // Ship accident check (random, every 5~65 days)
+        if (typeof SHIP_ACCIDENTS !== 'undefined') {
+            if (!s.lastAccidentDay) s.lastAccidentDay = 0;
+            const daysSinceAccident = s.gameDay - s.lastAccidentDay;
+            if (daysSinceAccident >= 5) {
+                // Probability increases as days pass: 0% at day 5, ~2% at day 30, ~5% at day 65
+                const accidentProb = Math.min(0.05, (daysSinceAccident - 5) * 0.001);
+                if (Math.random() < accidentProb) {
+                    this.triggerShipAccident();
+                }
+            }
+        }
+
         // Check milestones
         this.checkMilestones();
 
@@ -1253,6 +1271,79 @@ const Game = {
     },
 
     // ==================== MILESTONES ====================
+    // ==================== INSURANCE & ACCIDENTS ====================
+    chargeInsurance() {
+        const s = this.state;
+        if (typeof INSURANCE_RATES === 'undefined') return;
+        const ir = INSURANCE_RATES;
+        // Condition band
+        const cond = s.ship.condition || 100;
+        const band = cond >= 80 ? 'good' : cond >= 50 ? 'fair' : cond >= 30 ? 'poor' : 'critical';
+        const condMult = ir.conditionMultiplier[band];
+        // Accident history surcharge
+        const accidentCount = (s.accidentHistory || []).length;
+        const accSurcharge = 1 + accidentCount * ir.accidentSurcharge;
+        const premium = Math.round(ir.base * condMult * accSurcharge);
+        s.cash -= premium;
+        s.stats.totExp += premium;
+        if (!s.insurancePaid) s.insurancePaid = 0;
+        s.insurancePaid += premium;
+        this.addFeed(`🛡️ 월간 보험료 $${premium.toLocaleString()} 납부 (상태:${band} | 사고${accidentCount}건)`, 'info');
+    },
+
+    triggerShipAccident() {
+        const s = this.state;
+        // Pick random accident weighted by probability
+        const roll = Math.random();
+        let cumProb = 0;
+        let accident = SHIP_ACCIDENTS[0];
+        for (const acc of SHIP_ACCIDENTS) {
+            cumProb += acc.prob;
+            if (roll <= cumProb) { accident = acc; break; }
+        }
+
+        // Random costs within range
+        const repair = Math.round(accident.repairCost[0] + Math.random() * (accident.repairCost[1] - accident.repairCost[0]));
+        const claim = Math.round(accident.claimCost[0] + Math.random() * (accident.claimCost[1] - accident.claimCost[0]));
+        const condLoss = Math.round(accident.condLoss[0] + Math.random() * (accident.condLoss[1] - accident.condLoss[0]));
+
+        // Insurance covers part of claim
+        const ir = typeof INSURANCE_RATES !== 'undefined' ? INSURANCE_RATES : { claimCoverage: 0 };
+        const insuredClaim = Math.round(claim * ir.claimCoverage);
+        const outOfPocket = claim - insuredClaim;
+        const totalCost = repair + outOfPocket;
+
+        // Apply damage
+        s.ship.condition = Math.max(5, (s.ship.condition || 100) - condLoss);
+        s.cash -= totalCost;
+        s.stats.totExp += totalCost;
+        s.lastAccidentDay = s.gameDay;
+
+        // Record history
+        if (!s.accidentHistory) s.accidentHistory = [];
+        s.accidentHistory.push({
+            id: accident.id, day: s.gameDay, repair, claim, insuredClaim, outOfPocket, totalCost, condLoss,
+        });
+
+        // Show modal
+        document.getElementById('evt-title').textContent = `${accident.icon} ${accident.name}`;
+        document.getElementById('evt-desc').innerHTML = `
+            <p>${accident.desc}</p>
+            <div style="margin-top:10px;font-size:12px;background:var(--card2);padding:10px;border-radius:8px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                    <span>🔧 수리비</span><span style="color:var(--red);text-align:right">$${repair.toLocaleString()}</span>
+                    <span>📋 화주 클레임</span><span style="text-align:right">$${claim.toLocaleString()}</span>
+                    <span>🛡️ 보험 보상</span><span style="color:var(--green);text-align:right">-$${insuredClaim.toLocaleString()}</span>
+                    <span style="font-weight:700">💸 실제 부담</span><span style="color:var(--red);text-align:right;font-weight:700">$${totalCost.toLocaleString()}</span>
+                </div>
+                <div style="margin-top:8px;font-size:11px;color:var(--t3)">선박 상태: ${(s.ship.condition + condLoss)}% → ${s.ship.condition}% (-${condLoss}%)</div>
+            </div>`;
+        document.getElementById('evt-actions').innerHTML = `<button class="btn-primary" onclick="Game.closeModal('modal-event')" style="width:100%;margin-top:8px">확인 (비용 차감됨)</button>`;
+        this.openModal('modal-event');
+
+        this.addFeed(`${accident.icon} ${accident.name}! 비용 $${totalCost.toLocaleString()} (보험 $${insuredClaim.toLocaleString()} 보상)`, 'alert');
+    },
+
     checkMilestones() {
         const s = this.state;
         MILESTONES.forEach(m => {
@@ -2887,25 +2978,28 @@ const Game = {
                                 <div>⛽ 연료비/일: $${pkg.fuelCostPerDay.toLocaleString()} | 항비/기항: $${pkg.portFeesPerCall.toLocaleString()} | 고정비/주: $${pkg.weeklyFixedCost.toLocaleString()}</div>
                             </div>`;
 
-                        if (canBuy) {
-                            html += `<button class="btn-primary" onclick="Game.buyNewRoute('${pkg.id}')" style="width:100%;margin-top:10px;font-size:12px">
-                                🌏 항로 개척 — 현금 결제 ($${pkg.totalInvestment.toLocaleString()})
-                            </button>`;
-                        } else if (needsLoan) {
+                        if (unlocked) {
+                            // 신규 항로는 반드시 대출 연계
+                            const loanAmt = Math.max(shortage, Math.round(pkg.totalInvestment * 0.4)); // 최소 40% 대출
+                            const dispRate = loanAmt <= 500000 ? 6 : loanAmt <= 2000000 ? 5 : 4.5;
+                            const dispFee = Math.round(loanAmt * 0.01);
+                            const dispMonthly = Math.round(loanAmt / 24);
+                            const dispInterest = Math.round(loanAmt * dispRate / 100 / 12);
                             html += `<div style="margin-top:10px;padding:10px;background:rgba(33,150,243,.1);border:1px solid var(--accent);border-radius:8px">
-                                <div style="font-weight:700;font-size:12px;color:var(--accent);margin-bottom:6px">🏦 대출로 항로 개척</div>
+                                <div style="font-weight:700;font-size:12px;color:var(--accent);margin-bottom:6px">🏦 선박금융 + 항로 개척</div>
                                 <div style="font-size:10px;color:var(--t2);display:grid;grid-template-columns:1fr 1fr;gap:4px">
-                                    <span>보유 현금: $${Math.round(Math.max(0, s.cash)).toLocaleString()}</span>
-                                    <span>부족금액: <strong style="color:var(--red)">$${shortage.toLocaleString()}</strong></span>
-                                    <span>대출 연이율: <strong style="color:var(--yellow)">${loanRate}%</strong></span>
-                                    <span>대출 수수료: $${loanFee.toLocaleString()}</span>
-                                    <span>월 상환금: ~$${monthlyRepay.toLocaleString()}</span>
-                                    <span>월 이자: ~$${monthlyInterest.toLocaleString()}</span>
+                                    <span>총 투자금: $${pkg.totalInvestment.toLocaleString()}</span>
+                                    <span>자기자본: $${Math.round(pkg.totalInvestment - loanAmt).toLocaleString()}</span>
+                                    <span>대출금: <strong style="color:var(--accent)">$${loanAmt.toLocaleString()}</strong></span>
+                                    <span>대출 연이율: <strong style="color:var(--yellow)">${dispRate}%</strong></span>
+                                    <span>월 상환금: ~$${dispMonthly.toLocaleString()}</span>
+                                    <span>월 이자: ~$${dispInterest.toLocaleString()}</span>
                                 </div>
-                                <div style="font-size:9px;color:var(--t3);margin-top:4px">* 24개월 분할상환 | 부족금액만큼 자동 대출 실행</div>
-                                <button class="btn-primary" onclick="Game.buyNewRouteWithLoan('${pkg.id}')" style="width:100%;margin-top:8px;font-size:12px;background:#1565C0">
+                                <div style="font-size:9px;color:var(--t3);margin-top:4px">* 24개월 분할상환 | 수수료 $${dispFee.toLocaleString()}</div>
+                                <button class="btn-primary" onclick="Game.buyNewRouteWithLoan('${pkg.id}')" ${s.cash >= (pkg.totalInvestment - loanAmt) ? '' : 'disabled'} style="width:100%;margin-top:8px;font-size:12px;background:#1565C0">
                                     🏦 대출 실행 + 항로 개척
                                 </button>
+                                ${s.cash < (pkg.totalInvestment - loanAmt) ? `<div style="font-size:9px;color:var(--red);margin-top:4px">⚠️ 자기자본 부족 (필요: $${Math.round(pkg.totalInvestment - loanAmt).toLocaleString()})</div>` : ''}
                             </div>`;
                         } else {
                             html += `<button class="btn-primary" disabled style="width:100%;margin-top:10px;font-size:12px">현금 부족</button>`;
@@ -3205,20 +3299,24 @@ const Game = {
         if (!s.ownedRoutes) s.ownedRoutes = [];
         if (s.ownedRoutes.find(o => o.id === pkg.id)) { this.toast('이미 운영 중!', 'err'); return; }
 
+        // Always require loan (minimum 40% of investment)
         const shortage = Math.max(0, pkg.totalInvestment - Math.max(0, s.cash));
-        const loanRate = shortage <= 500000 ? 6 : shortage <= 2000000 ? 5 : 4.5;
-        const loanFee = Math.round(shortage * 0.01);
+        const loanAmt = Math.max(shortage, Math.round(pkg.totalInvestment * 0.4));
+        const loanRate = loanAmt <= 500000 ? 6 : loanAmt <= 2000000 ? 5 : 4.5;
+        const loanFee = Math.round(loanAmt * 0.01);
+        const equity = pkg.totalInvestment - loanAmt;
+
+        if (s.cash < equity) { this.toast('자기자본 부족!', 'err'); return; }
 
         // Take loan
-        s.debt += shortage;
+        s.debt += loanAmt;
         s.stats.totExp += loanFee;
         if (!s.loans) s.loans = [];
-        s.loans.push({ id: 'loan_route_' + pkg.id, name: `항로개척 대출 (${pkg.nameKo})`, amount: shortage, rate: loanRate, fee: loanFee, day: s.gameDay, ts: Date.now() });
+        s.loans.push({ id: 'loan_route_' + pkg.id, name: `선박금융 (${pkg.nameKo})`, amount: loanAmt, rate: loanRate, fee: loanFee, day: s.gameDay, ts: Date.now() });
 
-        // Deduct total investment (cash goes negative then loan covers it)
-        s.cash -= pkg.totalInvestment;
+        // Deduct equity from cash
+        s.cash -= equity;
         s.stats.totExp += pkg.totalInvestment;
-        s.debt += Math.round(pkg.totalInvestment * pkg.debtRatio);
 
         // Initialize route
         s.ownedRoutes.push({ id: pkg.id, voyNum: 0, status: 'setup', activatedDay: s.gameDay });

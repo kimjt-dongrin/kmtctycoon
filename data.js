@@ -70,7 +70,7 @@ const NEW_ROUTE_PACKAGES = [
         vesselSize: 300, rotationDays: 14,
         fuelCostPerDay: 3000, portFeesPerCall: 4000, weeklyFixedCost: 30000,
         color: '#66BB6A', difficulty: '보통',
-        unlockRevenue: 2000000, // 매출 $2M 달성 시 해금
+        unlockRevenue: 500000, // 매출 $500K 달성 시 해금
         // Investment breakdown
         shipCount: 1, shipCostEach: 1500000,
         containerSet: { '20': 120, '40': 80 }, containerCost: 200000,
@@ -96,7 +96,7 @@ const NEW_ROUTE_PACKAGES = [
         vesselSize: 350, rotationDays: 14,
         fuelCostPerDay: 3200, portFeesPerCall: 3500, weeklyFixedCost: 28000,
         color: '#42A5F5', difficulty: '보통',
-        unlockRevenue: 3000000,
+        unlockRevenue: 1000000,
         shipCount: 1, shipCostEach: 1800000,
         containerSet: { '20': 140, '40': 100 }, containerCost: 240000,
         officePorts: ['LCB', 'BKK'], officeCostEach: 30000,
@@ -121,7 +121,7 @@ const NEW_ROUTE_PACKAGES = [
         vesselSize: 400, rotationDays: 21,
         fuelCostPerDay: 3500, portFeesPerCall: 4500, weeklyFixedCost: 35000,
         color: '#AB47BC', difficulty: '어려움',
-        unlockRevenue: 5000000,
+        unlockRevenue: 2000000,
         shipCount: 2, shipCostEach: 2000000,
         containerSet: { '20': 200, '40': 150 }, containerCost: 350000,
         officePorts: ['PKL', 'PEN'], officeCostEach: 40000,
@@ -146,7 +146,7 @@ const NEW_ROUTE_PACKAGES = [
         vesselSize: 500, rotationDays: 28,
         fuelCostPerDay: 4000, portFeesPerCall: 5000, weeklyFixedCost: 45000,
         color: '#FF7043', difficulty: '매우 어려움',
-        unlockRevenue: 10000000,
+        unlockRevenue: 5000000,
         shipCount: 2, shipCostEach: 3000000,
         containerSet: { '20': 300, '40': 200 }, containerCost: 500000,
         officePorts: ['MAA', 'BOM'], officeCostEach: 50000,
@@ -992,6 +992,52 @@ const MILESTONES = [
 ];
 
 // Voyage events - choices show clear consequences
+// Ship Accidents — 5~65일에 한 번 랜덤 발생
+const SHIP_ACCIDENTS = [
+    { id:'acc_collision', name:'선박 충돌 사고', icon:'💥',
+      desc:'다른 선박과 충돌이 발생했습니다. 선체 손상과 화물 파손이 발생했습니다.',
+      repairCost: [50000, 150000], claimCost: [20000, 80000], condLoss: [15, 30],
+      severity: 'major', prob: 0.3 },
+    { id:'acc_grounding', name:'좌초 사고', icon:'🪨',
+      desc:'얕은 해역에서 선박이 좌초되었습니다. 선저 손상으로 긴급 수리가 필요합니다.',
+      repairCost: [80000, 200000], claimCost: [10000, 50000], condLoss: [20, 35],
+      severity: 'major', prob: 0.2 },
+    { id:'acc_container_fall', name:'컨테이너 낙하', icon:'📦',
+      desc:'악천후로 갑판 컨테이너가 유실되었습니다. 화주 클레임이 예상됩니다.',
+      repairCost: [5000, 20000], claimCost: [30000, 100000], condLoss: [5, 10],
+      severity: 'moderate', prob: 0.25 },
+    { id:'acc_engine', name:'엔진 고장', icon:'⚙️',
+      desc:'주기관 고장으로 항해 불능 상태입니다. 긴급 수리비가 발생합니다.',
+      repairCost: [30000, 120000], claimCost: [5000, 20000], condLoss: [10, 20],
+      severity: 'moderate', prob: 0.35 },
+    { id:'acc_fire', name:'선내 화재', icon:'🔥',
+      desc:'화물칸에서 화재가 발생했습니다. 소화 작업 후 피해 확인이 필요합니다.',
+      repairCost: [60000, 180000], claimCost: [40000, 120000], condLoss: [15, 30],
+      severity: 'critical', prob: 0.15 },
+    { id:'acc_crew_injury', name:'선원 부상 사고', icon:'🏥',
+      desc:'작업 중 선원이 부상을 입었습니다. 치료비와 산재 보상이 필요합니다.',
+      repairCost: [0, 5000], claimCost: [10000, 40000], condLoss: [0, 5],
+      severity: 'minor', prob: 0.4 },
+    { id:'acc_piracy', name:'해적 위협', icon:'🏴‍☠️',
+      desc:'해적 접근으로 회항 조치되었습니다. 보안 비용과 지연 피해가 발생합니다.',
+      repairCost: [0, 10000], claimCost: [15000, 50000], condLoss: [0, 5],
+      severity: 'moderate', prob: 0.1 },
+];
+
+// Insurance premiums (monthly) — indexed by ship condition band
+const INSURANCE_RATES = {
+    base: 2000,           // 기본 월 보험료
+    perVoyage: 500,       // 항차별 추가 보험료
+    conditionMultiplier: { // 선박 상태별 할증
+        good: 1.0,        // 80-100%
+        fair: 1.3,        // 50-79%
+        poor: 1.8,        // 30-49%
+        critical: 2.5,    // 0-29%
+    },
+    accidentSurcharge: 0.15, // 사고 1건당 보험료 15% 할증
+    claimCoverage: 0.6,      // 보험이 클레임의 60% 커버
+};
+
 const VOYAGE_EVENTS = [
     { title:'🌀 태풍 접근!', desc:'항로 전방에 태풍이 접근 중입니다.', prob:0.12,
       choices:[

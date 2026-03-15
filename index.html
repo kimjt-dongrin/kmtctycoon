@@ -69,6 +69,7 @@
             <div class="hud-r">
                 <div class="hud-money"><small>현금</small><span id="hud-cash" class="cash-val">$0</span></div>
                 <div class="hud-money"><small>부채</small><span id="hud-debt" class="debt-val">$0</span></div>
+                <button class="hud-menu-btn" onclick="Game.openSaveMenu()" title="메뉴">☰</button>
             </div>
         </div>
 
@@ -209,6 +210,14 @@
             <h3 id="alert-title"></h3>
             <p id="alert-desc"></p>
             <button class="btn-primary" onclick="Game.closeModal('modal-alert')">확인</button>
+        </div>
+    </div>
+
+    <!-- SAVE/EXIT MENU MODAL -->
+    <div id="modal-savemenu" class="modal">
+        <div class="modal-box" style="width:min(90vw,360px)">
+            <h3>☰ 메뉴</h3>
+            <div id="savemenu-body"></div>
         </div>
     </div>
 

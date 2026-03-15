@@ -130,9 +130,17 @@ const Game = {
     // ==================== LAUNCH ====================
     launch() {
         const r = this._route;
-        const co = document.getElementById('inp-company').value.trim() || 'KMTC Line';
+        const co = document.getElementById('inp-company').value.trim();
         const ceo = document.getElementById('inp-ceo').value.trim() || '김선장';
         const vessel = document.getElementById('inp-vessel').value.trim() || 'KMTC BUSAN';
+
+        // Company name is required (used for ranking)
+        if (!co) {
+            this.toast('회사명을 입력해주세요! (랭킹에 표시됩니다)', 'err');
+            document.getElementById('inp-company').focus();
+            document.getElementById('inp-company').style.border = '2px solid var(--red)';
+            return;
+        }
 
         // Containers: all at home port initially
         const ctr = {};
@@ -3773,6 +3781,59 @@ const Game = {
     openModal(id) { document.getElementById(id).classList.add('active'); },
     closeModal(id) { document.getElementById(id).classList.remove('active'); },
 
+    // ==================== SAVE MENU ====================
+    openSaveMenu() {
+        this.stopTick();
+        const s = this.state;
+        const saveTime = s._saveTime ? new Date(s._saveTime).toLocaleString('ko-KR') : '-';
+        const gd = this.getGameDate();
+
+        let html = `
+        <div style="text-align:center;margin-bottom:12px">
+            <div style="font-size:13px;font-weight:700">${s.co}</div>
+            <div style="font-size:11px;color:var(--t3)">${s.ceo} | ${gd.dateStr} (Day ${s.gameDay})</div>
+            <div style="font-size:10px;color:var(--t3);margin-top:4px">마지막 저장: ${saveTime}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="btn-primary" onclick="Game.manualSave()" style="width:100%">
+                💾 수동 저장
+            </button>
+            <button class="btn-primary" onclick="Game.saveAndExit()" style="width:100%;background:#b71c1c">
+                🚪 저장 후 종료
+            </button>
+            <button class="btn-sm" onclick="Game.closeSaveMenu()" style="width:100%;background:var(--card2);margin-top:4px">
+                ▶ 게임으로 돌아가기
+            </button>
+        </div>
+        <div style="font-size:9px;color:var(--t3);text-align:center;margin-top:10px;line-height:1.5">
+            게임은 매일 자동 저장됩니다.<br>
+            브라우저를 닫아도 자동 저장됩니다.<br>
+            다음 접속 시 오프라인 진행이 반영됩니다.
+        </div>`;
+
+        document.getElementById('savemenu-body').innerHTML = html;
+        this.openModal('modal-savemenu');
+    },
+
+    closeSaveMenu() {
+        this.closeModal('modal-savemenu');
+        this.startTick();
+    },
+
+    manualSave() {
+        this.saveGame();
+        this.toast('💾 저장 완료!', 'ok');
+    },
+
+    saveAndExit() {
+        this.saveGame();
+        this.stopTick();
+        this.closeModal('modal-savemenu');
+        this.showScreen('screen-title');
+        document.getElementById('btn-load').style.display = 'inline-block';
+        this.toast('💾 저장 후 종료되었습니다', 'ok');
+    },
+
     toast(msg, type = '') {
         const box = document.getElementById('toast-box');
         const t = document.createElement('div');
@@ -3782,6 +3843,20 @@ const Game = {
         setTimeout(() => t.remove(), 3000);
     },
 };
+
+// Auto-save when browser closes/refreshes
+window.addEventListener('beforeunload', () => {
+    if (Game.state && Game.state.co) {
+        Game.saveGame();
+    }
+});
+
+// Also save on visibility change (tab switch, minimize)
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden && Game.state && Game.state.co) {
+        Game.saveGame();
+    }
+});
 
 // Check for save on load
 window.addEventListener('DOMContentLoaded', () => {

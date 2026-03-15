@@ -78,11 +78,13 @@ h1{font-size:32px;font-weight:300;letter-spacing:6px;margin-bottom:6px}
 .spd{padding:3px 8px;font-size:10px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--t2);cursor:pointer;transition:all .15s}
 .spd.active{background:var(--blue);color:#fff;border-color:var(--blue)}
 .spd:hover{border-color:var(--blue)}
-.hud-r{display:flex;gap:16px}
+.hud-r{display:flex;gap:16px;align-items:center}
 .hud-money{text-align:right;line-height:1.2}
 .hud-money small{font-size:9px;color:var(--t3);display:block}
 .cash-val{font-size:14px;font-weight:700;color:var(--green)}
 .debt-val{font-size:14px;font-weight:700;color:var(--red)}
+.hud-menu-btn{background:var(--card2);border:1px solid var(--border);color:var(--t1);font-size:16px;width:32px;height:32px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.hud-menu-btn:hover{background:var(--card)}
 
 /* Game Body */
 .game-body{display:flex;flex:1;overflow:hidden}

@@ -964,6 +964,7 @@ const SALES_STRATEGIES = [
     { id:'easy-first', name:'쉬운 화주 우선', icon:'⭐', desc:'난이도 낮은 화주부터 빠르게 점유율 확보' },
     { id:'cheap-cargo', name:'저가 화주 우선', icon:'💵', desc:'할인율 낮은 저가 화물 우선 확보 → 현금 흐름 개선' },
     { id:'port-focus', name:'특정 항구 집중', icon:'📍', desc:'선택한 항구의 화주만 집중 공략' },
+    { id:'steal-cargo', name:'경쟁사 물량 탈취', icon:'⚔️', desc:'랭킹 선사의 물량을 빼앗아오는 공격 영업' },
 ];
 
 // Activity allocation presets
@@ -1187,6 +1188,42 @@ const TIPS = [
 ];
 
 const COMPETITOR_NAMES = ['동아해운', '태평양라인', '청해해운', '세기해운'];
+
+// Weekly market volume per trade lane (total TEU available for ALL carriers)
+const MARKET_VOLUME = {
+    // KCS (한중)
+    'PUS-NBO': 450, 'PUS-SHA': 500, 'NBO-PUS': 350, 'NBO-SHA': 200,
+    'SHA-PUS': 380, 'SHA-NBO': 180,
+    // KJS (한일)
+    'USN-TYO': 180, 'USN-YOK': 150, 'USN-CHB': 100, 'PUS-TYO': 250,
+    'PUS-YOK': 200, 'PUS-CHB': 120, 'TYO-PUS': 200, 'TYO-USN': 120,
+    'YOK-PUS': 180, 'YOK-USN': 100, 'CHB-PUS': 130, 'CHB-USN': 80,
+    // KVS (한베트남)
+    'PUS-HCM': 300, 'PUS-HPH': 200, 'HCM-PUS': 250, 'HPH-PUS': 150,
+    'HCM-HPH': 80, 'HPH-HCM': 60,
+    // KTS (한태국)
+    'PUS-LCB': 250, 'PUS-BKK': 200, 'LCB-PUS': 220, 'BKK-PUS': 180,
+    'LCB-BKK': 60, 'BKK-LCB': 50,
+    // KIS (한인니)
+    'PUS-JKT': 280, 'PUS-SBY': 180, 'JKT-PUS': 300, 'SBY-PUS': 150,
+    'JKT-SBY': 60, 'SBY-JKT': 50,
+    // KMS (한말레이)
+    'PUS-PKL': 200, 'PUS-PEN': 150, 'PKL-PUS': 180, 'PEN-PUS': 120,
+    'PKL-PEN': 40, 'PEN-PKL': 30,
+    // KIS-India (한인도)
+    'PUS-MAA': 180, 'PUS-BOM': 220, 'MAA-PUS': 200, 'BOM-PUS': 250,
+    'MAA-BOM': 50, 'BOM-MAA': 40,
+};
+
+// NPC competitor carriers that share the market
+const NPC_CARRIERS = [
+    { id: 'HH', name: 'HH LINE', color: '#E91E63', strength: 0.25, desc: '글로벌 1위 선사, 공격적 영업' },
+    { id: 'EM', name: 'EVERMAX', color: '#9C27B0', strength: 0.20, desc: '아시아 최대 선사, 안정적 서비스' },
+    { id: 'CO', name: 'COSMO LINE', color: '#3F51B5', strength: 0.18, desc: '중국 국영 선사, 저가 전략' },
+    { id: 'YM', name: 'YANG MING', color: '#009688', strength: 0.12, desc: '대만 선사, 일본 항로 강세' },
+    { id: 'WH', name: 'WAN HAI', color: '#795548', strength: 0.10, desc: '근해 전문 선사, 동남아 강세' },
+    { id: 'OT', name: '기타 선사', color: '#607D8B', strength: 0.15, desc: '소형 선사 및 NVO' },
+];
 
 // ==================== SPOT CARGO (부정기 물량) ====================
 const SPOT_CARGO_POOL = [

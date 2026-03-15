@@ -191,10 +191,13 @@ const Game = {
             bsaContracts: [],
             slotCharters: [],
             slotSalesPorts: {},
+            ownedRoutes: [],
             benchPool: unpicked, // draft에서 선택하지 않은 캐릭터
             stats: { totRev: 0, totExp: 0, totVoy: 0, totTEU: 0, totBookings: 0, lastProfit: 0, lastLoadFactor: 0, history: [] },
             milestones: [],
             alerts: [],
+            market: this.initMarket(r),
+            lastActiveTime: Date.now(),
         };
 
         this.startGame();
@@ -325,6 +328,12 @@ const Game = {
         // Competitor activity (may steal share)
         this.competitorAction();
 
+        // Market share erosion from NPC carriers
+        this.marketErosion();
+
+        // Update last active time
+        s.lastActiveTime = Date.now();
+
         // Process slot charters
         this.processSlotCharters();
 
@@ -368,6 +377,105 @@ const Game = {
             pool[p] = (PROSPECT_POOL[p] || []).map(c => ({ ...c }));
         });
         return pool;
+    },
+
+    initMarket(r) {
+        // Initialize market share per trade lane
+        // Player starts with 0%, NPC carriers split the rest
+        const market = {};
+        if (typeof MARKET_VOLUME !== 'undefined') {
+            for (const lane in MARKET_VOLUME) {
+                const [from, to] = lane.split('-');
+                // Only init lanes relevant to player's starting route
+                if (r.ports.includes(from) || r.ports.includes(to)) {
+                    const shares = {};
+                    shares['player'] = 0; // player starts at 0
+                    NPC_CARRIERS.forEach(npc => {
+                        shares[npc.id] = Math.round(npc.strength * 100);
+                    });
+                    market[lane] = { totalVolume: MARKET_VOLUME[lane], shares };
+                }
+            }
+        }
+        return market;
+    },
+
+    // Get player's market share % for a trade lane
+    getPlayerMarketShare(lane) {
+        const m = this.state.market?.[lane];
+        if (!m) return 0;
+        return m.shares?.player || 0;
+    },
+
+    // Get player's TEU allocation for a trade lane based on market share
+    getPlayerVolume(lane) {
+        const m = this.state.market?.[lane];
+        if (!m) return 999; // no market limit if not initialized
+        const share = m.shares?.player || 0;
+        return Math.round(m.totalVolume * share / 100);
+    },
+
+    // Transfer market share from one carrier to player
+    transferMarketShare(lane, fromCarrierId, amount) {
+        const m = this.state.market?.[lane];
+        if (!m || !m.shares) return 0;
+        const available = m.shares[fromCarrierId] || 0;
+        const actual = Math.min(amount, available);
+        if (actual <= 0) return 0;
+        m.shares[fromCarrierId] = (m.shares[fromCarrierId] || 0) - actual;
+        m.shares.player = (m.shares.player || 0) + actual;
+        return actual;
+    },
+
+    // NPC carriers erode player share (called daily)
+    marketErosion() {
+        const s = this.state;
+        if (!s.market) return;
+
+        // Calculate inactivity penalty
+        const hoursSinceActive = (Date.now() - (s.lastActiveTime || Date.now())) / 3600000;
+        const inactivityMult = hoursSinceActive > 24 ? 1.5 : (hoursSinceActive > 12 ? 1.2 : 1.0);
+
+        for (const lane in s.market) {
+            const m = s.market[lane];
+            if (!m.shares || m.shares.player <= 0) continue;
+
+            // Each NPC carrier has a small chance to steal from player
+            NPC_CARRIERS.forEach(npc => {
+                const stealChance = npc.strength * 0.08 * inactivityMult;
+                if (Math.random() < stealChance) {
+                    const steal = Math.round(0.5 + Math.random() * 1.5);
+                    const actual = Math.min(steal, m.shares.player);
+                    if (actual > 0) {
+                        m.shares.player -= actual;
+                        m.shares[npc.id] = (m.shares[npc.id] || 0) + actual;
+                    }
+                }
+            });
+        }
+
+        // Warn if significant inactivity
+        if (hoursSinceActive > 48 && s.gameDay % 7 === 0) {
+            this.addFeed(`⚠️ 장기간 영업관리 소홀! 경쟁사들이 화주를 빼앗아가고 있습니다!`, 'alert');
+        }
+    },
+
+    // Expand market to new lanes when new routes are activated
+    expandMarket(pkg) {
+        const s = this.state;
+        if (!s.market) s.market = {};
+        for (const lane in MARKET_VOLUME) {
+            if (s.market[lane]) continue; // already exists
+            const [from, to] = lane.split('-');
+            if (pkg.ports.includes(from) || pkg.ports.includes(to)) {
+                const shares = {};
+                shares['player'] = 0;
+                NPC_CARRIERS.forEach(npc => {
+                    shares[npc.id] = Math.round(npc.strength * 100);
+                });
+                s.market[lane] = { totalVolume: MARKET_VOLUME[lane], shares };
+            }
+        }
     },
 
     initSalesPlans() {
@@ -436,6 +544,36 @@ const Game = {
                         <span>${scDef.portNames[p]} <span style="font-size:9px;color:var(--accent2)">슬롯</span></span></div>`;
                 });
             });
+            html += '</div>';
+        }
+
+        // Target carrier (if steal-cargo strategy)
+        if (plan.strategy === 'steal-cargo' && typeof NPC_CARRIERS !== 'undefined') {
+            html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--t2);margin-bottom:4px">⚔️ 공략 대상 선사</div>';
+            // Show NPC carriers with their current market share
+            NPC_CARRIERS.forEach(npc => {
+                const selected = plan.targetCarrier === npc.id;
+                // Calculate average market share for this carrier
+                let totalShare = 0, laneCount = 0;
+                for (const lane in s.market) {
+                    if (s.market[lane].shares[npc.id]) { totalShare += s.market[lane].shares[npc.id]; laneCount++; }
+                }
+                const avgShare = laneCount > 0 ? Math.round(totalShare / laneCount) : 0;
+                html += `<div class="assign-cust ${selected ? 'selected' : ''}" onclick="Game.setPlan('${stId}','targetCarrier','${npc.id}')" style="border-left:3px solid ${npc.color}">
+                    <span>${npc.name} <span style="font-size:10px;color:var(--t3)">점유율 ~${avgShare}%</span></span>
+                    <span style="font-size:10px;color:var(--t3)">${npc.desc}</span>
+                </div>`;
+            });
+            // Also show Firebase ranking players
+            if (this._cachedRankings && this._cachedRankings.length > 0) {
+                html += '<div style="font-size:10px;color:var(--accent);margin:6px 0 4px">📊 실제 유저 (참고)</div>';
+                this._cachedRankings.slice(0, 5).forEach(r => {
+                    if (r.co === s.co) return; // skip self
+                    html += `<div style="padding:4px 8px;font-size:11px;color:var(--t2);border-left:3px solid var(--accent2);margin:2px 0;border-radius:4px;background:var(--card2)">
+                        🏢 ${r.co} — 매출 $${(r.rev || 0).toLocaleString()} <span style="color:var(--t3)">(NPC 대리)</span>
+                    </div>`;
+                });
+            }
             html += '</div>';
         }
 
@@ -593,8 +731,16 @@ const Game = {
         } else if (plan.strategy === 'easy-first') {
             allCusts.sort((a, b) => a.cust.difficulty - b.cust.difficulty);
         } else if (plan.strategy === 'cheap-cargo') {
-            // Lowest discount = cheapest for us (best revenue), prioritize easy + low discount
             allCusts.sort((a, b) => a.cust.baseDiscount - b.cust.baseDiscount || a.cust.difficulty - b.cust.difficulty);
+        } else if (plan.strategy === 'steal-cargo') {
+            // Prioritize customers with high volume (large size) where we have low share
+            // These are customers that the target carrier likely has
+            const sizeVal = { large: 0, medium: 1, small: 2 };
+            allCusts.sort((a, b) => {
+                const aScore = (sizeVal[a.cust.size] || 1) - (100 - a.cust.share) / 100;
+                const bScore = (sizeVal[b.cust.size] || 1) - (100 - b.cust.share) / 100;
+                return aScore - bScore;
+            });
         }
 
         // Pick from top 3 with some randomness
@@ -904,7 +1050,30 @@ const Game = {
         }
         cust.share = Math.min(100, cust.share + shareGain);
 
-        this.addFeed(`📦 수주! ${cust.icon}${cust.name} ${r.portNames[port]}→${r.portNames[dest]} ${avail20 + avail40 * 2}TEU $${revenue.toLocaleString()}`, 'booking');
+        // Increase market share for this trade lane
+        if (s.market && s.market[leg]) {
+            // Steal from the weakest NPC carrier or targeted carrier
+            const targetCarrier = salesperson.plan?.targetCarrier;
+            let stealFrom = 'OT'; // default: steal from "기타 선사"
+            if (targetCarrier && s.market[leg].shares[targetCarrier] > 0) {
+                stealFrom = targetCarrier;
+            } else {
+                // Find NPC with most share
+                let maxShare = 0;
+                for (const [id, sh] of Object.entries(s.market[leg].shares)) {
+                    if (id !== 'player' && sh > maxShare) { maxShare = sh; stealFrom = id; }
+                }
+            }
+            const mGain = Math.round(0.3 + Math.random() * 0.7);
+            this.transferMarketShare(leg, stealFrom, mGain);
+        }
+
+        const portNames = { ...r.portNames };
+        // Merge slot charter + owned route port names
+        if (s.slotCharters) s.slotCharters.forEach(sc => { const d = SLOT_CHARTERS.find(x => x.id === sc.id); if (d) Object.assign(portNames, d.portNames); });
+        if (s.ownedRoutes) s.ownedRoutes.forEach(or => { const d = NEW_ROUTE_PACKAGES.find(x => x.id === or.id); if (d) Object.assign(portNames, d.portNames); });
+
+        this.addFeed(`📦 수주! ${cust.icon}${cust.name} ${portNames[port] || port}→${portNames[dest] || dest} ${avail20 + avail40 * 2}TEU $${revenue.toLocaleString()}`, 'booking');
         this.toast(`${cust.name} 수주! ${avail20 + avail40 * 2}TEU`, 'ok');
 
         this.updateBayGrid();
@@ -3474,6 +3643,9 @@ const Game = {
         if (!s.slotSalesPorts) s.slotSalesPorts = {};
         for (const port in sc.salesPorts) s.slotSalesPorts[port] = sc.salesPorts[port];
 
+        // Expand market for slot charter lanes
+        this.expandMarket(sc);
+
         return officeCost;
     },
 
@@ -3575,6 +3747,9 @@ const Game = {
 
         if (!s.slotSalesPorts) s.slotSalesPorts = {};
         for (const port in pkg.salesPorts) s.slotSalesPorts[port] = pkg.salesPorts[port];
+
+        // Expand market to include new route lanes
+        this.expandMarket(pkg);
 
         this.toast(`🏦 대출 $${shortage.toLocaleString()} 실행 → 🌏 ${pkg.nameKo} 항로 개척!`, 'ok');
         this.addFeed(`🏦 대출 $${shortage.toLocaleString()} (연 ${loanRate}%) → 🌏 ${pkg.nameKo} 개통!`, 'alert');
@@ -4384,6 +4559,8 @@ const Game = {
             if (!s.slotSalesPorts) s.slotSalesPorts = {};
             if (!s.ownedRoutes) s.ownedRoutes = [];
             s.ownedRoutes.forEach(or => { if (!or.voyage) or.voyage = { dayCounter: 0 }; if (or.status === 'setup') or.status = 'active'; });
+            if (!s.market) s.market = this.initMarket(s.route);
+            if (!s.lastActiveTime) s.lastActiveTime = Date.now();
 
             // Ensure all ports have container entries
             s.route.ports.forEach(p => {
@@ -4615,6 +4792,57 @@ const Game = {
             html += `<span>🏆 최고: ${best.co} ($${this._shortNum(best.netProfit)})</span>`;
             html += `<span>📊 평균 적재율: ${Math.round(rankings.reduce((s,e) => s + (e.avgLF||0), 0) / rankings.length)}%</span>`;
             html += '</div>';
+        }
+
+        // Market share section
+        if (s.market && Object.keys(s.market).length > 0) {
+            html += '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">';
+            html += '<h4 style="font-size:13px;margin:0 0 8px">📊 항로별 시장 점유율</h4>';
+
+            // Group lanes by route
+            const laneGroups = {};
+            for (const lane in s.market) {
+                const [from] = lane.split('-');
+                const routeKey = s.route.ports.includes(from) ? s.route.id : 'other';
+                if (!laneGroups[routeKey]) laneGroups[routeKey] = [];
+                laneGroups[routeKey].push(lane);
+            }
+
+            for (const lane in s.market) {
+                const m = s.market[lane];
+                const playerShare = m.shares.player || 0;
+                if (playerShare <= 0 && m.totalVolume < 100) continue; // skip irrelevant lanes
+                const [from, to] = lane.split('-');
+                const fromN = this.getPortName(from);
+                const toN = this.getPortName(to);
+
+                html += `<div style="margin-bottom:8px">`;
+                html += `<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px">`;
+                html += `<span>${fromN} → ${toN}</span>`;
+                html += `<span style="color:var(--accent)">주간 ${m.totalVolume}TEU | 내 점유율 ${playerShare}%</span>`;
+                html += `</div>`;
+
+                // Share bar
+                html += `<div style="display:flex;height:14px;border-radius:3px;overflow:hidden;font-size:8px">`;
+                if (playerShare > 0) {
+                    html += `<div style="width:${playerShare}%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;min-width:${playerShare > 3 ? '0' : '0'}px">${playerShare > 5 ? playerShare + '%' : ''}</div>`;
+                }
+                NPC_CARRIERS.forEach(npc => {
+                    const sh = m.shares[npc.id] || 0;
+                    if (sh > 0) {
+                        html += `<div style="width:${sh}%;background:${npc.color};display:flex;align-items:center;justify-content:center;color:white;opacity:.7;min-width:0" title="${npc.name} ${sh}%">${sh > 8 ? npc.name.substring(0, 4) : ''}</div>`;
+                    }
+                });
+                html += `</div></div>`;
+            }
+
+            // NPC carrier legend
+            html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;font-size:9px">';
+            html += `<span style="display:flex;align-items:center;gap:2px"><span style="width:8px;height:8px;background:var(--accent);border-radius:2px;display:inline-block"></span> 내 회사</span>`;
+            NPC_CARRIERS.forEach(npc => {
+                html += `<span style="display:flex;align-items:center;gap:2px"><span style="width:8px;height:8px;background:${npc.color};border-radius:2px;display:inline-block"></span> ${npc.name}</span>`;
+            });
+            html += '</div></div>';
         }
 
         // Refresh button

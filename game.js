@@ -4045,4 +4045,16 @@ window.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('kmtc_save')) {
         document.getElementById('btn-load').style.display = 'inline-block';
     }
+    // Migrate existing localStorage leaderboard to Firebase on first load
+    if (typeof fbDb !== 'undefined' && fbDb && !localStorage.getItem('kmtc_fb_migrated')) {
+        try {
+            const board = JSON.parse(localStorage.getItem('kmtc_leaderboard') || '[]');
+            board.forEach(entry => {
+                if (!entry.uid) entry.uid = 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+                fbDb.ref('rankings/' + entry.uid).set(entry);
+            });
+            localStorage.setItem('kmtc_fb_migrated', '1');
+            console.log('Migrated', board.length, 'entries to Firebase');
+        } catch(e) { console.warn('Migration failed:', e.message); }
+    }
 });

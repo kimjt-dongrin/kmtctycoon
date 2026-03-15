@@ -261,6 +261,13 @@ const Game = {
         }
 
         this.updateHUD();
+
+        // Refresh port map view every game-hour when sub-routes are active (ships moving)
+        if (s.voyage.status !== 'sailing' && s.gameHour % 6 === 0) {
+            const hasSubRoutes = ((s.slotCharters || []).some(sc => sc.active)) ||
+                                 ((s.ownedRoutes || []).some(o => o.status === 'active'));
+            if (hasSubRoutes) this.renderPortMapView();
+        }
     },
 
     dailyUpdate() {
@@ -320,6 +327,9 @@ const Game = {
 
         // Process slot charters
         this.processSlotCharters();
+
+        // Process owned routes
+        this.processOwnedRoutes();
 
         // Check container alerts
         this.checkContainerAlerts();
@@ -1489,10 +1499,14 @@ const Game = {
         const from = leg.from, to = leg.to;
         const scene = document.getElementById('ship-scene');
 
-        // Determine if map needs to expand for slot charter routes
+        // Determine if map needs to expand for slot charter / owned routes
         const activeSlots = (s.slotCharters || []).filter(sc => sc.active);
+        const activeOwnedRoutes = (s.ownedRoutes || []).filter(o => o.status === 'active');
         const hasSlotCharters = activeSlots.length > 0;
-        const vbY = 80, vbH = hasSlotCharters ? 610 : 380;
+        const hasOwnedRoutes = activeOwnedRoutes.length > 0;
+        const hasIndiaRoute = activeOwnedRoutes.some(o => o.id === 'NR_KIS');
+        const vbY = hasIndiaRoute ? 60 : 80;
+        const vbH = hasSlotCharters || hasOwnedRoutes ? (hasIndiaRoute ? 640 : 610) : 380;
 
         // Build compact SVG map
         let svg = `<svg viewBox="50 ${vbY} 650 ${vbH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;position:absolute;top:0;left:0;z-index:10">`;
@@ -1509,10 +1523,16 @@ const Game = {
         svg += `<text x="200" y="200" fill="rgba(150,180,160,.3)" font-size="18" font-weight="700" letter-spacing="6">中 国</text>`;
         svg += `<text x="475" y="175" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">韓国</text>`;
         svg += `<text x="610" y="145" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">日本</text>`;
-        if (hasSlotCharters) {
-            svg += `<text x="280" y="480" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">ベトナム</text>`;
-            svg += `<text x="175" y="530" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">タイ</text>`;
-            svg += `<text x="280" y="640" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">インドネシア</text>`;
+        if (hasSlotCharters || hasOwnedRoutes) {
+            svg += `<text x="280" y="480" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">베트남</text>`;
+            svg += `<text x="175" y="530" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">태국</text>`;
+            svg += `<text x="280" y="640" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">인도네시아</text>`;
+            if (hasIndiaRoute) {
+                svg += `<text x="50" y="430" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">인도</text>`;
+            }
+            if (activeOwnedRoutes.some(o => o.id === 'NR_KMS')) {
+                svg += `<text x="190" y="615" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">말레이시아</text>`;
+            }
         }
 
         // Main route legs
@@ -1570,6 +1590,52 @@ const Game = {
             });
         });
 
+        // Owned routes (new route expansion ships)
+        const activeOwned = (s.ownedRoutes || []).filter(o => o.status === 'active');
+        const ownedColors = ['#EF5350','#FFA726','#26C6DA','#7E57C2'];
+        activeOwned.forEach((or, oi) => {
+            const pkg = NEW_ROUTE_PACKAGES.find(d => d.id === or.id);
+            if (!pkg) return;
+            const clr = pkg.color || ownedColors[oi % ownedColors.length];
+            // Draw route legs
+            pkg.legs.forEach(l => {
+                const p1 = MAP_PORTS[l.from], p2 = MAP_PORTS[l.to];
+                if (!p1 || !p2) return;
+                svg += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${clr}" stroke-width="2.5" stroke-dasharray="10 4" opacity=".8"/>`;
+                svg += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${clr}" stroke-width="8" stroke-linecap="round" opacity=".12"/>`;
+            });
+            // Ship icon at position based on voyage progress
+            const orVoy = or.voyage || { dayCounter: 0 };
+            const orProgress = (orVoy.dayCounter || 0) / (pkg.rotationDays || 14);
+            const orTotalLegs = pkg.legs.length;
+            const orLegIdx = Math.min(Math.floor(orProgress * orTotalLegs), orTotalLegs - 1);
+            const orLegProg = (orProgress * orTotalLegs) - orLegIdx;
+            const orLeg = pkg.legs[orLegIdx];
+            const op1 = MAP_PORTS[orLeg.from], op2 = MAP_PORTS[orLeg.to];
+            if (op1 && op2) {
+                const ox = op1.x + (op2.x - op1.x) * Math.min(orLegProg, 1);
+                const oy = op1.y + (op2.y - op1.y) * Math.min(orLegProg, 1);
+                svg += `<text x="${ox}" y="${oy}" text-anchor="middle" dominant-baseline="central" font-size="18">🚢</text>`;
+                svg += `<text x="${ox}" y="${oy + 14}" text-anchor="middle" fill="${clr}" font-size="7" font-weight="700">${pkg.nameKo.split('(')[1]?.replace(')','') || pkg.id}</text>`;
+            }
+            // Route label
+            const orMidLeg = pkg.legs[Math.floor(orTotalLegs / 2)];
+            const oml1 = MAP_PORTS[orMidLeg.from], oml2 = MAP_PORTS[orMidLeg.to];
+            if (oml1 && oml2) {
+                const olx = (oml1.x + oml2.x) / 2 + 15, oly = (oml1.y + oml2.y) / 2;
+                svg += `<text x="${olx}" y="${oly}" fill="${clr}" font-size="8" font-weight="700" opacity=".8">${pkg.nameKo.split('(')[0].trim()}</text>`;
+            }
+            // Port markers
+            pkg.ports.forEach(p => {
+                if (uniquePorts.includes(p)) return;
+                const c = MAP_PORTS[p]; if (!c) return;
+                svg += `<circle cx="${c.x}" cy="${c.y}" r="4" fill="${clr}" stroke="#fff" stroke-width="1" filter="url(#gl)"/>`;
+                const labelBelow = ['HCM','LCB','JKT','SBY','BKK','PKL','MAA','BOM','PEN'].includes(p);
+                svg += `<text x="${c.x}" y="${c.y + (labelBelow ? 14 : -9)}" text-anchor="middle" fill="rgba(200,220,255,.7)" font-size="9">${pkg.portNames[p]}</text>`;
+                uniquePorts.push(p); // prevent duplicate port labels
+            });
+        });
+
         // Ship position (main route)
         const pf = MAP_PORTS[from], pt = MAP_PORTS[to];
         if (pf && pt) {
@@ -1619,15 +1685,24 @@ const Game = {
             svg += `<text x="${parseInt(lastPart[0]) - 20}" y="${parseInt(lastPart[1]) + 8}" font-size="8" fill="rgba(255,100,100,.8)" font-weight="700">${typhoon.name} (${typhoon.cat})</text>`;
         }
 
-        // Slot charter legend (bottom-left)
-        if (hasSlotCharters) {
-            let ly = vbY + vbH - 10 - activeSlots.length * 16;
-            svg += `<rect x="55" y="${ly - 5}" width="140" height="${activeSlots.length * 16 + 10}" rx="4" fill="rgba(0,10,20,.7)" stroke="rgba(255,255,255,.15)" stroke-width="1"/>`;
-            activeSlots.forEach((sc, si) => {
-                const scDef = SLOT_CHARTERS.find(d => d.id === sc.id);
-                const clr = sc.color || scDef.color || slotColors[si % slotColors.length];
-                svg += `<line x1="62" y1="${ly + 6}" x2="80" y2="${ly + 6}" stroke="${clr}" stroke-width="2"/>`;
-                svg += `<text x="85" y="${ly + 10}" fill="rgba(255,255,255,.7)" font-size="8">${scDef ? scDef.nameKo.split('(')[1]?.replace(')','') || scDef.id : sc.id}</text>`;
+        // Route legend (bottom-left)
+        const legendItems = [];
+        activeSlots.forEach((sc, si) => {
+            const scDef = SLOT_CHARTERS.find(d => d.id === sc.id);
+            const clr = sc.color || scDef?.color || slotColors[si % slotColors.length];
+            legendItems.push({ name: (scDef ? scDef.nameKo.split('(')[1]?.replace(')','') || scDef.id : sc.id) + ' (슬롯)', color: clr });
+        });
+        activeOwned.forEach((or, oi) => {
+            const pkg = NEW_ROUTE_PACKAGES.find(d => d.id === or.id);
+            const clr = pkg?.color || ownedColors[oi % ownedColors.length];
+            legendItems.push({ name: (pkg ? pkg.nameKo.split('(')[1]?.replace(')','') || pkg.id : or.id) + ' (자사)', color: clr });
+        });
+        if (legendItems.length > 0) {
+            let ly = vbY + vbH - 10 - legendItems.length * 16;
+            svg += `<rect x="55" y="${ly - 5}" width="160" height="${legendItems.length * 16 + 10}" rx="4" fill="rgba(0,10,20,.7)" stroke="rgba(255,255,255,.15)" stroke-width="1"/>`;
+            legendItems.forEach(item => {
+                svg += `<line x1="62" y1="${ly + 6}" x2="80" y2="${ly + 6}" stroke="${item.color}" stroke-width="2"/>`;
+                svg += `<text x="85" y="${ly + 10}" fill="rgba(255,255,255,.7)" font-size="8">${item.name}</text>`;
                 ly += 16;
             });
         }
@@ -1669,24 +1744,193 @@ const Game = {
     restoreShipScene() {
         const s = this.state;
         const scene = document.getElementById('ship-scene');
-        scene.innerHTML = `
-            <div class="port-ground" id="port-ground"><div class="port-label" id="port-label">${s.route.portNames[s.route.ports[0]]}항</div></div>
-            <div class="crane" id="crane"><div class="crane-arm"></div><div class="crane-cable"></div><div class="crane-hook"></div></div>
-            <div class="game-ship" id="game-ship">
-                <div class="hull"></div>
-                <div class="vessel-name" id="vessel-name">${s.vessel}</div>
-                <div class="bridge"></div>
-                <div class="funnel"><div class="fstripe"></div></div>
-                <div class="bay-grid" id="bay-grid"></div>
-            </div>
-            <div class="sea-layer"></div>
-            <div class="cargo-info" id="cargo-info"><span id="cargo-teu">0/100 TEU</span><span id="cargo-pct">(0%)</span></div>
-            <div class="ship-status" id="ship-status">⚓ 정박 중</div>`;
+        const hasActiveSubRoutes = ((s.slotCharters || []).some(sc => sc.active)) ||
+                                   ((s.ownedRoutes || []).some(o => o.status === 'active'));
+
+        if (hasActiveSubRoutes) {
+            // Show map with all route ships + main ship docked at port
+            this.renderPortMapView();
+        } else {
+            scene.innerHTML = `
+                <div class="port-ground" id="port-ground"><div class="port-label" id="port-label">${s.route.portNames[s.route.ports[0]]}항</div></div>
+                <div class="crane" id="crane"><div class="crane-arm"></div><div class="crane-cable"></div><div class="crane-hook"></div></div>
+                <div class="game-ship" id="game-ship">
+                    <div class="hull"></div>
+                    <div class="vessel-name" id="vessel-name">${s.vessel}</div>
+                    <div class="bridge"></div>
+                    <div class="funnel"><div class="fstripe"></div></div>
+                    <div class="bay-grid" id="bay-grid"></div>
+                </div>
+                <div class="sea-layer"></div>
+                <div class="cargo-info" id="cargo-info"><span id="cargo-teu">0/100 TEU</span><span id="cargo-pct">(0%)</span></div>
+                <div class="ship-status" id="ship-status">⚓ 정박 중</div>`;
+        }
         document.getElementById('btn-depart').style.display = '';
         document.getElementById('btn-depart').disabled = false;
         document.getElementById('btn-depart').textContent = '🚢 출항';
-        this.updateBayGrid();
+        if (!hasActiveSubRoutes) {
+            this.updateBayGrid();
+        }
         this.updateDepartInfo();
+    },
+
+    // Render map view during port time showing all active route ships
+    renderPortMapView() {
+        const s = this.state, r = s.route;
+        const scene = document.getElementById('ship-scene');
+        const activeSlots = (s.slotCharters || []).filter(sc => sc.active);
+        const activeOwned = (s.ownedRoutes || []).filter(o => o.status === 'active');
+        const hasIndiaRoute = activeOwned.some(o => o.id === 'NR_KIS');
+        const vbY = hasIndiaRoute ? 60 : 80;
+        const vbH = hasIndiaRoute ? 640 : 610;
+
+        let svg = `<svg viewBox="50 ${vbY} 650 ${vbH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;position:absolute;top:0;left:0;z-index:10">`;
+        svg += `<defs>
+            <radialGradient id="seaG" cx="50%" cy="50%"><stop offset="0%" stop-color="#0d3055"/><stop offset="100%" stop-color="#091e38"/></radialGradient>
+            <filter id="gl"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <linearGradient id="lG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a4a3a"/><stop offset="100%" stop-color="#1e3a2e"/></linearGradient>
+        </defs>`;
+        svg += `<rect x="50" y="${vbY}" width="650" height="${vbH}" fill="url(#seaG)"/>`;
+        for (const [, path] of Object.entries(MAP_LAND)) {
+            svg += `<path d="${path}" fill="url(#lG)" stroke="#3a6a50" stroke-width="1" opacity=".8"/>`;
+        }
+        svg += `<text x="200" y="200" fill="rgba(150,180,160,.3)" font-size="18" font-weight="700" letter-spacing="6">중 국</text>`;
+        svg += `<text x="475" y="175" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">한국</text>`;
+        svg += `<text x="610" y="145" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">일본</text>`;
+        svg += `<text x="280" y="480" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">베트남</text>`;
+        svg += `<text x="175" y="530" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">태국</text>`;
+        svg += `<text x="280" y="640" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">인도네시아</text>`;
+        if (hasIndiaRoute) svg += `<text x="50" y="430" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">인도</text>`;
+        if (activeOwned.some(o => o.id === 'NR_KMS')) svg += `<text x="190" y="615" fill="rgba(150,180,160,.3)" font-size="11" font-weight="700" letter-spacing="3">말레이시아</text>`;
+
+        const uniquePorts = [...new Set(r.legs.flatMap(l => [l.from, l.to]))];
+
+        // Main route legs (dashed, dimmer since in port)
+        r.legs.forEach(l => {
+            const p1 = MAP_PORTS[l.from], p2 = MAP_PORTS[l.to];
+            if (!p1 || !p2) return;
+            svg += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="rgba(76,175,80,.4)" stroke-width="1.5" stroke-dasharray="6 4"/>`;
+        });
+
+        // Main ship docked at home port
+        const homePort = MAP_PORTS[r.ports[0]];
+        if (homePort) {
+            svg += `<text x="${homePort.x}" y="${homePort.y - 2}" text-anchor="middle" dominant-baseline="central" font-size="18">🚢</text>`;
+            svg += `<text x="${homePort.x}" y="${homePort.y + 14}" text-anchor="middle" fill="rgba(76,175,80,.8)" font-size="7" font-weight="700">⚓ 정박</text>`;
+        }
+
+        // Slot charter routes + ships
+        const slotColors = ['#66BB6A','#42A5F5','#AB47BC','#FF7043'];
+        activeSlots.forEach((sc, si) => {
+            const scDef = SLOT_CHARTERS.find(d => d.id === sc.id);
+            if (!scDef) return;
+            const clr = sc.color || scDef.color || slotColors[si % slotColors.length];
+            scDef.legs.forEach(l => {
+                const p1 = MAP_PORTS[l.from], p2 = MAP_PORTS[l.to];
+                if (!p1 || !p2) return;
+                svg += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${clr}" stroke-width="2" stroke-dasharray="8 4" opacity=".7"/>`;
+            });
+            const scVoy = sc.voyage || {};
+            const scProg = (scVoy.dayCounter || 0) / (scDef.rotationDays || 14);
+            const tl = scDef.legs.length;
+            const ali = Math.min(Math.floor(scProg * tl), tl - 1);
+            const lp = (scProg * tl) - ali;
+            const sl = scDef.legs[ali];
+            const sp1 = MAP_PORTS[sl.from], sp2 = MAP_PORTS[sl.to];
+            if (sp1 && sp2) {
+                const sx = sp1.x + (sp2.x - sp1.x) * Math.min(lp, 1);
+                const sy = sp1.y + (sp2.y - sp1.y) * Math.min(lp, 1);
+                svg += `<text x="${sx}" y="${sy}" text-anchor="middle" dominant-baseline="central" font-size="16" opacity=".8">⛴</text>`;
+            }
+            scDef.ports.forEach(p => {
+                if (uniquePorts.includes(p)) return;
+                const c = MAP_PORTS[p]; if (!c) return;
+                svg += `<circle cx="${c.x}" cy="${c.y}" r="4" fill="${clr}" stroke="#fff" stroke-width="1" filter="url(#gl)"/>`;
+                const lb = ['HCM','LCB','JKT','SBY','BKK'].includes(p);
+                svg += `<text x="${c.x}" y="${c.y + (lb ? 14 : -9)}" text-anchor="middle" fill="rgba(200,220,255,.7)" font-size="9">${scDef.portNames[p]}</text>`;
+                uniquePorts.push(p);
+            });
+        });
+
+        // Owned routes + ships
+        const ownedColors = ['#EF5350','#FFA726','#26C6DA','#7E57C2'];
+        activeOwned.forEach((or, oi) => {
+            const pkg = NEW_ROUTE_PACKAGES.find(d => d.id === or.id);
+            if (!pkg) return;
+            const clr = pkg.color || ownedColors[oi % ownedColors.length];
+            pkg.legs.forEach(l => {
+                const p1 = MAP_PORTS[l.from], p2 = MAP_PORTS[l.to];
+                if (!p1 || !p2) return;
+                svg += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${clr}" stroke-width="2.5" stroke-dasharray="10 4" opacity=".8"/>`;
+            });
+            const orVoy = or.voyage || { dayCounter: 0 };
+            const orProg = (orVoy.dayCounter || 0) / (pkg.rotationDays || 14);
+            const otl = pkg.legs.length;
+            const oli = Math.min(Math.floor(orProg * otl), otl - 1);
+            const olp = (orProg * otl) - oli;
+            const ol = pkg.legs[oli];
+            const op1 = MAP_PORTS[ol.from], op2 = MAP_PORTS[ol.to];
+            if (op1 && op2) {
+                const ox = op1.x + (op2.x - op1.x) * Math.min(olp, 1);
+                const oy = op1.y + (op2.y - op1.y) * Math.min(olp, 1);
+                svg += `<text x="${ox}" y="${oy}" text-anchor="middle" dominant-baseline="central" font-size="18">🚢</text>`;
+                svg += `<text x="${ox}" y="${oy + 14}" text-anchor="middle" fill="${clr}" font-size="7" font-weight="700">${pkg.nameKo.split('(')[1]?.replace(')','') || pkg.id}</text>`;
+            }
+            pkg.ports.forEach(p => {
+                if (uniquePorts.includes(p)) return;
+                const c = MAP_PORTS[p]; if (!c) return;
+                svg += `<circle cx="${c.x}" cy="${c.y}" r="4" fill="${clr}" stroke="#fff" stroke-width="1" filter="url(#gl)"/>`;
+                const lb = ['HCM','LCB','JKT','SBY','BKK','PKL','MAA','BOM','PEN'].includes(p);
+                svg += `<text x="${c.x}" y="${c.y + (lb ? 14 : -9)}" text-anchor="middle" fill="rgba(200,220,255,.7)" font-size="9">${pkg.portNames[p]}</text>`;
+                uniquePorts.push(p);
+            });
+        });
+
+        // Main route port markers
+        uniquePorts.forEach(p => {
+            const c = MAP_PORTS[p]; if (!c) return;
+            const isMain = r.ports.includes(p);
+            const color = isMain ? '#4CAF50' : '#0054A6';
+            svg += `<circle cx="${c.x}" cy="${c.y}" r="${isMain ? 5 : 3}" fill="${color}" stroke="#fff" stroke-width="1" filter="url(#gl)"/>`;
+            const labelBelow = ['NBO','SHA','HCM','LCB','JKT','SBY','BKK','PKL','MAA','BOM','PEN'].includes(p);
+            svg += `<text x="${c.x}" y="${c.y + (labelBelow ? 14 : -9)}" text-anchor="middle" fill="${isMain ? '#fff' : 'rgba(200,220,255,.6)'}" font-size="${isMain ? 11 : 9}" ${isMain ? 'font-weight="700"' : ''}>${r.portNames[p] || p}</text>`;
+        });
+
+        // Legend
+        const legendItems = [];
+        legendItems.push({ name: `${r.nameKo.split('(')[1]?.replace(')','') || r.id} (모선)`, color: '#4CAF50' });
+        activeSlots.forEach((sc, si) => {
+            const scDef = SLOT_CHARTERS.find(d => d.id === sc.id);
+            const clr = sc.color || scDef?.color || slotColors[si % slotColors.length];
+            legendItems.push({ name: (scDef ? scDef.nameKo.split('(')[1]?.replace(')','') || scDef.id : sc.id) + ' (슬롯)', color: clr });
+        });
+        activeOwned.forEach((or, oi) => {
+            const pkg = NEW_ROUTE_PACKAGES.find(d => d.id === or.id);
+            const clr = pkg?.color || ownedColors[oi % ownedColors.length];
+            legendItems.push({ name: (pkg ? pkg.nameKo.split('(')[1]?.replace(')','') || pkg.id : or.id) + ' (자사)', color: clr });
+        });
+        let ly = vbY + vbH - 10 - legendItems.length * 16;
+        svg += `<rect x="55" y="${ly - 5}" width="160" height="${legendItems.length * 16 + 10}" rx="4" fill="rgba(0,10,20,.7)" stroke="rgba(255,255,255,.15)" stroke-width="1"/>`;
+        legendItems.forEach(item => {
+            svg += `<line x1="62" y1="${ly + 6}" x2="80" y2="${ly + 6}" stroke="${item.color}" stroke-width="2"/>`;
+            svg += `<text x="85" y="${ly + 10}" fill="rgba(255,255,255,.7)" font-size="8">${item.name}</text>`;
+            ly += 16;
+        });
+
+        svg += '</svg>';
+
+        // Status bar at bottom
+        const teu = this.getTEU();
+        const daysLeft = Math.max(0, r.rotationDays - s.voyage.daysSinceLast);
+        const routeCount = 1 + activeSlots.length + activeOwned.length;
+        scene.innerHTML = `
+            ${svg}
+            <div style="position:absolute;bottom:0;left:0;right:0;z-index:11;background:rgba(0,10,20,.85);padding:6px 12px">
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
+                    <span>⚓ <strong>${s.vessel}</strong> ${r.portNames[r.ports[0]]}항 정박 중 | 📦 ${teu}TEU | 자동출항 ${daysLeft}일 후</span>
+                    <span>🌏 운영 항로 ${routeCount}개 | 🚢 선박 ${routeCount}척 운항 중</span>
+                </div>
+            </div>`;
     },
 
     showSailScreen() {
@@ -3202,8 +3446,9 @@ const Game = {
         // Initialize slot charter state
         if (!s.slotCharters) s.slotCharters = [];
         s.slotCharters.push({
-            id: sc.id, voyNum: 1, daysSinceLast: 0,
+            id: sc.id, voyNum: 1, daysSinceLast: 0, active: true,
             status: 'port', legIdx: 0, sailProgress: 0, bookings: [],
+            voyage: { dayCounter: 0 },
         });
 
         // Office setup for new ports (PUS already has office)
@@ -3345,8 +3590,12 @@ const Game = {
         s.slotCharters.forEach(charter => {
             const sc = SLOT_CHARTERS.find(x => x.id === charter.id);
             if (!sc) return;
+            if (!charter.active) charter.active = true;
 
             charter.daysSinceLast++;
+            // Track voyage day counter for map ship positioning
+            if (!charter.voyage) charter.voyage = { dayCounter: 0 };
+            charter.voyage.dayCounter++;
 
             if (charter.status === 'port') {
                 // Auto-depart when rotation period reached
@@ -3391,8 +3640,74 @@ const Game = {
 
                     charter.voyNum++;
                     charter.daysSinceLast = 0;
+                    charter.voyage.dayCounter = 0;
                     charter.bookings = [];
                 }
+            }
+        });
+    },
+
+    // Process owned route voyages (called from dailyUpdate)
+    processOwnedRoutes() {
+        const s = this.state;
+        if (!s.ownedRoutes || s.ownedRoutes.length === 0) return;
+
+        s.ownedRoutes.forEach(route => {
+            const pkg = NEW_ROUTE_PACKAGES.find(x => x.id === route.id);
+            if (!pkg) return;
+
+            // Initialize voyage state if missing
+            if (!route.voyage) route.voyage = { dayCounter: 0, legIdx: 0, status: 'sailing' };
+            if (route.status === 'setup') route.status = 'active';
+
+            route.voyage.dayCounter++;
+
+            // Calculate which leg the ship is on
+            const totalSeaDays = pkg.legs.reduce((sum, l) => sum + l.seaDays, 0);
+            const portDays = pkg.rotationDays - totalSeaDays; // days spent in ports
+
+            if (route.voyage.dayCounter >= pkg.rotationDays) {
+                // Complete a rotation — generate revenue
+                let totalTEU = 0;
+                let totalRev = 0;
+                const bookings = [];
+
+                pkg.ports.forEach(fromPort => {
+                    const sp = pkg.salesPorts[fromPort];
+                    if (!sp || !s.custs[fromPort]) return;
+                    sp.sellTo.forEach(toPort => {
+                        s.custs[fromPort].forEach(cust => {
+                            if (cust.share <= 0) return;
+                            const vol20 = Math.round(cust.maxVol20 * (cust.share / 100) * (0.5 + Math.random() * 0.5));
+                            const vol40 = Math.round(cust.maxVol40 * (cust.share / 100) * (0.5 + Math.random() * 0.5));
+                            const teu = vol20 + vol40 * 2;
+                            if (teu <= 0 || totalTEU + teu > pkg.vesselSize) return;
+                            const rateKey = `${fromPort}-${toPort}`;
+                            const rates = BASE_RATES[rateKey];
+                            if (!rates) return;
+                            const disc = cust.baseDiscount || 0;
+                            const rev = vol20 * rates['20'] * (1 - disc) + vol40 * rates['40'] * (1 - disc);
+                            totalTEU += teu;
+                            totalRev += rev;
+                        });
+                    });
+                });
+
+                const expenses = pkg.weeklyFixedCost * (pkg.rotationDays / 7) +
+                                 pkg.fuelCostPerDay * totalSeaDays +
+                                 pkg.portFeesPerCall * pkg.ports.length;
+                const profit = totalRev - expenses;
+                const lf = pkg.vesselSize > 0 ? Math.round(totalTEU / pkg.vesselSize * 100) : 0;
+
+                s.cash += profit;
+                s.stats.totRev += totalRev;
+                s.stats.totExp += expenses;
+                s.stats.totTEU += totalTEU;
+
+                route.voyNum = (route.voyNum || 0) + 1;
+                this.addFeed(`🌏 ${pkg.nameKo} V.${route.voyNum} 완료 — ${totalTEU}TEU (${lf}%) ${profit >= 0 ? '💰' : '📛'} $${Math.abs(Math.round(profit)).toLocaleString()}`, profit >= 0 ? 'good' : 'alert');
+
+                route.voyage.dayCounter = 0;
             }
         });
     },
@@ -4065,7 +4380,10 @@ const Game = {
             if (!s.bsaContracts) s.bsaContracts = [];
             if (!s.benchPool) s.benchPool = [];
             if (!s.slotCharters) s.slotCharters = [];
+            s.slotCharters.forEach(sc => { if (!sc.voyage) sc.voyage = { dayCounter: 0 }; if (!sc.active) sc.active = true; });
             if (!s.slotSalesPorts) s.slotSalesPorts = {};
+            if (!s.ownedRoutes) s.ownedRoutes = [];
+            s.ownedRoutes.forEach(or => { if (!or.voyage) or.voyage = { dayCounter: 0 }; if (or.status === 'setup') or.status = 'active'; });
 
             // Ensure all ports have container entries
             s.route.ports.forEach(p => {

@@ -2372,7 +2372,25 @@ const Game = {
         s.stats.totVoy++;
         s.stats.totTEU += totTEU;
         s.stats.lastProfit = profit;
-        s.stats.lastLoadFactor = Math.round((totTEU / s.ship.capacity) * 100);
+
+        // Calculate E/B and W/B load factors by matching bookings to leg bounds
+        const legBoundMap = {};
+        r.legs.forEach(l => { legBoundMap[`${l.from}-${l.to}`] = l.bound || 'EB'; });
+        let ebTEU = 0, wbTEU = 0, ebLegs = 0, wbLegs = 0;
+        r.legs.forEach(l => {
+            if ((l.bound || 'EB') === 'EB') ebLegs++; else wbLegs++;
+        });
+        s.bookings.forEach(b => {
+            const bTEU = b.q20 + b.q40 * 2;
+            if (legBoundMap[b.leg] === 'WB') wbTEU += bTEU; else ebTEU += bTEU;
+        });
+        // Average TEU per leg for each bound direction
+        const ebAvg = ebLegs > 0 ? Math.round(ebTEU / ebLegs) : 0;
+        const wbAvg = wbLegs > 0 ? Math.round(wbTEU / wbLegs) : 0;
+        const lfEB = Math.min(100, Math.round((ebAvg / s.ship.capacity) * 100));
+        const lfWB = Math.min(100, Math.round((wbAvg / s.ship.capacity) * 100));
+        const lfTotal = Math.round(((ebAvg + wbAvg) / 2 / s.ship.capacity) * 100);
+        s.stats.lastLoadFactor = lfTotal;
         // Calculate sales activity costs during this voyage period
         const voyStartDay = s.gameDay - r.rotationDays;
         const voyLogs = s.activityLog.filter(l => l.day >= voyStartDay);
@@ -2381,7 +2399,7 @@ const Game = {
         const repoCostUser = v.repoCostUser || 0; // user-initiated repositioning
 
         s.stats.history.push({
-            voy: v.num, rev: v.voyRev, exp: v.voyExp, profit, teu: totTEU, lf: s.stats.lastLoadFactor,
+            voy: v.num, rev: v.voyRev, exp: v.voyExp, profit, teu: totTEU, lf: lfTotal, lfEB, lfWB,
             // Detailed cost breakdown
             fuelPort: v.voyExp - r.weeklyFixedCost - interest - repay - refuel - maint - repoCost,
             fixedCost: r.weeklyFixedCost,
@@ -2413,10 +2431,15 @@ const Game = {
 
     renderReport(v, teu, profit, refuel, maint, repo, repoDetails) {
         const s = this.state, r = s.route;
-        const lf = s.stats.lastLoadFactor;
+        const lastH = s.stats.history[s.stats.history.length - 1] || {};
+        const lf = lastH.lf || s.stats.lastLoadFactor;
+        const lfEB = lastH.lfEB || 0;
+        const lfWB = lastH.lfWB || 0;
         const byLeg = {};
+        const legBoundMap = {};
+        r.legs.forEach(l => { legBoundMap[`${l.from}-${l.to}`] = l.bound || 'EB'; });
         s.bookings.forEach(b => {
-            if (!byLeg[b.leg]) byLeg[b.leg] = { rev: 0, teu: 0 };
+            if (!byLeg[b.leg]) byLeg[b.leg] = { rev: 0, teu: 0, bound: legBoundMap[b.leg] || 'EB' };
             byLeg[b.leg].rev += b.revenue;
             byLeg[b.leg].teu += b.q20 + b.q40 * 2;
         });
@@ -2448,12 +2471,14 @@ const Game = {
                 <div class="rpt-stat"><span class="v" style="color:var(--green)">$${v.voyRev.toLocaleString()}</span><span class="l">${T('fin.freightRev')}</span></div>
                 <div class="rpt-stat"><span class="v" style="color:var(--red)">$${v.voyExp.toLocaleString()}</span><span class="l">${T('voy.expense')}</span></div>
                 <div class="rpt-stat"><span class="v" style="color:${profit >= 0 ? 'var(--green)' : 'var(--red)'}">$${profit.toLocaleString()}</span><span class="l">${T('fin.profit')}</span></div>
-                <div class="rpt-stat"><span class="v">${lf}%</span><span class="l">${T('fin.loadFactor')} (${teu}/${s.ship.capacity}TEU)</span></div>
+                <div class="rpt-stat"><span class="v" style="font-size:14px"><span style="color:${lfEB >= 50 ? 'var(--green)' : 'var(--red)'}">E ${lfEB}%</span> / <span style="color:${lfWB >= 50 ? 'var(--green)' : 'var(--red)'}">W ${lfWB}%</span></span><span class="l">${T('fin.loadFactor')}</span></div>
             </div>
             <div class="rpt-section"><h4>📦 ${T('fin.voyage')}</h4>
                 ${Object.entries(byLeg).map(([leg, d]) => {
                     const p = leg.split('-');
-                    return `<div class="rpt-ctr">${this.getPortName(p[0])}→${this.getPortName(p[1])}: ${d.teu}TEU / $${d.rev.toLocaleString()}</div>`;
+                    const bLabel = d.bound === 'WB' ? 'W/B' : 'E/B';
+                    const bColor = d.bound === 'WB' ? '#FF9800' : '#4CAF50';
+                    return `<div class="rpt-ctr"><span style="display:inline-block;width:30px;font-size:9px;color:${bColor};font-weight:700">${bLabel}</span> ${this.getPortName(p[0])}→${this.getPortName(p[1])}: ${d.teu}TEU / $${d.rev.toLocaleString()}</div>`;
                 }).join('') || `<div class="rpt-ctr" style="color:var(--t3)">${T('voy.noCargo')}</div>`}
             </div>
             ${repoHtml}
@@ -4417,30 +4442,35 @@ const Game = {
             const avgExp = Math.round(s.stats.history.reduce((s, h) => s + h.exp, 0) / s.stats.history.length);
             const avgProfit = Math.round(s.stats.history.reduce((s, h) => s + h.profit, 0) / s.stats.history.length);
             const avgLF = Math.round(s.stats.history.reduce((s, h) => s + h.lf, 0) / s.stats.history.length);
+            const avgEB = Math.round(s.stats.history.reduce((s, h) => s + (h.lfEB != null ? h.lfEB : h.lf), 0) / s.stats.history.length);
+            const avgWB = Math.round(s.stats.history.reduce((s, h) => s + (h.lfWB || 0), 0) / s.stats.history.length);
             html += `<div style="background:var(--card2);border-radius:8px;padding:10px;margin-bottom:8px">
                 <div style="font-size:11px;color:var(--t3);margin-bottom:6px">${T('voyage.average')}</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;text-align:center;font-size:11px">
                     <div><div style="font-weight:700;color:var(--green)">$${avgRev.toLocaleString()}</div><div style="font-size:9px;color:var(--t3)">${T('fin.rev')}</div></div>
                     <div><div style="font-weight:700;color:var(--red)">$${avgExp.toLocaleString()}</div><div style="font-size:9px;color:var(--t3)">${T('fin.exp')}</div></div>
                     <div><div style="font-weight:700;color:${avgProfit >= 0 ? 'var(--green)' : 'var(--red)'}">$${avgProfit.toLocaleString()}</div><div style="font-size:9px;color:var(--t3)">${T('fin.profit')}</div></div>
-                    <div><div style="font-weight:700">${avgLF}%</div><div style="font-size:9px;color:var(--t3)">${T('fin.loadFactor')}</div></div>
+                    <div><div style="font-weight:700"><span style="color:${avgEB >= 50 ? 'var(--green)' : 'var(--red)'}">E${avgEB}</span>/<span style="color:${avgWB >= 50 ? 'var(--green)' : 'var(--red)'}">W${avgWB}</span>%</div><div style="font-size:9px;color:var(--t3)">${T('fin.loadFactor')}</div></div>
                 </div>
             </div>`;
 
             // Per-voyage table with expandable detail
             html += '<div style="background:var(--card2);border-radius:8px;padding:10px">';
-            html += `<div style="display:grid;grid-template-columns:60px 1fr 1fr 1fr 50px;gap:4px;font-size:10px;color:var(--t3);padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:4px"><span>${T('fin.voyage')}</span><span style="text-align:right">${T('fin.rev')}</span><span style="text-align:right">${T('fin.exp')}</span><span style="text-align:right">${T('fin.profit')}</span><span style="text-align:right">${T('fin.loadFactor')}</span></div>`;
+            html += `<div style="display:grid;grid-template-columns:60px 1fr 1fr 1fr 70px;gap:4px;font-size:10px;color:var(--t3);padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:4px"><span>${T('fin.voyage')}</span><span style="text-align:right">${T('fin.rev')}</span><span style="text-align:right">${T('fin.exp')}</span><span style="text-align:right">${T('fin.profit')}</span><span style="text-align:right">E/B · W/B</span></div>`;
             [...s.stats.history].reverse().forEach((h, idx) => {
                 const profitColor = h.profit >= 0 ? 'var(--green)' : 'var(--red)';
-                const lfColor = h.lf >= 70 ? 'var(--green)' : (h.lf >= 40 ? 'var(--yellow)' : 'var(--red)');
+                const hEB = h.lfEB != null ? h.lfEB : h.lf;
+                const hWB = h.lfWB != null ? h.lfWB : 0;
+                const ebColor = hEB >= 50 ? 'var(--green)' : (hEB >= 30 ? 'var(--yellow)' : 'var(--red)');
+                const wbColor = hWB >= 50 ? 'var(--green)' : (hWB >= 30 ? 'var(--yellow)' : 'var(--red)');
                 const detailId = `voy-detail-${h.voy}`;
                 html += `<div style="cursor:pointer" onclick="document.getElementById('${detailId}').style.display=document.getElementById('${detailId}').style.display==='none'?'block':'none'">
-                    <div style="display:grid;grid-template-columns:60px 1fr 1fr 1fr 50px;gap:4px;font-size:11px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.03)">
+                    <div style="display:grid;grid-template-columns:60px 1fr 1fr 1fr 70px;gap:4px;font-size:11px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.03)">
                         <span style="font-weight:600">V.${String(h.voy).padStart(3,'0')} ▾</span>
                         <span style="text-align:right;color:var(--green)">$${h.rev.toLocaleString()}</span>
                         <span style="text-align:right;color:var(--red)">$${h.exp.toLocaleString()}</span>
                         <span style="text-align:right;font-weight:700;color:${profitColor}">$${h.profit.toLocaleString()}</span>
-                        <span style="text-align:right;color:${lfColor}">${h.lf}%</span>
+                        <span style="text-align:right;font-size:10px"><span style="color:${ebColor}">${hEB}</span>/<span style="color:${wbColor}">${hWB}</span></span>
                     </div>
                 </div>`;
                 // Expandable detail breakdown
@@ -4613,7 +4643,22 @@ const Game = {
         const cargoTeu = document.getElementById('cargo-teu');
         const cargoPct = document.getElementById('cargo-pct');
         if (cargoTeu) cargoTeu.textContent = `${teu}/${s.ship.capacity} TEU`;
-        if (cargoPct) cargoPct.textContent = `(${Math.round(teu / s.ship.capacity * 100)}%)`;
+        // Show E/B and W/B load factor in real-time
+        if (cargoPct && s.route.legs) {
+            const legBoundMap = {};
+            s.route.legs.forEach(l => { legBoundMap[`${l.from}-${l.to}`] = l.bound || 'EB'; });
+            let ebT = 0, wbT = 0, ebL = 0, wbL = 0;
+            s.route.legs.forEach(l => { if ((l.bound || 'EB') === 'EB') ebL++; else wbL++; });
+            (s.bookings || []).forEach(b => {
+                const bt = b.q20 + b.q40 * 2;
+                if (legBoundMap[b.leg] === 'WB') wbT += bt; else ebT += bt;
+            });
+            const eAvg = ebL > 0 ? Math.round(ebT / ebL) : 0;
+            const wAvg = wbL > 0 ? Math.round(wbT / wbL) : 0;
+            const ePct = Math.min(100, Math.round(eAvg / s.ship.capacity * 100));
+            const wPct = Math.min(100, Math.round(wAvg / s.ship.capacity * 100));
+            cargoPct.innerHTML = `<span style="color:${ePct >= 50 ? 'var(--green)' : 'var(--t2)'}">E${ePct}%</span> <span style="color:${wPct >= 50 ? 'var(--green)' : 'var(--t2)'}">W${wPct}%</span>`;
+        }
 
         // Oil price display
         const oilEl = document.getElementById('hud-oil');

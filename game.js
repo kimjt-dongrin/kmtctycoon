@@ -2383,9 +2383,16 @@ const Game = {
         const s = this.state, r = s.route;
         let html = '';
 
+        // Combine main route + slot charter ports
+        const allPorts = [...r.ports];
+        (s.slotCharters || []).filter(sc => sc.active).forEach(sc => {
+            const scDef = SLOT_CHARTERS.find(d => d.id === sc.id);
+            if (scDef) scDef.ports.forEach(p => { if (!allPorts.includes(p)) allPorts.push(p); });
+        });
+
         // Fleet summary
         let totalEmpty = 0, totalBooked = 0, totalFleet20 = 0, totalFleet40 = 0;
-        r.ports.forEach(p => {
+        allPorts.forEach(p => {
             totalFleet20 += s.ctr[p]?.['20'] || 0;
             totalFleet40 += s.ctr[p]?.['40'] || 0;
         });
@@ -2422,7 +2429,8 @@ const Game = {
         // Per-port breakdown
         html += '<h4 style="font-size:13px;margin-bottom:8px">📍 항구별 컨테이너 분포</h4>';
         const homePort = r.ports[0];
-        r.ports.forEach(p => {
+        const allSalesPorts = this.getAllSalesPorts();
+        allPorts.forEach(p => {
             const e20 = s.ctr[p]?.['20'] || 0;
             const e40 = s.ctr[p]?.['40'] || 0;
             const emptyTotal = e20 + e40;
@@ -2432,12 +2440,14 @@ const Game = {
             const bookedHere = b20 + b40;
             const portTotal = emptyTotal + bookedHere;
             const isHome = p === homePort;
+            const isSlot = !r.ports.includes(p);
             const isExcess = !isHome && emptyTotal > 13;
-            const sellTo = (r.salesPorts[p]?.sellTo || []).map(d => r.portNames[d]).join(', ');
+            const sellTo = (allSalesPorts[p]?.sellTo || []).map(d => this.getPortName(d)).join(', ');
+            const portName = this.getPortName(p);
 
-            html += `<div style="background:var(--card2);border-radius:8px;padding:10px;margin-bottom:8px;border-left:3px solid ${isExcess ? 'var(--red)' : (isHome ? 'var(--green)' : 'var(--border)')}">
+            html += `<div style="background:var(--card2);border-radius:8px;padding:10px;margin-bottom:8px;border-left:3px solid ${isExcess ? 'var(--red)' : (isHome ? 'var(--green)' : (isSlot ? 'var(--accent2)' : 'var(--border)'))}">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                    <span style="font-size:13px;font-weight:600">${isHome ? '🏠' : '📍'} ${r.portNames[p]} ${isExcess ? '<span style="color:var(--red);font-size:10px">⚠ 적체</span>' : ''}</span>
+                    <span style="font-size:13px;font-weight:600">${isHome ? '🏠' : (isSlot ? '⛴' : '📍')} ${portName} ${isSlot ? '<span style="font-size:9px;color:var(--accent2)">슬롯</span>' : ''} ${isExcess ? '<span style="color:var(--red);font-size:10px">⚠ 적체</span>' : ''}</span>
                     <span style="font-size:11px;color:var(--t3)">합계 ${portTotal}개</span>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">
@@ -2456,17 +2466,17 @@ const Game = {
                         </div>
                     </div>
                 </div>
-                ${isExcess ? `<div style="margin-top:6px;padding:4px 6px;background:rgba(239,83,80,.1);border-radius:4px;font-size:10px;color:var(--red)">⚠ 공컨테이너 과다 — ${r.portNames[p]}→${sellTo} 영업 강화 필요</div>` : ''}
-                ${!isHome && emptyTotal === 0 && bookedHere === 0 ? '<div style="margin-top:4px;font-size:10px;color:var(--t3)">컨테이너 없음 — 본항에서 공급 필요</div>' : ''}
+                ${isExcess ? `<div style="margin-top:6px;padding:4px 6px;background:rgba(239,83,80,.1);border-radius:4px;font-size:10px;color:var(--red)">⚠ 공컨테이너 과다 — ${portName}→${sellTo} 영업 강화 필요</div>` : ''}
+                ${!isHome && emptyTotal === 0 && bookedHere === 0 ? '<div style="margin-top:4px;font-size:10px;color:var(--t3)">컨테이너 없음 — 공급 필요</div>' : ''}
             </div>`;
         });
 
         // Visual distribution bar
         html += '<h4 style="font-size:13px;margin:12px 0 8px">📊 항구별 분포 비율</h4>';
-        const colors = ['var(--green)', 'var(--accent)', 'var(--yellow)', 'var(--blue)', '#9C27B0', '#00BCD4'];
-        const portData = r.ports.map((p, i) => {
+        const colors = ['var(--green)', 'var(--accent)', 'var(--yellow)', 'var(--blue)', '#9C27B0', '#00BCD4', '#FF7043', '#66BB6A', '#42A5F5', '#AB47BC', '#26A69A', '#FFA726', '#EC407A'];
+        const portData = allPorts.map((p, i) => {
             const total = (s.ctr[p]?.['20'] || 0) + (s.ctr[p]?.['40'] || 0);
-            return { port: p, name: r.portNames[p], total, color: colors[i % colors.length] };
+            return { port: p, name: this.getPortName(p), total, color: colors[i % colors.length], isSlot: !r.ports.includes(p) };
         });
         if (totalEmpty > 0) {
             html += '<div style="display:flex;height:20px;border-radius:4px;overflow:hidden;margin-bottom:6px">';
@@ -2487,10 +2497,10 @@ const Game = {
         html += '<div style="background:var(--card2);border-radius:8px;padding:10px;margin-bottom:8px">';
         html += '<div style="font-size:10px;color:var(--t3);margin-bottom:8px">엠티가 많은 항구에서 부족한 항구로 공컨테이너를 이동합니다. 비용이 발생하며 다음 항차 출항 시 이동됩니다.</div>';
 
-        // Find ports with empties
-        const portsWithEmpty = r.ports.filter(p => (s.ctr[p]?.['20'] || 0) + (s.ctr[p]?.['40'] || 0) > 0);
-        const repoFromOptions = portsWithEmpty.map(p => `<option value="${p}">${r.portNames[p]} (엠티 ${(s.ctr[p]?.['20']||0)+(s.ctr[p]?.['40']||0)})</option>`).join('');
-        const repoToOptions = r.ports.map(p => `<option value="${p}">${r.portNames[p]}</option>`).join('');
+        // Find ports with empties (include slot charter ports)
+        const portsWithEmpty = allPorts.filter(p => (s.ctr[p]?.['20'] || 0) + (s.ctr[p]?.['40'] || 0) > 0);
+        const repoFromOptions = portsWithEmpty.map(p => `<option value="${p}">${this.getPortName(p)} (엠티 ${(s.ctr[p]?.['20']||0)+(s.ctr[p]?.['40']||0)})${!r.ports.includes(p) ? ' ⛴' : ''}</option>`).join('');
+        const repoToOptions = allPorts.map(p => `<option value="${p}">${this.getPortName(p)}${!r.ports.includes(p) ? ' ⛴' : ''}</option>`).join('');
 
         html += `<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:end;margin-bottom:8px">
             <div>
@@ -2531,7 +2541,7 @@ const Game = {
             html += '<div style="font-size:10px;color:var(--yellow);margin-bottom:4px">📋 대기 중인 재배치 (다음 출항 시 실행)</div>';
             s.pendingRepos.forEach((rp, i) => {
                 html += `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:3px 0">
-                    <span>${r.portNames[rp.from]} → ${r.portNames[rp.to]}: 20'×${rp.q20} + 40'×${rp.q40}</span>
+                    <span>${this.getPortName(rp.from)} → ${this.getPortName(rp.to)}: 20'×${rp.q20} + 40'×${rp.q40}</span>
                     <button style="font-size:9px;padding:2px 6px;background:var(--red);color:#fff;border:none;border-radius:3px;cursor:pointer" onclick="Game.cancelRepo(${i})">취소</button>
                 </div>`;
             });
@@ -2568,8 +2578,8 @@ const Game = {
 
         if (from === to) { this.toast('출발/도착 항구가 같습니다', 'err'); return; }
         if (q20 + q40 <= 0) { this.toast('수량을 입력하세요', 'err'); return; }
-        if (q20 > (s.ctr[from]?.['20'] || 0)) { this.toast(`${r.portNames[from]}에 20' 엠티 부족`, 'err'); return; }
-        if (q40 > (s.ctr[from]?.['40'] || 0)) { this.toast(`${r.portNames[from]}에 40' 엠티 부족`, 'err'); return; }
+        if (q20 > (s.ctr[from]?.['20'] || 0)) { this.toast(`${this.getPortName(from)}에 20' 엠티 부족`, 'err'); return; }
+        if (q40 > (s.ctr[from]?.['40'] || 0)) { this.toast(`${this.getPortName(from)}에 40' 엠티 부족`, 'err'); return; }
 
         const cost = (q20 + q40) * 200;
         if (s.cash < cost) { this.toast(`현금 부족 ($${cost.toLocaleString()} 필요)`, 'err'); return; }
@@ -2587,8 +2597,8 @@ const Game = {
         if (!s.pendingRepos) s.pendingRepos = [];
         s.pendingRepos.push({ from, to, q20, q40 });
 
-        this.toast(`🚛 ${r.portNames[from]}→${r.portNames[to]} 엠티 ${q20 + q40}개 재배치 예약! ($${cost.toLocaleString()})`, 'ok');
-        this.addFeed(`🚛 엠티 재배치: ${r.portNames[from]}→${r.portNames[to]} 20'×${q20}+40'×${q40} ($${cost.toLocaleString()})`, 'booking');
+        this.toast(`🚛 ${this.getPortName(from)}→${this.getPortName(to)} 엠티 ${q20 + q40}개 재배치 예약! ($${cost.toLocaleString()})`, 'ok');
+        this.addFeed(`🚛 엠티 재배치: ${this.getPortName(from)}→${this.getPortName(to)} 20'×${q20}+40'×${q40} ($${cost.toLocaleString()})`, 'booking');
         this.renderContainers();
         this.updateHUD();
     },

@@ -361,16 +361,35 @@ const Game = {
             this.chargeInsurance();
         }
 
-        // Ship accident check (random, every 5~65 days)
+        // Ship accident check — safety score & ship condition affect probability
         if (typeof SHIP_ACCIDENTS !== 'undefined') {
             if (!s.lastAccidentDay) s.lastAccidentDay = 0;
+            if (s.safetyScore === undefined) s.safetyScore = 50;
             const daysSinceAccident = s.gameDay - s.lastAccidentDay;
             if (daysSinceAccident >= 5) {
-                // Probability increases as days pass: 0% at day 5, ~2% at day 30, ~5% at day 65
-                const accidentProb = Math.min(0.05, (daysSinceAccident - 5) * 0.001);
+                // Base probability: 0% at day 5, ~2% at day 30, ~5% at day 65
+                let accidentProb = Math.min(0.05, (daysSinceAccident - 5) * 0.001);
+
+                // Safety score modifier: high safety = much lower risk, low safety = higher risk
+                // score 100 → ×0.3 (70% reduction), score 50 → ×1.0, score 0 → ×2.0
+                const safetyMult = 2.0 - (s.safetyScore / 50) * 1.7;  // range: 0.3 ~ 2.0
+                accidentProb *= Math.max(0.3, Math.min(2.0, safetyMult));
+
+                // Ship condition modifier: well-maintained = safer, damaged = riskier
+                // condition 100 → ×0.7, condition 50 → ×1.3, condition 20 → ×1.8
+                const condMult = 1.5 - (s.ship.condition / 100) * 0.8;  // range: 0.7 ~ 1.5
+                accidentProb *= condMult;
+
+                // Hard cap
+                accidentProb = Math.min(0.08, accidentProb);
+
                 if (Math.random() < accidentProb) {
                     this.triggerShipAccident();
                 }
+            }
+            // Passive safety recovery: +1 every 10 days of no accidents (good behavior over time)
+            if (daysSinceAccident > 0 && daysSinceAccident % 10 === 0) {
+                s.safetyScore = Math.min(100, s.safetyScore + 1);
             }
         }
 
@@ -2454,6 +2473,19 @@ const Game = {
 
     resolveEvt(eff) {
         const s = this.state, v = s.voyage;
+        if (s.safetyScore === undefined) s.safetyScore = 50;
+
+        // Track safety choices: risky = condLoss/breakdownRisk/cargoRisk, safe = cost only
+        const isRisky = eff.condLoss || eff.breakdownRisk || eff.cargoRisk;
+        const isSafe = eff.cost && !isRisky;
+        if (isRisky) {
+            s.safetyScore = Math.max(0, s.safetyScore - 8);
+            this.addFeed(T('safety.riskDown', s.safetyScore), 'warn');
+        } else if (isSafe) {
+            s.safetyScore = Math.min(100, s.safetyScore + 3);
+            this.addFeed(T('safety.safeUp', s.safetyScore), 'good');
+        }
+
         if (eff.cost) { s.cash -= eff.cost; v.voyExp += eff.cost; s.stats.totExp += eff.cost; }
         if (eff.save) { s.cash += eff.save; }
         if (eff.condLoss) {
@@ -4570,6 +4602,16 @@ const Game = {
             oilEl.style.color = oilColor;
         }
 
+        // Safety grade display
+        const safetyEl = document.getElementById('hud-safety');
+        if (safetyEl) {
+            const sc = s.safetyScore || 50;
+            const grade = sc >= 80 ? 'S' : sc >= 60 ? 'A' : sc >= 40 ? 'B' : sc >= 20 ? 'C' : 'D';
+            const sColor = sc >= 80 ? 'var(--green)' : sc >= 60 ? '#8BC34A' : sc >= 40 ? 'var(--t2)' : sc >= 20 ? '#FF9800' : 'var(--red)';
+            safetyEl.textContent = grade;
+            safetyEl.style.color = sColor;
+        }
+
         // Cash warning
         this.checkCashWarning();
 
@@ -5052,6 +5094,7 @@ const Game = {
             if (!s.market) s.market = this.initMarket(s.route);
             if (!s.lastActiveTime) s.lastActiveTime = Date.now();
             if (s.oilSpike === undefined) s.oilSpike = null;
+            if (s.safetyScore === undefined) s.safetyScore = 50;
 
             // Ensure all ports have container entries
             s.route.ports.forEach(p => {

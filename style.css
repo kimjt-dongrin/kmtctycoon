@@ -343,6 +343,48 @@ h1{font-size:32px;font-weight:300;letter-spacing:6px;margin-bottom:6px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 
+/* ==================== THEME SYSTEM ==================== */
+body{transition:background .8s ease}
+body::before{content:'';position:fixed;inset:0;z-index:-2;background-size:cover;background-position:center;opacity:0;filter:blur(20px);transition:opacity 1.5s ease;pointer-events:none}
+body.has-bg::before{opacity:0.12}
+
+/* Grid / Scanline overlay on ship-scene */
+.ship-scene::after{content:'';position:absolute;inset:0;z-index:20;pointer-events:none;opacity:0;transition:opacity .8s ease}
+.theme-1 .ship-scene::after,.theme-2 .ship-scene::after,.theme-3 .ship-scene::after,.theme-4 .ship-scene::after{
+    opacity:1;
+    background:
+        repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(0,180,255,.04) 40px),
+        repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(0,180,255,.04) 40px);
+}
+/* Scanline animation for tier 3+ */
+.theme-3 .ship-scene::after,.theme-4 .ship-scene::after{
+    background:
+        repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(0,220,255,.06) 40px),
+        repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(0,220,255,.06) 40px),
+        repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,255,.015) 3px);
+    animation:scanline 8s linear infinite;
+}
+@keyframes scanline{0%{background-position:0 0,0 0,0 0}100%{background-position:0 0,0 0,0 -600px}}
+
+/* Theme tier CSS variable overrides */
+.theme-1{--blue:#0060B8;--dark:#003A70;--accent:#FF7B42;--sea:#1976D2;--border:#1e4068}
+.theme-2{--blue:#0097A7;--dark:#004D5A;--accent:#FF8A50;--sea:#00838F;--border:#1a4a5a;--green:#26A69A;--card:#0e2a3a;--card2:#163848}
+.theme-3{--blue:#2962FF;--dark:#0D1B3E;--accent:#FF6D00;--sea:#1A237E;--border:#2244aa;--green:#00E676;--card:#0a1440;--card2:#12205a;--bg:#060e24;--yellow:#FFD740}
+.theme-4{--blue:#00B0FF;--dark:#0A0A1A;--accent:#FF3D00;--sea:#0D47A1;--border:#0055aa;--green:#00E5FF;--card:#080818;--card2:#101030;--bg:#04060F;--yellow:#FFAB00;--t1:#e0f7fa;--t2:#80DEEA}
+
+/* Tier upgrade flash */
+@keyframes tierFlash{0%{box-shadow:inset 0 0 80px rgba(0,176,255,.4)}50%{box-shadow:inset 0 0 120px rgba(0,176,255,.6)}100%{box-shadow:inset 0 0 0 transparent}}
+.tier-up-flash{animation:tierFlash 1.5s ease-out}
+
+/* Neon glow on HUD for tier 3+ */
+.theme-3 .hud,.theme-4 .hud{border-bottom:1px solid rgba(41,98,255,.5);box-shadow:0 2px 20px rgba(41,98,255,.2)}
+.theme-4 .hud{border-bottom-color:rgba(0,176,255,.5);box-shadow:0 2px 30px rgba(0,176,255,.3)}
+.theme-3 .kmtc-logo,.theme-4 .kmtc-logo{text-shadow:0 0 30px rgba(0,176,255,.8),0 0 60px rgba(0,176,255,.4)}
+
+/* Neon accent on depart button for tier 3+ */
+.theme-3 .btn-depart,.theme-4 .btn-depart{box-shadow:0 0 20px rgba(0,176,255,.3)}
+.theme-4 .btn-depart{background:linear-gradient(135deg,#00B0FF,#2962FF);box-shadow:0 0 30px rgba(0,176,255,.5)}
+
 /* ==================== MOBILE RESPONSIVE ==================== */
 @media (max-width: 768px) {
     body{overflow:auto;height:auto;min-height:100vh}

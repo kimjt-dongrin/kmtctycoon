@@ -4785,6 +4785,77 @@ const Game = {
 
         // Update news ticker (every 6 game hours to avoid thrashing)
         if (s.gameHour % 6 === 0) this.updateTicker();
+
+        // Theme system check
+        this.updateTheme();
+    },
+
+    // ==================== THEME SYSTEM ====================
+    _currentTier: -1,
+
+    getThemeTier() {
+        const s = this.state;
+        if (!s) return 0;
+        const rev = s.stats.totRev || 0;
+        const owned = (s.ownedRoutes || []).filter(o => o.status === 'active').length;
+        const training = s.infra?.training || 0;
+
+        if (rev >= 15000000) return 4;
+        if (rev >= 5000000 || owned >= 3) return 3;
+        if (rev >= 2000000 || owned >= 1) return 2;
+        if (rev >= 500000 || training >= 2) return 1;
+        return 0;
+    },
+
+    updateTheme() {
+        const tier = this.getThemeTier();
+        if (tier === this._currentTier) return;
+        const prev = this._currentTier;
+        this._currentTier = tier;
+
+        // Remove old theme classes
+        document.body.classList.remove('theme-0','theme-1','theme-2','theme-3','theme-4');
+        document.body.classList.add(`theme-${tier}`);
+
+        // Background image by tier
+        const bgKeywords = [null, 'shipping+port', 'logistics+terminal', 'control+center+dark', 'modern+skyscraper+night'];
+        if (tier > 0 && bgKeywords[tier]) {
+            document.body.style.setProperty('--bg-url', `url('https://source.unsplash.com/1920x1080/?${bgKeywords[tier]}')`);
+            document.body.style.backgroundImage = 'none'; // handled by ::before
+            // Preload bg image
+            const img = new Image();
+            img.onload = () => {
+                document.body.style.setProperty('background-image', 'none');
+                document.body.style.cssText += `--bg-loaded:1`;
+                document.body.classList.add('has-bg');
+                // Set the ::before background via a style tag
+                let styleEl = document.getElementById('theme-bg-style');
+                if (!styleEl) {
+                    styleEl = document.createElement('style');
+                    styleEl.id = 'theme-bg-style';
+                    document.head.appendChild(styleEl);
+                }
+                styleEl.textContent = `body::before{background-image:url('${img.src}')}`;
+            };
+            img.src = `https://source.unsplash.com/1920x1080/?${bgKeywords[tier]}`;
+        } else {
+            document.body.classList.remove('has-bg');
+            const styleEl = document.getElementById('theme-bg-style');
+            if (styleEl) styleEl.textContent = '';
+        }
+
+        // Tier-up flash animation + toast (skip on first load)
+        if (prev >= 0 && tier > prev) {
+            document.body.classList.add('tier-up-flash');
+            setTimeout(() => document.body.classList.remove('tier-up-flash'), 1500);
+            const tierNames = {
+                ko: ['스타트업', '성장기', '중견 해운사', '대형 선사', '해운 타이쿤'],
+                ja: ['スタートアップ', '成長期', '中堅海運', '大手船社', '海運タイクーン']
+            };
+            const name = (tierNames[CURRENT_LANG] || tierNames.ko)[tier];
+            this.toast(`🎖️ ${T('theme.upgrade')} — ${name}`, 'ok');
+            this.addFeed(`🎖️ ${T('theme.upgrade')} — ${name}`, 'booking');
+        }
     },
 
     checkCashWarning() {

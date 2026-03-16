@@ -5511,11 +5511,26 @@ const Game = {
 
 
     // Show contact info modal when reaching top 5
+    // Campaign period config — set dates to enable contact collection
+    _campaign: {
+        active: false,          // master switch
+        start: '2026-04-01',   // campaign start (YYYY-MM-DD)
+        end: '2026-04-30',     // campaign end
+        title: null,            // optional override (uses default T('rank.topTitle') if null)
+    },
+
     checkTopRankContact() {
+        // Only show during active campaign period
+        const now = new Date();
+        const camp = this._campaign;
+        if (!camp.active) return;
+        if (camp.start && now < new Date(camp.start)) return;
+        if (camp.end && now > new Date(camp.end + 'T23:59:59')) return;
+
         const s = this.state;
-        if (s.contact || s._contactDismissed) return; // already set or dismissed
+        if (s.contact || s._contactDismissed) return;
         const rank = this._prevRank;
-        if (rank < 0 || rank >= 5) return; // not in top 5
+        if (rank < 0 || rank >= 5) return;
 
         // Show modal via evt-modal
         this.stopTick();

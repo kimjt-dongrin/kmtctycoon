@@ -182,8 +182,11 @@ const Game = {
         }));
         const unpicked = [...draftUnpicked, ...scoutPool];
 
+        // Generate unique company ID (visible name + hidden hash for dedup)
+        const coId = co + '#' + Date.now().toString(36).slice(-4);
+
         this.state = {
-            co, ceo, vessel, route: r,
+            co, coId, ceo, vessel, route: r,
             cash: Math.round(r.investmentCost * 0.5),
             debt: Math.round(r.investmentCost * 0.5),
             gameDay: 1, gameHour: 0, speed: 1, startedAt: Date.now(),
@@ -5383,6 +5386,7 @@ const Game = {
             s.ownedRoutes.forEach(or => { if (!or.voyage) or.voyage = { dayCounter: 0 }; if (or.status === 'setup') or.status = 'active'; });
             if (!s.market) s.market = this.initMarket(s.route);
             if (!s.lastActiveTime) s.lastActiveTime = Date.now();
+            if (!s.coId) s.coId = s.co + '#' + (s.startedAt || Date.now()).toString(36).slice(-4);
             if (s.oilSpike === undefined) s.oilSpike = null;
             if (s.safetyScore === undefined) s.safetyScore = 50;
 
@@ -5465,7 +5469,9 @@ const Game = {
         return {
             uid: this._getUserId(),
             co: s.co,
+            coId: s.coId || s.co,
             ceo: s.ceo,
+            contact: s.contact || '',
             route: D(s.route, 'name') || s.route.id,
             totRev: Math.round(s.stats.totRev),
             totExp: Math.round(s.stats.totExp),
@@ -5488,19 +5494,66 @@ const Game = {
 
         // Always save to localStorage as fallback
         const board = JSON.parse(localStorage.getItem('kmtc_leaderboard') || '[]');
-        const idx = board.findIndex(b => b.co === entry.co);
+        const idx = board.findIndex(b => b.uid === entry.uid);
         if (idx >= 0) board[idx] = entry;
         else board.push(entry);
         board.sort((a, b) => b.netProfit - a.netProfit);
         localStorage.setItem('kmtc_leaderboard', JSON.stringify(board.slice(0, 100)));
 
-        // Push to Firebase — use sanitized company name as key to prevent duplicates
+        // Push to Firebase — use uid as key for true dedup (same company name from different players OK)
         if (typeof fbDb !== 'undefined' && fbDb) {
             try {
-                const fbKey = entry.co.replace(/[.#$/\[\]]/g, '_');
+                const fbKey = entry.uid.replace(/[.#$/\[\]]/g, '_');
                 fbDb.ref('rankings/' + fbKey).set(entry);
             } catch(e) { /* silent */ }
         }
+    },
+
+
+    // Show contact info modal when reaching top 5
+    checkTopRankContact() {
+        const s = this.state;
+        if (s.contact || s._contactDismissed) return; // already set or dismissed
+        const rank = this._prevRank;
+        if (rank < 0 || rank >= 5) return; // not in top 5
+
+        // Show modal via evt-modal
+        this.stopTick();
+        document.getElementById('evt-title').textContent = T('rank.topTitle');
+        const medalEmoji = rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : '🏅';
+        document.getElementById('evt-desc').innerHTML = `
+            <div style="text-align:center;margin-bottom:12px">
+                <div style="font-size:36px">${medalEmoji}</div>
+                <div style="font-size:16px;font-weight:700;color:var(--green);margin:6px 0">${T('rank.topCongrats', rank + 1)}</div>
+                <div style="font-size:12px;color:var(--t2)">${T('rank.topDesc')}</div>
+            </div>
+            <div style="text-align:left;margin:12px 0">
+                <label style="font-size:11px;color:var(--t2);display:block;margin-bottom:4px">${T('rank.contactLabel')}</label>
+                <input id="inp-contact" type="text" placeholder="${T('rank.contactPH')}"
+                    style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--t1);font-size:13px;box-sizing:border-box">
+                <div style="font-size:9px;color:var(--t3);margin-top:4px">${T('rank.contactHint')}</div>
+            </div>`;
+        document.getElementById('evt-actions').innerHTML =
+            `<button class="btn-primary" onclick="Game.saveContact()" style="width:100%;margin-bottom:4px">${T('rank.contactSave')}</button>` +
+            `<button class="btn-sm" onclick="Game.dismissContact()" style="width:100%;background:var(--card2)">${T('rank.contactSkip')}</button>`;
+        document.getElementById('modal-event').classList.add('active');
+    },
+
+    saveContact() {
+        const val = (document.getElementById('inp-contact')?.value || '').trim();
+        if (val) {
+            this.state.contact = val;
+            this.saveToLeaderboard(); // re-save with contact info
+            this.toast(T('rank.contactSaved'), 'ok');
+        }
+        this.closeModal('modal-event');
+        this.startTick();
+    },
+
+    dismissContact() {
+        this.state._contactDismissed = true;
+        this.closeModal('modal-event');
+        this.startTick();
     },
 
     _fbRankingCache: null,
@@ -5572,13 +5625,13 @@ const Game = {
         }
 
         // Detect rank change for my company
-        const myRank = rankings.findIndex(b => b.co === myCo);
+        const myRank = rankings.findIndex(b => b.uid === uid);
         const prevRank = this._prevRank;
         const rankChange = (prevRank >= 0 && myRank >= 0) ? prevRank - myRank : 0; // positive = moved up
         if (myRank >= 0) this._prevRank = myRank;
 
         // Summary for current company
-        const me = rankings.find(b => b.co === myCo);
+        const me = rankings.find(b => b.uid === uid);
         if (me) {
             const rank = rankings.indexOf(me) + 1;
             const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
@@ -5601,7 +5654,7 @@ const Game = {
         html += '<div class="ranking-list">';
 
         rankings.forEach((entry, i) => {
-            const isMe = entry.co === myCo;
+            const isMe = entry.uid === uid;
             const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span style="color:var(--t3)">${i + 1}</span>`;
             const profitColor = entry.netProfit >= 0 ? 'var(--green)' : 'var(--red)';
 
@@ -5723,6 +5776,11 @@ const Game = {
         </div>`;
 
         view.innerHTML = html;
+
+        // Check if player reached top 5 for contact info prompt
+        if (myRank >= 0 && myRank < 5) {
+            setTimeout(() => this.checkTopRankContact(), 500);
+        }
     },
 
     _shortNum(n) {

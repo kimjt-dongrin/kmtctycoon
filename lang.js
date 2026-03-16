@@ -333,6 +333,15 @@ const TEXTS = {
 'rank.weekly': { ko: '주간', ja: '週間' },
 'rank.myShare': { ko: '내 점유율', ja: '自社シェア' },
 'rank.refresh': { ko: '🔄 새로고침', ja: '🔄 更新' },
+'rank.topTitle': { ko: '🏆 상위권 진입!', ja: '🏆 上位ランクイン！' },
+'rank.topCongrats': { ko: '축하합니다! 현재 {0}위입니다!', ja: 'おめでとうございます！現在{0}位です！' },
+'rank.topDesc': { ko: '커피 쿠폰 이벤트 참여를 위해 연락처를 남겨주세요 (선택)', ja: 'コーヒークーポンイベント参加のため連絡先をお残しください（任意）' },
+'rank.contactLabel': { ko: '담당자 연락처 (이메일 또는 전화)', ja: '担当者連絡先（メールまたは電話）' },
+'rank.contactPH': { ko: '예: hong@company.com / 010-1234-5678', ja: '例: tanaka@company.com / 090-1234-5678' },
+'rank.contactHint': { ko: '* 선택사항입니다. 이벤트 당첨 시 연락드립니다.', ja: '※ 任意です。イベント当選時にご連絡いたします。' },
+'rank.contactSave': { ko: '💾 연락처 저장', ja: '💾 連絡先を保存' },
+'rank.contactSkip': { ko: '나중에 할게요', ja: 'あとで' },
+'rank.contactSaved': { ko: '연락처가 저장되었습니다!', ja: '連絡先が保存されました！' },
 
 // ========== VOYAGE REPORT ==========
 'voy.complete': { ko: '항차 완료!', ja: '航次完了！' },

@@ -385,6 +385,35 @@ body.has-bg::before{opacity:0.12}
 .theme-3 .btn-depart,.theme-4 .btn-depart{box-shadow:0 0 20px rgba(0,176,255,.3)}
 .theme-4 .btn-depart{background:linear-gradient(135deg,#00B0FF,#2962FF);box-shadow:0 0 30px rgba(0,176,255,.5)}
 
+/* ==================== RANKING EFFECTS ==================== */
+/* Aurora effect for top 3 rows */
+.rank-row.rank-top{position:relative;overflow:hidden}
+.rank-row.rank-top::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .5s;pointer-events:none}
+.rank-row.rank-gold::before{opacity:1;background:linear-gradient(90deg,rgba(255,215,0,.08),rgba(255,165,0,.12),rgba(255,215,0,.06),rgba(255,200,50,.1));background-size:300% 100%;animation:aurora 6s ease-in-out infinite}
+.rank-row.rank-silver::before{opacity:1;background:linear-gradient(90deg,rgba(192,192,192,.06),rgba(200,220,255,.1),rgba(192,192,192,.05),rgba(180,200,240,.08));background-size:300% 100%;animation:aurora 8s ease-in-out infinite}
+.rank-row.rank-bronze::before{opacity:1;background:linear-gradient(90deg,rgba(205,127,50,.06),rgba(255,152,0,.1),rgba(205,127,50,.05),rgba(230,150,60,.08));background-size:300% 100%;animation:aurora 7s ease-in-out infinite}
+@keyframes aurora{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+/* Gold #1 extra glow */
+.rank-row.rank-gold{border-left:3px solid #FFD700!important;box-shadow:inset 0 0 20px rgba(255,215,0,.08)}
+.rank-row.rank-silver{border-left:3px solid #C0C0C0!important}
+.rank-row.rank-bronze{border-left:3px solid #CD7F32!important}
+
+/* Rank change animations */
+@keyframes rankUp{0%{transform:translateY(20px);opacity:0}30%{transform:translateY(-5px);opacity:1}50%{transform:translateY(2px)}100%{transform:translateY(0)}}
+@keyframes rankUpGlow{0%{box-shadow:0 0 0 transparent}30%{box-shadow:0 0 25px rgba(76,175,80,.5),inset 0 0 15px rgba(76,175,80,.15)}100%{box-shadow:0 0 0 transparent}}
+@keyframes rankUpBadge{0%{transform:scale(0) rotate(-20deg);opacity:0}50%{transform:scale(1.3) rotate(5deg);opacity:1}100%{transform:scale(1) rotate(0deg);opacity:1}}
+@keyframes confetti{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(-40px) rotate(360deg);opacity:0}}
+
+.rank-row.rank-up{animation:rankUp .6s ease-out,rankUpGlow 1.5s ease-out}
+.rank-change-badge{display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;animation:rankUpBadge .5s ease-out;white-space:nowrap}
+.rank-change-badge.up{background:rgba(76,175,80,.2);color:#4CAF50}
+.rank-change-badge.down{background:rgba(239,83,80,.15);color:#ef5350}
+.rank-change-badge.new-entry{background:rgba(0,176,255,.2);color:#00B0FF}
+
+/* Confetti particles for big rank jumps */
+.rank-confetti{position:absolute;pointer-events:none;font-size:12px;animation:confetti 1.2s ease-out forwards}
+
 /* ==================== MOBILE RESPONSIVE ==================== */
 @media (max-width: 768px) {
     body{overflow:auto;height:auto;min-height:100vh}

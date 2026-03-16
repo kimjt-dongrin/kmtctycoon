@@ -4792,6 +4792,7 @@ const Game = {
 
     // ==================== THEME SYSTEM ====================
     _currentTier: -1,
+    _prevRank: -1,
 
     getThemeTier() {
         const s = this.state;
@@ -5570,13 +5571,22 @@ const Game = {
             return;
         }
 
+        // Detect rank change for my company
+        const myRank = rankings.findIndex(b => b.co === myCo);
+        const prevRank = this._prevRank;
+        const rankChange = (prevRank >= 0 && myRank >= 0) ? prevRank - myRank : 0; // positive = moved up
+        if (myRank >= 0) this._prevRank = myRank;
+
         // Summary for current company
         const me = rankings.find(b => b.co === myCo);
         if (me) {
             const rank = rankings.indexOf(me) + 1;
             const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+            let rankDelta = '';
+            if (rankChange > 0) rankDelta = ` <span class="rank-change-badge up" style="font-size:11px">▲${rankChange}</span>`;
+            else if (rankChange < 0) rankDelta = ` <span class="rank-change-badge down" style="font-size:11px">▼${Math.abs(rankChange)}</span>`;
             html += `<div style="background:linear-gradient(135deg,var(--card),var(--card2));border:1px solid var(--accent);border-radius:8px;padding:10px;margin-bottom:10px">
-                <div style="font-size:13px;font-weight:700">${medal} ${me.co} <span style="font-size:10px;color:var(--t2)">(${T('rank.myCompany')})</span></div>
+                <div style="font-size:13px;font-weight:700">${medal} ${me.co} <span style="font-size:10px;color:var(--t2)">(${T('rank.myCompany')})</span>${rankDelta}</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-top:6px;font-size:11px">
                     <div>📈 ${T('rank.rev')}<br><strong style="color:var(--green)">$${Math.round(me.totRev).toLocaleString()}</strong></div>
                     <div>💰 ${T('rank.profit')}<br><strong style="color:${me.netProfit >= 0 ? 'var(--green)' : 'var(--red)'}">$${Math.round(me.netProfit).toLocaleString()}</strong></div>
@@ -5589,14 +5599,28 @@ const Game = {
         // Ranking table
         html += `<div style="font-size:10px;color:var(--t3);margin-bottom:4px">${T('rank.byProfit')}${isOnline ? ' (' + T('rank.allUsers') + ')' : ''}</div>`;
         html += '<div class="ranking-list">';
+
         rankings.forEach((entry, i) => {
             const isMe = entry.co === myCo;
             const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span style="color:var(--t3)">${i + 1}</span>`;
             const profitColor = entry.netProfit >= 0 ? 'var(--green)' : 'var(--red)';
-            html += `<div class="rank-row ${isMe ? 'rank-me' : ''}" style="display:grid;grid-template-columns:30px 1fr 70px 70px 44px 44px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;${isMe ? 'background:var(--accent)15;border-left:3px solid var(--accent)' : ''}">
+
+            // Top 3 aurora classes
+            const topClass = i === 0 ? 'rank-top rank-gold' : i === 1 ? 'rank-top rank-silver' : i === 2 ? 'rank-top rank-bronze' : '';
+            // Rank-up animation for my company
+            const upClass = (isMe && rankChange > 0) ? 'rank-up' : '';
+            // Rank change badge
+            let changeBadge = '';
+            if (isMe && rankChange > 0) {
+                changeBadge = `<span class="rank-change-badge up">▲${rankChange}</span>`;
+            } else if (isMe && rankChange < 0) {
+                changeBadge = `<span class="rank-change-badge down">▼${Math.abs(rankChange)}</span>`;
+            }
+
+            html += `<div class="rank-row ${isMe ? 'rank-me' : ''} ${topClass} ${upClass}" style="display:grid;grid-template-columns:30px 1fr 70px 70px 44px 44px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;${isMe ? 'background:var(--accent)15;border-left:3px solid var(--accent)' : ''}">
                 <div style="text-align:center;font-size:13px">${medal}</div>
                 <div>
-                    <div style="font-weight:600">${entry.co}${isMe ? ` <span style="font-size:9px;color:var(--accent)">(${T('rank.me')})</span>` : ''}</div>
+                    <div style="font-weight:600">${entry.co}${isMe ? ` <span style="font-size:9px;color:var(--accent)">(${T('rank.me')})</span>` : ''} ${changeBadge}</div>
                     <div style="font-size:9px;color:var(--t3)">${entry.ceo} | ${entry.route}</div>
                 </div>
                 <div style="text-align:right">
@@ -5611,6 +5635,29 @@ const Game = {
                 <div style="text-align:center;font-size:10px;color:var(--accent)"><div style="font-size:9px;color:var(--t3)">${T('rank.elapsed')}</div><strong>D+${entry.day || 0}</strong></div>
             </div>`;
         });
+
+        // Spawn confetti for rank-up of 3+ positions
+        if (rankChange >= 3) {
+            setTimeout(() => {
+                const meRow = document.querySelector('.rank-me');
+                if (!meRow) return;
+                const rect = meRow.getBoundingClientRect();
+                const particles = ['🎉','⭐','🏆','✨','🚀','💎'];
+                for (let p = 0; p < 10; p++) {
+                    const el = document.createElement('span');
+                    el.className = 'rank-confetti';
+                    el.textContent = particles[p % particles.length];
+                    el.style.left = (rect.left + Math.random() * rect.width) + 'px';
+                    el.style.top = (rect.top + Math.random() * 20) + 'px';
+                    el.style.position = 'fixed';
+                    el.style.animationDelay = (Math.random() * 0.5) + 's';
+                    el.style.animationDuration = (0.8 + Math.random() * 0.8) + 's';
+                    document.body.appendChild(el);
+                    setTimeout(() => el.remove(), 2000);
+                }
+            }, 300);
+        }
+
         html += '</div>';
 
         if (rankings.length > 1) {

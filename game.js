@@ -3575,7 +3575,7 @@ const Game = {
 
         // Offices (only show ports on current route, excluding home port)
         html += `<div class="invest-section"><h4>${T('inv.office')}</h4>`;
-        INVESTMENTS.office.filter(inv => s.route.ports.includes(inv.port) && inv.port !== s.route.ports[0]).forEach(inv => {
+        INVESTMENTS.office.filter(inv => s.route.ports.includes(inv.port)).forEach(inv => {
             const done = s.infra.offices[inv.port];
             const canBuy = !done && afford(inv.cost);
             html += `<div class="invest-item ${done ? 'done' : (!canBuy ? 'locked' : '')}">

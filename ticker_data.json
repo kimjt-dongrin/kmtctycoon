@@ -1,13 +1,148 @@
 {
-  "updated": "2026-03-16",
+  "updated": "2026-03-16 16:02",
+  "period": "2026-01 ~ current",
   "from_japan": [
-    { "country": "TH", "from": "TOKYO", "to": "BANGKOK", "teu": 1240 },
-    { "country": "KR", "from": "OSAKA", "to": "BUSAN", "teu": 1085 },
-    { "country": "VN", "from": "NAGOYA", "to": "HOCHIMINH", "teu": 920 },
-    { "country": "CN", "from": "KOBE", "to": "SHANGHAI", "teu": 870 },
-    { "country": "ID", "from": "YOKOHAMA", "to": "JAKARTA", "teu": 745 },
-    { "country": "IN", "from": "TOKYO", "to": "CHENNAI", "teu": 680 },
-    { "country": "PH", "from": "OSAKA", "to": "MANILA", "teu": 540 },
-    { "country": "MY", "from": "KOBE", "to": "PORT KLANG", "teu": 485 }
+    {
+      "from": "SEN",
+      "to": "XGG",
+      "country": "CN",
+      "bl": 19,
+      "teu": 420
+    },
+    {
+      "from": "SMN",
+      "to": "DLC",
+      "country": "CN",
+      "bl": 3,
+      "teu": 263
+    },
+    {
+      "from": "KIJ",
+      "to": "PUS",
+      "country": "KR",
+      "bl": 70,
+      "teu": 237
+    },
+    {
+      "from": "MIZ",
+      "to": "PUS",
+      "country": "KR",
+      "bl": 98,
+      "teu": 195
+    },
+    {
+      "from": "TYO",
+      "to": "PUS",
+      "country": "KR",
+      "bl": 129,
+      "teu": 187
+    },
+    {
+      "from": "MAI",
+      "to": "PUS",
+      "country": "KR",
+      "bl": 22,
+      "teu": 169
+    },
+    {
+      "from": "YOK",
+      "to": "PUS",
+      "country": "KR",
+      "bl": 109,
+      "teu": 148
+    },
+    {
+      "from": "TMK",
+      "to": "INC",
+      "country": "KR",
+      "bl": 48,
+      "teu": 146
+    },
+    {
+      "from": "OSA",
+      "to": "MUN",
+      "country": "IN",
+      "bl": 23,
+      "teu": 142
+    },
+    {
+      "from": "MAI",
+      "to": "TAO",
+      "country": "CN",
+      "bl": 5,
+      "teu": 139
+    }
+  ],
+  "to_japan": [
+    {
+      "from": "PUS",
+      "to": "TYO",
+      "country": "KR",
+      "bl": 492,
+      "teu": 743
+    },
+    {
+      "from": "PUS",
+      "to": "NGO",
+      "country": "KR",
+      "bl": 242,
+      "teu": 403
+    },
+    {
+      "from": "MNL",
+      "to": "ISI",
+      "country": "PH",
+      "bl": 30,
+      "teu": 380
+    },
+    {
+      "from": "PUS",
+      "to": "SMZ",
+      "country": "KR",
+      "bl": 172,
+      "teu": 360
+    },
+    {
+      "from": "PUS",
+      "to": "YOK",
+      "country": "KR",
+      "bl": 208,
+      "teu": 313
+    },
+    {
+      "from": "SUB",
+      "to": "SDJ",
+      "country": "ID",
+      "bl": 88,
+      "teu": 306
+    },
+    {
+      "from": "SHA",
+      "to": "SDJ",
+      "country": "CN",
+      "bl": 180,
+      "teu": 292
+    },
+    {
+      "from": "PUS",
+      "to": "OSA",
+      "country": "KR",
+      "bl": 197,
+      "teu": 286
+    },
+    {
+      "from": "PUS",
+      "to": "UKB",
+      "country": "KR",
+      "bl": 159,
+      "teu": 264
+    },
+    {
+      "from": "MNL",
+      "to": "CHB",
+      "country": "PH",
+      "bl": 6,
+      "teu": 260
+    }
   ]
 }

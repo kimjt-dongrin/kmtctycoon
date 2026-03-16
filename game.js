@@ -180,7 +180,9 @@ const Game = {
         const scoutPool = ALL_SALES_CHARACTERS.filter(c => !picks.includes(c.id) && !draftIds.includes(c.id)).map(c => ({
             ...c, recruitCost: c.recruitCost || Math.round(c.salary * 5), unlockRev: c.unlockRev || Math.round(c.salary * 200),
         }));
-        const unpicked = [...draftUnpicked, ...scoutPool];
+        // Include RECRUIT_POOL (advanced characters with recruitCost & unlockRev)
+        const advancedPool = (typeof RECRUIT_POOL !== 'undefined' ? RECRUIT_POOL : []).map(c => ({ ...c }));
+        const unpicked = [...draftUnpicked, ...scoutPool, ...advancedPool];
 
         // Generate unique company ID (visible name + hidden hash for dedup)
         const coId = co + '#' + Date.now().toString(36).slice(-4);
@@ -3681,6 +3683,10 @@ const Game = {
                         <span data-tip="${T('draft.faceToFace')}">🚶${t.faceToFace||0}</span>
                         <span data-tip="${T('draft.digital')}">💻${t.digital||0}</span>
                         <span data-tip="${T('draft.relationship')}">💛${t.relationship||0}</span>
+                        <span data-tip="${T('draft.attack')}">⚔️${t.attack||0}</span>
+                        <span data-tip="${T('draft.defense')}">🛡️${t.defense||0}</span>
+                        <span data-tip="${T('draft.vitality')}">💪${t.vitality||0}</span>
+                        ${r.isAI ? '<span style="color:#00BCD4;font-weight:700">🤖AI</span>' : ''}
                         <span style="color:var(--t3)">| 💰 $${r.salary}/${T('common.month')}</span>
                     </div>
                     ${!unlocked ? `<div style="font-size:9px;color:var(--yellow);margin-top:2px">${T('inv.unlockAt')} $${(r.unlockRev/1e3).toFixed(0)}K</div>` : ''}
@@ -5484,6 +5490,16 @@ const Game = {
             if (!s.coId) s.coId = s.co + '#' + (s.startedAt || Date.now()).toString(36).slice(-4);
             if (s.oilSpike === undefined) s.oilSpike = null;
             if (s.safetyScore === undefined) s.safetyScore = 50;
+
+            // Ensure RECRUIT_POOL characters are in benchPool
+            if (typeof RECRUIT_POOL !== 'undefined') {
+                const existingIds = new Set([...s.salesTeam.map(st => st.id), ...(s.benchPool || []).map(b => b.id)]);
+                RECRUIT_POOL.forEach(r => {
+                    if (!existingIds.has(r.id)) {
+                        s.benchPool.push({ ...r });
+                    }
+                });
+            }
 
             // Vacation & vitality migration
             s.salesTeam.forEach(st => {

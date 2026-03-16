@@ -298,8 +298,13 @@ const Game = {
         s.cash -= dailySalary;
         s.stats.totExp += dailySalary;
 
-        // Stamina recovery
-        s.salesTeam.forEach(st => { st.stamina = Math.min(100, st.stamina + 10); });
+        // Stamina recovery (vitality-based) + vacation scheduler
+        s.salesTeam.forEach(st => {
+            if (st.isAI) { st.stamina = 100; return; } // AI always full
+            const vit = st.traits?.vitality || 3;
+            st.stamina = Math.min(100, st.stamina + 5 + vit * 2); // vit1→7, vit3→11, vit5→15
+        });
+        this.scheduleVacations();
 
         // Tick down customer boosts
         for (const port in s.custs) {
@@ -402,6 +407,61 @@ const Game = {
 
         // Auto-save daily
         this.saveGame();
+    },
+
+    // Vacation system: auto-schedule annual leave
+    scheduleVacations() {
+        const s = this.state;
+        if (!s.salesTeam || s.salesTeam.length === 0) return;
+
+        // Init vacation tracking per game-year
+        const gameYear = Math.floor((s.gameDay - 1) / 365);
+        if (s._lastVacYear === undefined) s._lastVacYear = -1;
+        if (gameYear > s._lastVacYear) {
+            // New year: reset vacation days
+            s._lastVacYear = gameYear;
+            s.salesTeam.forEach(st => {
+                if (st.isAI) return; // AI: no vacation
+                const vit = st.traits?.vitality || 3;
+                st.vacDaysTotal = vit >= 5 ? 10 : (vit >= 4 ? 12 : 18); // high vitality = fewer days needed
+                st.vacDaysUsed = 0;
+            });
+        }
+
+        // Check if anyone needs vacation (random scheduling)
+        // Only schedule if no one is currently on vacation (no overlap)
+        const onVacation = s.salesTeam.some(st => st.activity === 'vacation');
+        if (onVacation) return;
+
+        // Find someone who hasn't used all vacation days
+        const eligible = s.salesTeam.filter(st =>
+            !st.isAI &&
+            st.activity !== 'vacation' &&
+            (st.vacDaysUsed || 0) < (st.vacDaysTotal || 18) &&
+            st.stamina < 80 // prefer tired employees
+        );
+        if (eligible.length === 0) return;
+
+        // Random chance to schedule (roughly spreads across the year)
+        const daysInYear = 365;
+        const avgVacDays = 15;
+        const teamSize = s.salesTeam.filter(st => !st.isAI).length;
+        const dailyChance = (avgVacDays * teamSize) / (daysInYear * teamSize) * 1.5; // ~6% per day
+        if (Math.random() > dailyChance) return;
+
+        // Pick the most tired eligible person
+        eligible.sort((a, b) => a.stamina - b.stamina);
+        const st = eligible[0];
+        const remaining = (st.vacDaysTotal || 18) - (st.vacDaysUsed || 0);
+        const days = Math.min(Math.ceil(Math.random() * 4) + 1, 5, remaining); // 1-5 days, max 5
+
+        st.activity = 'vacation';
+        st.actTarget = null;
+        st.actTargetPort = null;
+        st.actProgress = 0;
+        st.actDaysLeft = days;
+        st.vacDaysUsed = (st.vacDaysUsed || 0) + days;
+        this.addFeed(`🏖️ ${st.name} ${T('feed.vacationStart', days)}`, 'activity');
     },
 
     // ==================== SALES ENGINE (Plan-based auto-execution) ====================
@@ -842,6 +902,11 @@ const Game = {
 
     // Pick activity based on preset and traits
     pickActivityByPlan(st) {
+        // AI: only email/phone/negotiate/prospect (no visit/entertain)
+        if (st.isAI) {
+            const aiActs = SALES_ACTIVITIES.filter(a => !['visit','entertain'].includes(a.id));
+            return aiActs.length > 0 ? aiActs[Math.floor(Math.random() * aiActs.length)] : SALES_ACTIVITIES[0];
+        }
         const plan = st.plan || this.state.globalStrategy;
         const preset = ACTIVITY_PRESETS.find(p => p.id === plan.actPreset) || ACTIVITY_PRESETS[0];
 
@@ -862,13 +927,31 @@ const Game = {
     tickSales() {
         const s = this.state;
         const hourFraction = 1 / 24;
-        const isWorkHour = s.gameHour >= 9 && s.gameHour < 17; // 9AM-5PM (8 hours)
+        const isWorkHour = s.gameHour >= 9 && s.gameHour < 17;
         let needsUpdate = false;
 
         s.salesTeam.forEach(st => {
+            const isAI = st.isAI || false;
+            const vit = (st.traits?.vitality || 3);
+            const canWork = isAI ? true : isWorkHour; // AI works 24h
+
+            // On vacation
+            if (st.activity === 'vacation') {
+                st.stamina = Math.min(100, st.stamina + 3); // fast recovery on vacation
+                st.actDaysLeft -= hourFraction;
+                if (st.actDaysLeft <= 0) {
+                    st.activity = null;
+                    st.vacDaysUsed = (st.vacDaysUsed || 0);
+                    this.addFeed(`${st.avatar} ${st.name} ${T('feed.vacationEnd')}`, 'activity');
+                    needsUpdate = true;
+                }
+                return;
+            }
+
             // Resting
             if (st.activity === 'rest') {
-                st.stamina = Math.min(100, st.stamina + 2);
+                const recoveryRate = 1.5 + vit * 0.3; // vitality 1→1.8, 3→2.4, 5→3.0
+                st.stamina = Math.min(100, st.stamina + recoveryRate);
                 st.actDaysLeft -= hourFraction;
                 if (st.actDaysLeft <= 0) {
                     st.activity = null;
@@ -880,11 +963,20 @@ const Game = {
 
             // Working on a task
             if (st.activity) {
-                if (!isWorkHour) return; // Off hours: no progress
+                if (!canWork) return;
+                // AI: block visit/entertain activities
+                if (isAI && (st.activity === 'visit' || st.activity === 'entertain')) {
+                    st.activity = null; st.actTarget = null;
+                    return;
+                }
                 st.actDaysLeft -= hourFraction;
                 const act = SALES_ACTIVITIES.find(a => a.id === st.activity);
                 st.actProgress = Math.min(1, 1 - st.actDaysLeft / (act?.duration || 1));
-                st.stamina = Math.max(0, st.stamina - 0.5);
+                // Stamina drain: vitality 1→0.8, 3→0.5, 5→0.2. AI: no drain
+                if (!isAI) {
+                    const drain = Math.max(0.15, 0.8 - vit * 0.13);
+                    st.stamina = Math.max(0, st.stamina - drain);
+                }
 
                 if (st.actDaysLeft <= 0) {
                     this.completeSalesActivity(st);
@@ -895,8 +987,9 @@ const Game = {
                 return;
             }
 
-            // Idle: auto-assign next task if work hours and has stamina
-            if (isWorkHour && st.stamina >= 10) {
+            // Idle: auto-assign next task
+            const minStamina = isAI ? 0 : 10;
+            if (canWork && st.stamina >= minStamina) {
                 const act = this.pickActivityByPlan(st);
                 if (!act) return;
 
@@ -936,9 +1029,10 @@ const Game = {
                 this.addFeed(T('feed.fatigued', st.name), 'alert');
             }
 
-            // Night rest: recover stamina off-hours
-            if (!isWorkHour) {
-                st.stamina = Math.min(100, st.stamina + 0.5);
+            // Night rest: recover stamina off-hours (vitality affects rate)
+            if (!isWorkHour && !isAI) {
+                const nightRecovery = 0.3 + vit * 0.15; // vit 1→0.45, 3→0.75, 5→1.05
+                st.stamina = Math.min(100, st.stamina + nightRecovery);
                 st._lowStaminaWarned = false;
             }
         });
@@ -5390,6 +5484,16 @@ const Game = {
             if (!s.coId) s.coId = s.co + '#' + (s.startedAt || Date.now()).toString(36).slice(-4);
             if (s.oilSpike === undefined) s.oilSpike = null;
             if (s.safetyScore === undefined) s.safetyScore = 50;
+
+            // Vacation & vitality migration
+            s.salesTeam.forEach(st => {
+                if (!st.traits.attack) st.traits.attack = 2;
+                if (!st.traits.defense) st.traits.defense = 2;
+                if (!st.traits.vitality) st.traits.vitality = 3;
+                if (st.vacDaysTotal === undefined) st.vacDaysTotal = 18;
+                if (st.vacDaysUsed === undefined) st.vacDaysUsed = 0;
+            });
+            if (s._lastVacYear === undefined) s._lastVacYear = Math.floor((s.gameDay - 1) / 365);
 
             // Ensure all ports have container entries
             s.route.ports.forEach(p => {

@@ -268,8 +268,8 @@ const Game = {
             this.tickSailing();
         }
 
-        // Auto-depart check
-        if (s.voyage.daysSinceLast >= s.route.rotationDays && s.voyage.status === 'port') {
+        // Auto-depart check (port stay = rotation - sailing days)
+        if (s.voyage.daysSinceLast >= this.getPortStayDays() && s.voyage.status === 'port') {
             this.autoDepart();
         }
 
@@ -1805,6 +1805,7 @@ const Game = {
             <filter id="gl"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
             <linearGradient id="lG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a4a3a"/><stop offset="100%" stop-color="#1e3a2e"/></linearGradient>
             <linearGradient id="rG" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#4CAF50"/><stop offset="100%" stop-color="#FF6B35"/></linearGradient>
+            <style>@keyframes svgBob{0%,100%{transform:translate(0,0) rotate(0deg)}25%{transform:translate(1px,-2px) rotate(2deg)}50%{transform:translate(0,1px) rotate(0deg)}75%{transform:translate(-1px,-1px) rotate(-2deg)}}</style>
         </defs>`;
         svg += `<rect x="50" y="${vbY}" width="650" height="${vbH}" fill="url(#seaG)"/>`;
         for (const [, path] of Object.entries(MAP_LAND)) {
@@ -1931,7 +1932,7 @@ const Game = {
         if (pf && pt) {
             const mx = pf.x + (pt.x - pf.x) * v.sailProgress;
             const my = pf.y + (pt.y - pf.y) * v.sailProgress;
-            svg += `<text x="${mx}" y="${my}" text-anchor="middle" dominant-baseline="central" font-size="22">🚢</text>`;
+            svg += `<g style="animation:svgBob 3s ease-in-out infinite;transform-origin:${mx}px ${my}px"><text x="${mx}" y="${my}" text-anchor="middle" dominant-baseline="central" font-size="22">🚢</text></g>`;
         }
 
         // Main route port markers
@@ -2014,7 +2015,7 @@ const Game = {
             ${svg}
             <div style="position:absolute;bottom:0;left:0;right:0;z-index:11;background:rgba(0,10,20,.85);padding:6px 12px">
                 <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px">
-                    <span>🚢 <strong>${s.vessel}</strong> V.${String(v.num).padStart(3,'0')}</span>
+                    <span>🚢 <strong>${s.vessel}</strong> V.${String(v.num).padStart(3,'0')} | 📦 ${Math.round(this.getTEU() / s.ship.capacity * 100)}%</span>
                     <span>${fromN} → ${toN} (${leg.seaDays}${T('common.day')}) | ${destW.icon} ${destW.desc} ${destW.temp}° | ${waveDesc}${typhoonW}${unloadInfo}</span>
                 </div>
                 <div style="height:5px;background:var(--card);border-radius:3px;overflow:hidden">
@@ -2045,7 +2046,7 @@ const Game = {
                 <div class="port-ground" id="port-ground"><div class="port-label" id="port-label">${this.getPortName(s.route.ports[0])}${T('common.port')}</div></div>
                 <div class="crane" id="crane"><div class="crane-arm"></div><div class="crane-cable"></div><div class="crane-hook"></div></div>
                 <div class="game-ship" id="game-ship">
-                    <div class="hull"></div>
+                    <div class="hull"><div class="hull-logo">KMTC</div></div>
                     <div class="vessel-name" id="vessel-name">${s.vessel}</div>
                     <div class="bridge"></div>
                     <div class="funnel"><div class="fstripe"></div></div>
@@ -2211,13 +2212,22 @@ const Game = {
 
         // Status bar at bottom
         const teu = this.getTEU();
-        const daysLeft = Math.max(0, r.rotationDays - s.voyage.daysSinceLast);
+        const portStay = this.getPortStayDays();
+        const daysLeft = Math.max(0, portStay - s.voyage.daysSinceLast);
+        const homeW = this.getWeather(r.ports[0]);
         const routeCount = 1 + activeSlots.length + activeOwned.length;
+
+        // Per-leg load factors
+        const legTEUs = {};
+        r.legs.forEach(l => { legTEUs[`${l.from}-${l.to}`] = 0; });
+        s.bookings.forEach(b => { if (legTEUs[b.leg] !== undefined) legTEUs[b.leg] += b.q20 + b.q40 * 2; });
+        const legPcts = Object.entries(legTEUs).map(([leg, t]) => `${leg.split('-').join('→')} ${Math.round(t / s.ship.capacity * 100)}%`).join(' / ');
+
         scene.innerHTML = `
             ${svg}
             <div style="position:absolute;bottom:0;left:0;right:0;z-index:11;background:rgba(0,10,20,.85);padding:6px 12px">
                 <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
-                    <span>⚓ <strong>${s.vessel}</strong> ${this.getPortName(r.ports[0])}${T('common.port')} ${T('ship.docked')} | 📦 ${teu}TEU | ${T('depart.countdown')} ${daysLeft}${T('depart.daysLeft')}</span>
+                    <span>⚓ <strong>${s.vessel}</strong> ${this.getPortName(r.ports[0])}${T('common.port')} ${T('ship.dockedShort')} — ${legPcts} — ${homeW.icon} ${homeW.desc} ${homeW.temp}° | ${T('depart.countdown')} ${daysLeft}${T('depart.daysLeft')}</span>
                     <span>🌏 ${routeCount} | 🚢 ${routeCount}${T('common.ships')}</span>
                 </div>
             </div>`;
@@ -4794,7 +4804,7 @@ const Game = {
         const teu = this.getTEU();
         const lf = Math.round(teu / s.ship.capacity * 100);
         if (s.voyage.status === 'port') {
-            const daysLeft = Math.max(0, r.rotationDays - s.voyage.daysSinceLast);
+            const daysLeft = Math.max(0, this.getPortStayDays() - s.voyage.daysSinceLast);
             if (daysLeft <= 2 && lf < 30) {
                 items.push({ text: T('ticker.lowLF', lf), cls: 'warn' });
             } else if (lf > 70) {
@@ -4919,7 +4929,7 @@ const Game = {
     updateBayGrid() {
         const grid = document.getElementById('bay-grid');
         if (!grid) return; // during sailing, bay-grid doesn't exist
-        const teu = this.getTEU();
+        const teu = this.getFirstBoundTEU();
         const cap = this.state.ship.capacity;
         const cells = 50;
         const filled = Math.round((teu / cap) * cells);
@@ -4935,19 +4945,47 @@ const Game = {
         if (this.state.voyage.status === 'sailing') return; // handled by renderInlineSailMap
         const s = this.state;
         const teu = this.getTEU();
-        const daysLeft = Math.max(0, s.route.rotationDays - s.voyage.daysSinceLast);
-        document.getElementById('depart-bookings').textContent = `📦 ${teu} ${T('depart.loaded')} (${Math.round(teu / s.ship.capacity * 100)}%)`;
+        const portStay = this.getPortStayDays();
+        const daysLeft = Math.max(0, portStay - s.voyage.daysSinceLast);
+
+        // Calculate per-leg load factors
+        const r = s.route;
+        const legTEUs = {};
+        r.legs.forEach(l => { legTEUs[`${l.from}-${l.to}`] = 0; });
+        s.bookings.forEach(b => { if (legTEUs[b.leg] !== undefined) legTEUs[b.leg] += b.q20 + b.q40 * 2; });
+        const legPcts = Object.entries(legTEUs).map(([leg, t]) => {
+            const pct = Math.round(t / s.ship.capacity * 100);
+            return `${leg.split('-').join('→')} ${pct}%`;
+        });
+        const legInfo = legPcts.length > 0 ? legPcts.join(' / ') : `${Math.round(teu / s.ship.capacity * 100)}%`;
+
+        document.getElementById('depart-bookings').textContent = `📦 ${teu} ${T('depart.loaded')} (${legInfo})`;
         document.getElementById('depart-countdown').textContent = `${T('depart.countdown')} ${daysLeft}${T('depart.daysLeft')}`;
         const shipStatus = document.getElementById('ship-status');
         if (shipStatus) {
-            const homePort = s.route.ports[0];
+            const homePort = r.ports[0];
             const w = this.getWeather(homePort);
-            shipStatus.textContent = `${T('ship.docked')} — ${w.icon} ${w.desc} ${w.temp}° | ${T('depart.countdown')} ${daysLeft}${T('depart.daysLeft')}`;
+            const portName = this.getPortName(homePort);
+            shipStatus.textContent = `⚓ ${portName}${T('common.port')} ${T('ship.dockedShort')} — ${T('ship.salesActive')} — ${legInfo} — ${w.icon} ${w.desc} ${w.temp}° | ${T('depart.countdown')} ${daysLeft}${T('depart.daysLeft')}`;
         }
     },
 
     getTEU() {
         return this.state.bookings.reduce((s, b) => s + b.q20 + b.q40 * 2, 0);
+    },
+
+    // TEU for first leg only (outbound direction for bay grid visualization)
+    getFirstBoundTEU() {
+        const r = this.state.route;
+        const firstLeg = `${r.ports[0]}-${r.ports[1]}`;
+        return this.state.bookings.filter(b => b.leg === firstLeg).reduce((s, b) => s + b.q20 + b.q40 * 2, 0);
+    },
+
+    // Realistic port stay days = rotationDays - totalSailingDays
+    getPortStayDays() {
+        const r = this.state.route;
+        const totalSailingDays = r.legs.reduce((sum, l) => sum + l.seaDays, 0);
+        return Math.max(1, Math.round(r.rotationDays - totalSailingDays));
     },
 
     // Convert gameDay to actual date (starting from user's real start date)

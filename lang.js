@@ -72,6 +72,8 @@ const TEXTS = {
 
 // ========== SHIP STATUS ==========
 'ship.docked': { ko: '⚓ 정박 중 — 영업 진행 중', ja: '⚓ 停泊中 — 営業活動中' },
+'ship.dockedShort': { ko: '정박중', ja: '停泊中' },
+'ship.salesActive': { ko: '영업 진행중', ja: '営業活動中' },
 'ship.sailing': { ko: '🚢 항해 중', ja: '🚢 航海中' },
 'ship.loading': { ko: '적재 중', ja: '積載中' },
 'ship.teu': { ko: 'TEU', ja: 'TEU' },

@@ -104,6 +104,9 @@ h1{font-size:32px;font-weight:300;letter-spacing:6px;margin-bottom:6px}
 .hull{position:absolute;bottom:0;left:0;width:100%;height:30%;background:linear-gradient(180deg,#333,#1a1a1a);border-radius:0 0 40% 25%;clip-path:polygon(3% 0%,97% 0%,100% 40%,93% 100%,7% 100%,0% 40%)}
 .vessel-name{position:absolute;bottom:14%;left:50%;transform:translateX(-50%);font-size:15px;font-weight:800;color:rgba(255,255,255,.95);letter-spacing:3px;z-index:6;text-shadow:0 2px 6px rgba(0,0,0,.9),0 0 12px rgba(21,101,192,.4);white-space:nowrap}
 .bridge{position:absolute;bottom:28%;right:5%;width:14%;height:35%;background:linear-gradient(180deg,#fff,#ccc);border-radius:3px 3px 0 0}
+.bridge::before{content:'K';position:absolute;top:-22px;right:30%;width:16px;height:16px;background:var(--blue);color:#fff;font-size:9px;font-weight:900;text-align:center;line-height:16px;border-radius:2px;z-index:3}
+.bridge::after{content:'';position:absolute;top:-6px;right:calc(30% + 7px);width:2px;height:18px;background:#666;z-index:2}
+.hull-logo{position:absolute;bottom:6%;left:40%;font-size:11px;font-weight:900;color:rgba(255,255,255,.35);letter-spacing:4px;z-index:3;pointer-events:none}
 .funnel{position:absolute;bottom:60%;right:8%;width:4%;height:18%;background:var(--blue);border-radius:2px 2px 0 0;z-index:2}
 .fstripe{position:absolute;top:30%;width:100%;height:3px;background:white}
 .bay-grid{position:absolute;bottom:30%;left:10%;width:72%;height:45%;display:grid;grid-template-columns:repeat(10,1fr);grid-template-rows:repeat(5,1fr);gap:1px;padding:2px}

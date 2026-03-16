@@ -229,6 +229,7 @@ const Game = {
         if (pl) pl.textContent = `${this.getPortName(s.route.ports[0])}${T('common.port')}`;
         this.updateAll();
         this.updateTicker();
+        this.renderTrendBoard();
         this.startTick();
         this.addFeed(T('save.launched'), 'alert');
     },
@@ -5930,6 +5931,74 @@ const Game = {
         box.appendChild(t);
         setTimeout(() => t.remove(), 3000);
     },
+    // ==================== TREND BOARD (Oracle Real Data) ====================
+    _trendData: null,
+    _promoIdx: 0,
+
+    async renderTrendBoard() {
+        const board = document.getElementById('trend-board');
+        if (!board) return;
+
+        // Fixed strategic promo messages (rotate every render)
+        const promos = [
+            { tag: 'HOT', msg: CURRENT_LANG === 'ja' ? '🇯🇵→🇹🇭 日本発タイ向け 集荷強化中！運賃お問い合わせ歓迎' : '🇯🇵→🇹🇭 일본발 태국향 집하 강화중! 운임 문의 환영', highlight: true },
+            { tag: 'NEW', msg: CURRENT_LANG === 'ja' ? '🇯🇵→🇮🇳 日本発インド向け 新サービス開始！チェンナイ・ムンバイ直航' : '🇯🇵→🇮🇳 일본발 인도향 신규 서비스 개시! 첸나이·뭄바이 직항', highlight: true },
+            { tag: 'KMTC', msg: CURRENT_LANG === 'ja' ? '📦 小口貨物も大歓迎 — LCL/FCL対応。まずはお見積りを！' : '📦 소량 화물도 대환영 — LCL/FCL 대응. 먼저 견적을 요청하세요!', highlight: false },
+            { tag: 'SPEED', msg: CURRENT_LANG === 'ja' ? '⚡ 韓国向け最速 — 釜山ダイレクト週3便。リードタイム業界最短' : '⚡ 한국향 최속 — 부산 다이렉트 주3편. 리드타임 업계 최단', highlight: false },
+            { tag: 'ECO', msg: CURRENT_LANG === 'ja' ? '🌱 KMTC Green Shipping — CO2排出量30%削減達成。ESG対応も万全' : '🌱 KMTC Green Shipping — CO2 배출 30% 감축. ESG 대응도 만전', highlight: false },
+        ];
+
+        // Load Oracle data (fetch once, cache)
+        if (!this._trendData) {
+            try {
+                const resp = await fetch('ticker_data.json');
+                if (resp.ok) this._trendData = await resp.json();
+            } catch(e) { /* silent */ }
+        }
+
+        const data = this._trendData;
+        const isJa = CURRENT_LANG === 'ja';
+
+        // Country name mapping
+        const ctryName = { KR: isJa ? '韓国' : '한국', CN: isJa ? '中国' : '중국', JP: isJa ? '日本' : '일본', TH: isJa ? 'タイ' : '태국', VN: isJa ? 'ベトナム' : '베트남', IN: isJa ? 'インド' : '인도', ID: isJa ? 'インドネシア' : '인도네시아', PH: isJa ? 'フィリピン' : '필리핀', MY: isJa ? 'マレーシア' : '말레이시아' };
+
+        // Render trend list
+        const listEl = document.getElementById('trend-list');
+        if (listEl && data) {
+            const routes = data.from_japan.slice(0, 5);
+            const titleEl = document.getElementById('trend-title');
+            if (titleEl) titleEl.textContent = isJa ? '🔥 日本発 人気区間 TOP5' : '🔥 일본발 인기 구간 TOP5';
+            const updEl = document.getElementById('trend-updated');
+            if (updEl) updEl.textContent = data.updated || '';
+
+            listEl.innerHTML = routes.map((r, i) => {
+                const rankCls = i < 3 ? ` r${i+1}` : '';
+                const flag = { KR:'🇰🇷', CN:'🇨🇳', TH:'🇹🇭', VN:'🇻🇳', IN:'🇮🇳', ID:'🇮🇩', PH:'🇵🇭', MY:'🇲🇾' }[r.country] || '🌏';
+                return `<div class="trend-row">
+                    <span class="trend-rank${rankCls}">${i+1}</span>
+                    <span class="trend-route">${r.from} <span class="arrow">→</span> ${r.to} ${flag}</span>
+                    <span class="trend-teu">${r.teu} TEU</span>
+                </div>`;
+            }).join('');
+        } else if (listEl) {
+            listEl.innerHTML = `<div style="padding:8px;font-size:10px;color:var(--t3);text-align:center">${isJa ? 'データ読込中...' : '데이터 로딩중...'}</div>`;
+        }
+
+        // Render promo (rotate)
+        const promoEl = document.getElementById('trend-promo');
+        if (promoEl) {
+            const p = promos[this._promoIdx % promos.length];
+            promoEl.innerHTML = `<div class="promo-banner ${p.highlight ? 'highlight' : ''}">
+                <span class="promo-tag">${p.tag}</span>
+                <span class="promo-msg">${p.msg}</span>
+            </div>`;
+            this._promoIdx++;
+        }
+
+        // Refresh every 60 seconds (rotate promo + re-render)
+        setTimeout(() => this.renderTrendBoard(), 60000);
+    },
+
 };
 
 // Auto-save when browser closes/refreshes

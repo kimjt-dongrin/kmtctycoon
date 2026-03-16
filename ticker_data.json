@@ -1,0 +1,13 @@
+{
+  "updated": "2026-03-16",
+  "from_japan": [
+    { "country": "TH", "from": "TOKYO", "to": "BANGKOK", "teu": 1240 },
+    { "country": "KR", "from": "OSAKA", "to": "BUSAN", "teu": 1085 },
+    { "country": "VN", "from": "NAGOYA", "to": "HOCHIMINH", "teu": 920 },
+    { "country": "CN", "from": "KOBE", "to": "SHANGHAI", "teu": 870 },
+    { "country": "ID", "from": "YOKOHAMA", "to": "JAKARTA", "teu": 745 },
+    { "country": "IN", "from": "TOKYO", "to": "CHENNAI", "teu": 680 },
+    { "country": "PH", "from": "OSAKA", "to": "MANILA", "teu": 540 },
+    { "country": "MY", "from": "KOBE", "to": "PORT KLANG", "teu": 485 }
+  ]
+}

@@ -414,6 +414,29 @@ body.has-bg::before{opacity:0.12}
 /* Confetti particles for big rank jumps */
 .rank-confetti{position:absolute;pointer-events:none;font-size:12px;animation:confetti 1.2s ease-out forwards}
 
+/* ==================== TREND BOARD ==================== */
+.trend-board{background:linear-gradient(180deg,rgba(10,22,40,.95),rgba(13,32,64,.95));border-top:1px solid var(--border);flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.trend-header{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:1px solid rgba(0,200,255,.1);flex-shrink:0}
+.trend-title{font-size:11px;font-weight:700;color:rgba(0,200,255,.9);letter-spacing:1px;text-shadow:0 0 8px rgba(0,200,255,.3)}
+.trend-updated{font-size:9px;color:var(--t3)}
+.trend-list{flex:1;overflow-y:auto;padding:4px 8px}
+.trend-row{display:flex;align-items:center;gap:6px;padding:4px 6px;margin-bottom:2px;border-radius:4px;font-size:11px;background:rgba(255,255,255,.02);border-left:2px solid transparent;transition:all .2s}
+.trend-row:hover{background:rgba(0,200,255,.05)}
+.trend-rank{font-size:13px;font-weight:900;min-width:18px;text-align:center}
+.trend-rank.r1{color:#FFD700;text-shadow:0 0 6px rgba(255,215,0,.4)}
+.trend-rank.r2{color:#C0C0C0;text-shadow:0 0 4px rgba(192,192,192,.3)}
+.trend-rank.r3{color:#CD7F32;text-shadow:0 0 4px rgba(205,127,50,.3)}
+.trend-route{flex:1;font-weight:600;color:var(--t1);font-size:11px}
+.trend-route .arrow{color:rgba(0,200,255,.6);margin:0 3px;font-size:9px}
+.trend-teu{font-size:10px;color:var(--t2);min-width:50px;text-align:right}
+.trend-promo{padding:4px 8px;border-top:1px solid rgba(0,200,255,.1);flex-shrink:0}
+.promo-banner{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;font-size:10px;margin-bottom:3px;animation:promoPulse 3s ease-in-out infinite;background:rgba(0,200,255,.06);border:1px solid rgba(0,200,255,.15);color:var(--t2)}
+.promo-banner.highlight{background:rgba(255,179,0,.08);border-color:rgba(255,179,0,.25);color:var(--yellow)}
+.promo-banner .promo-tag{font-weight:700;font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(0,200,255,.15);color:rgba(0,200,255,.9);white-space:nowrap}
+.promo-banner.highlight .promo-tag{background:rgba(255,179,0,.2);color:var(--yellow)}
+.promo-msg{flex:1;line-height:1.3}
+@keyframes promoPulse{0%,100%{opacity:1}50%{opacity:.8}}
+
 /* ==================== MOBILE RESPONSIVE ==================== */
 @media (max-width: 768px) {
     body{overflow:auto;height:auto;min-height:100vh}
@@ -484,6 +507,14 @@ body.has-bg::before{opacity:0.12}
     .feed-list{font-size:10px;padding:2px 6px}
     .feed-item{padding:3px 6px;gap:4px}
     .feed-item .feed-time{min-width:30px;font-size:9px}
+
+    /* Trend Board */
+    .trend-board{max-height:140px}
+    .trend-header{padding:4px 8px}
+    .trend-title{font-size:10px}
+    .trend-row{font-size:10px;padding:3px 4px}
+    .trend-rank{font-size:11px;min-width:14px}
+    .promo-banner{font-size:9px;padding:4px 6px}
 
     /* Tabs - horizontal scroll */
     .tab-bar{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}

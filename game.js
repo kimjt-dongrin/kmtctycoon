@@ -1478,35 +1478,114 @@ const Game = {
         const disc30Win = Math.min(95, baseWin + 45);
 
         document.getElementById('evt-actions').innerHTML =
-            `<button class="btn-primary" onclick="Game.bidBsa('${bidId}',${teuPerVoy},${revPerVoy},${totalVoyages},'${fromPort}','${toPort}',${template.difficulty},0)" style="margin-bottom:4px;width:100%">` +
-                `💪 ${T('bsa.bid0', baseWin)}</button>` +
-            `<button class="btn-primary" onclick="Game.bidBsa('${bidId}',${teuPerVoy},${Math.round(revPerVoy * 0.9)},${totalVoyages},'${fromPort}','${toPort}',${template.difficulty},1)" style="margin-bottom:4px;width:100%;background:var(--accent2)">` +
-                `📉 ${T('bsa.bid10', disc10Win)}</button>` +
-            `<button class="btn-primary" onclick="Game.bidBsa('${bidId}',${teuPerVoy},${Math.round(revPerVoy * 0.8)},${totalVoyages},'${fromPort}','${toPort}',${template.difficulty},2)" style="margin-bottom:4px;width:100%;background:#7B1FA2">` +
-                `📉 ${T('bsa.bid20', disc20Win)}</button>` +
-            `<button class="btn-primary" onclick="Game.bidBsa('${bidId}',${teuPerVoy},${Math.round(revPerVoy * 0.7)},${totalVoyages},'${fromPort}','${toPort}',${template.difficulty},3)" style="margin-bottom:4px;width:100%;background:#E65100">` +
-                `📉 ${T('bsa.bid30', disc30Win)}</button>` +
+            `<button class="btn-primary" onclick="Game.bidBsa('${bidId}',${teuPerVoy},${revPerVoy},${totalVoyages},'${fromPort}','${toPort}',${template.difficulty},0,${contractDuration})" style="margin-bottom:4px;width:100%">${T('bsa.bid0', baseWin)}</button>` +
+            `<button class="btn-primary" onclick="Game.bidBsa('${bidId}',${teuPerVoy},${Math.round(revPerVoy * 0.9)},${totalVoyages},'${fromPort}','${toPort}',${template.difficulty},1,${contractDuration})" style="margin-bottom:4px;width:100%;background:var(--accent2)">${T('bsa.bid10', disc10Win)}</button>` +
+            `<button class="btn-primary" onclick="Game.bidBsa('${bidId}',${teuPerVoy},${Math.round(revPerVoy * 0.8)},${totalVoyages},'${fromPort}','${toPort}',${template.difficulty},2,${contractDuration})" style="margin-bottom:4px;width:100%;background:#7B1FA2">${T('bsa.bid20', disc20Win)}</button>` +
+            `<button class="btn-primary" onclick="Game.bidBsa('${bidId}',${teuPerVoy},${Math.round(revPerVoy * 0.7)},${totalVoyages},'${fromPort}','${toPort}',${template.difficulty},3,${contractDuration})" style="margin-bottom:4px;width:100%;background:#E65100">${T('bsa.bid30', disc30Win)}</button>` +
             `<button class="btn-sm" onclick="Game.closeModal('modal-event');Game.startTick()" style="width:100%;background:var(--card2)">${T('bsa.decline')}</button>`;
         document.getElementById('modal-event').classList.add('active');
     },
 
-    bidBsa(bidId, teuPerVoy, revPerVoy, totalVoyages, fromPort, toPort, difficulty, discountLevel) {
+    bidBsa(bidId, teuPerVoy, revPerVoy, totalVoyages, fromPort, toPort, difficulty, discountLevel, duration) {
         const s = this.state;
         if (!s.bsaContracts) s.bsaContracts = [];
         const allCusts = Object.values(s.custs).flat();
         const rep = allCusts.length > 0 ? allCusts.reduce((sum, c) => sum + c.share, 0) / allCusts.length : 0;
 
-        // Win probability: base + reputation + discount bonus - difficulty penalty
+        // Win probability
         let winRate = 0.50 + rep * 0.003 - difficulty * 0.10;
-        if (discountLevel === 1) winRate += 0.15;       // 10% discount
-        else if (discountLevel === 2) winRate += 0.30;   // 20% discount
-        else if (discountLevel === 3) winRate += 0.45;   // 30% discount
+        if (discountLevel === 1) winRate += 0.15;
+        else if (discountLevel === 2) winRate += 0.30;
+        else if (discountLevel === 3) winRate += 0.45;
         winRate += s.infra.training * 0.03 + (s.infra.systems || s.infra.it || 0) * 0.02;
         winRate = Math.max(0.10, Math.min(0.95, winRate));
 
         const won = Math.random() < winRate;
-        this.closeModal('modal-event');
 
+        // Calculate base rate (undiscounted) for competitor reference
+        const baseRev = discountLevel > 0 ? Math.round(revPerVoy / (1 - discountLevel * 0.1)) : revPerVoy;
+        const myBidPrice = revPerVoy;
+
+        // Generate 2-3 competitor bids
+        const compNames = CURRENT_LANG === 'ja' ? COMPETITOR_NAMES_JA : COMPETITOR_NAMES;
+        const numComp = 2 + Math.floor(Math.random() * 2);
+        const shuffled = [...compNames].sort(() => Math.random() - 0.5).slice(0, numComp);
+        const competitors = shuffled.map(name => {
+            let price;
+            if (won) {
+                price = Math.round(baseRev * (0.85 + Math.random() * 0.25));
+                if (price <= myBidPrice) price = myBidPrice + Math.round(baseRev * 0.03 + Math.random() * baseRev * 0.1);
+            } else {
+                price = Math.round(baseRev * (0.60 + Math.random() * 0.35));
+            }
+            return { name, price };
+        });
+
+        // If lost, ensure at least one competitor is cheaper
+        if (!won) {
+            const cheapest = competitors.reduce((min, c) => c.price < min.price ? c : min);
+            if (cheapest.price >= myBidPrice) {
+                cheapest.price = Math.round(myBidPrice * (0.80 + Math.random() * 0.15));
+            }
+        }
+
+        // Build all bidders list and sort by price (lowest first = best for shipper)
+        const allBidders = [
+            { name: s.co, price: myBidPrice, isMe: true, won: won },
+            ...competitors.map(c => ({ ...c, isMe: false, won: false }))
+        ];
+        allBidders.sort((a, b) => a.price - b.price);
+
+        // Mark winner
+        if (won) {
+            allBidders.find(b => b.isMe).won = true;
+        } else {
+            allBidders[0].won = true;
+        }
+
+        // Build result modal HTML
+        const resultText = won ? T('bsa.resultWon') : T('bsa.resultLost');
+        const resultColor = won ? 'var(--green)' : 'var(--red)';
+
+        let tableRows = allBidders.map((b, i) => {
+            const rank = i + 1;
+            const tag = b.won ? `<span style="color:var(--green);font-weight:700">${T('bsa.winner')}</span>` : `<span style="color:var(--t3)">${T('bsa.loser')}</span>`;
+            const nameStyle = b.isMe ? 'font-weight:700;color:var(--accent)' : '';
+            const rowBg = b.isMe ? 'background:rgba(0,84,166,.15)' : (b.won ? 'background:rgba(76,175,80,.1)' : '');
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;margin:3px 0;border-radius:6px;font-size:13px;${rowBg}">
+                <span style="${nameStyle}">${rank}. ${b.name}${b.isMe ? ' (' + (CURRENT_LANG === 'ja' ? '自社' : '나') + ')' : ''}</span>
+                <span style="display:flex;gap:10px;align-items:center">
+                    <span style="font-weight:600">$${b.price.toLocaleString()}${T('bsa.perVoy')}</span>
+                    ${tag}
+                </span>
+            </div>`;
+        }).join('');
+
+        let contractInfo = '';
+        if (won) {
+            contractInfo = `<div style="background:rgba(76,175,80,.1);border:1px solid var(--green);border-radius:8px;padding:10px;margin-top:12px;font-size:12px;color:var(--green)">
+                ${T('bsa.contractStart', duration || Math.round(totalVoyages * s.route.rotationDays / 30), totalVoyages)}<br>
+                ${T('bsa.expectedRevenue', (revPerVoy * totalVoyages).toLocaleString())}
+            </div>`;
+        }
+
+        // Show result in event modal
+        document.getElementById('evt-title').textContent = T('bsa.resultTitle');
+        document.getElementById('evt-desc').innerHTML = `
+            <div style="text-align:center;margin-bottom:14px">
+                <div style="font-size:28px;margin-bottom:4px">${won ? '🏆' : '❌'}</div>
+                <div style="font-size:18px;font-weight:700;color:${resultColor}">${resultText}</div>
+            </div>
+            <div style="font-size:11px;color:var(--t3);margin-bottom:6px;text-align:left">${T('bsa.myBid')}: $${myBidPrice.toLocaleString()}${T('bsa.perVoy')} (${discountLevel > 0 ? discountLevel * 10 + '% ' + (CURRENT_LANG === 'ja' ? '割引' : '할인') : CURRENT_LANG === 'ja' ? '定価' : '정가'})</div>
+            <div style="text-align:left;border:1px solid var(--border);border-radius:8px;overflow:hidden;padding:4px">
+                ${tableRows}
+            </div>
+            ${contractInfo}`;
+        document.getElementById('evt-actions').innerHTML =
+            `<button class="btn-primary" onclick="Game.closeModal('modal-event');Game.startTick()" style="width:100%">${T('bsa.resultConfirm')}</button>`;
+        document.getElementById('modal-event').classList.add('active');
+
+        // Apply result
         if (won) {
             const contract = {
                 id: bidId, teuPerVoy, revPerVoy, fromPort, toPort,
@@ -1515,12 +1594,9 @@ const Game = {
             };
             s.bsaContracts.push(contract);
             this.addFeed(T('bsa.won', teuPerVoy, totalVoyages), 'booking');
-            this.toast(T('bsa.wonToast', (revPerVoy * totalVoyages).toLocaleString()), 'ok');
         } else {
             this.addFeed(T('bsa.lost'), 'alert');
-            this.toast(T('bsa.lostToast'), 'fail');
         }
-        this.startTick();
     },
 
     // Generate BSA contract bookings each voyage

@@ -3137,7 +3137,9 @@ const Game = {
             const portTotal = emptyTotal + bookedHere;
             const isHome = p === homePort;
             const isSlot = !r.ports.includes(p);
-            const isExcess = !isHome && emptyTotal > 13;
+            // Home port: excess if empties exceed 1.5x ship capacity; other ports: > 13
+            const excessThreshold = isHome ? Math.round(s.ship.capacity * 1.5) : 13;
+            const isExcess = emptyTotal > excessThreshold;
             const sellTo = (allSalesPorts[p]?.sellTo || []).map(d => this.getPortName(d)).join(', ');
             const portName = this.getPortName(p);
 
@@ -3150,8 +3152,8 @@ const Game = {
                     <div>
                         <div style="color:var(--t3);margin-bottom:2px">${T('ctr.empty')}</div>
                         <div style="display:flex;gap:12px">
-                            <span>20': <strong style="color:${e20 > 10 && !isHome ? 'var(--red)' : 'var(--t1)'}">${e20}</strong></span>
-                            <span>40': <strong style="color:${e40 > 8 && !isHome ? 'var(--red)' : 'var(--t1)'}">${e40}</strong></span>
+                            <span>20': <strong style="color:${isExcess ? 'var(--red)' : 'var(--t1)'}">${e20}</strong></span>
+                            <span>40': <strong style="color:${isExcess ? 'var(--red)' : 'var(--t1)'}">${e40}</strong></span>
                         </div>
                     </div>
                     <div>
@@ -3162,7 +3164,8 @@ const Game = {
                         </div>
                     </div>
                 </div>
-                ${isExcess ? `<div style="margin-top:6px;padding:4px 6px;background:rgba(239,83,80,.1);border-radius:4px;font-size:10px;color:var(--red)">${T('ctr.excessWarn', portName, sellTo)}</div>` : ''}
+                ${isExcess && !isHome ? `<div style="margin-top:6px;padding:4px 6px;background:rgba(239,83,80,.1);border-radius:4px;font-size:10px;color:var(--red)">${T('ctr.excessWarn', portName, sellTo)}</div>` : ''}
+                ${isExcess && isHome ? `<div style="margin-top:6px;padding:4px 6px;background:rgba(239,83,80,.1);border-radius:4px;font-size:10px;color:var(--red)">${T('ctr.homeExcess', portName, emptyTotal, excessThreshold)}</div>` : ''}
                 ${!isHome && emptyTotal === 0 && bookedHere === 0 ? '<div style="margin-top:4px;font-size:10px;color:var(--t3)">' + T('ctr.none') + '</div>' : ''}
             </div>`;
         });

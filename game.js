@@ -4443,6 +4443,11 @@ const Game = {
         if (s.stats.history.length > 0) {
             html += `<h4 style="font-size:13px;color:var(--t2);margin:12px 0 8px">${T('fin.voyagePnl')}</h4>`;
 
+            // Bound direction labels
+            const fBounds = this.getRouteBounds(r);
+            const fB1 = this.getBoundShort(fBounds[0]);
+            const fB2 = this.getBoundShort(fBounds[1]);
+
             // Average stats
             const avgRev = Math.round(s.stats.history.reduce((s, h) => s + h.rev, 0) / s.stats.history.length);
             const avgExp = Math.round(s.stats.history.reduce((s, h) => s + h.exp, 0) / s.stats.history.length);
@@ -4462,9 +4467,6 @@ const Game = {
 
             // Per-voyage table with expandable detail
             html += '<div style="background:var(--card2);border-radius:8px;padding:10px">';
-            const fBounds = this.getRouteBounds(r);
-            const fB1 = this.getBoundShort(fBounds[0]);
-            const fB2 = this.getBoundShort(fBounds[1]);
             html += `<div style="display:grid;grid-template-columns:60px 1fr 1fr 1fr 70px;gap:4px;font-size:10px;color:var(--t3);padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:4px"><span>${T('fin.voyage')}</span><span style="text-align:right">${T('fin.rev')}</span><span style="text-align:right">${T('fin.exp')}</span><span style="text-align:right">${T('fin.profit')}</span><span style="text-align:right">${fB1}·${fB2}</span></div>`;
             [...s.stats.history].reverse().forEach((h, idx) => {
                 const profitColor = h.profit >= 0 ? 'var(--green)' : 'var(--red)';

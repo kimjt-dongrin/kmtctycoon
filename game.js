@@ -4400,7 +4400,7 @@ const Game = {
     },
 
     renderFinance() {
-        const s = this.state;
+        const s = this.state, r = s.route;
         const teamCost = s.salesTeam.reduce((sum, st) => sum + st.salary, 0) + s.captain.salary;
         const totExp = s.stats.totExp || 0;
         const netProfit = s.stats.totRev - totExp;

@@ -1,148 +1,169 @@
 {
-  "updated": "2026-03-16 16:02",
-  "period": "2026-01 ~ current",
-  "from_japan": [
+  "updated": "2026-03-16",
+  "period_label": "W10 (3/3~3/9)",
+  "prev_period": "W09 (2/24~3/2)",
+  "country_ranking": [
     {
-      "from": "SEN",
-      "to": "XGG",
-      "country": "CN",
-      "bl": 19,
-      "teu": 420
+      "rank": 1,
+      "code": "CN",
+      "name": "China",
+      "name_ja": "中国",
+      "name_ko": "중국",
+      "count": 322,
+      "prev": 245,
+      "chg": 77,
+      "pct": 31,
+      "rank_chg": 0
     },
     {
-      "from": "SMN",
-      "to": "DLC",
-      "country": "CN",
-      "bl": 3,
-      "teu": 263
+      "rank": 2,
+      "code": "IN",
+      "name": "India",
+      "name_ja": "インド",
+      "name_ko": "인도",
+      "count": 175,
+      "prev": 132,
+      "chg": 43,
+      "pct": 33,
+      "rank_chg": 0
     },
     {
-      "from": "KIJ",
-      "to": "PUS",
-      "country": "KR",
-      "bl": 70,
-      "teu": 237
+      "rank": 3,
+      "code": "VN",
+      "name": "Vietnam",
+      "name_ja": "ベトナム",
+      "name_ko": "베트남",
+      "count": 117,
+      "prev": 88,
+      "chg": 29,
+      "pct": 33,
+      "rank_chg": 0
     },
     {
-      "from": "MIZ",
-      "to": "PUS",
-      "country": "KR",
-      "bl": 98,
-      "teu": 195
+      "rank": 4,
+      "code": "TH",
+      "name": "Thailand",
+      "name_ja": "タイ",
+      "name_ko": "태국",
+      "count": 87,
+      "prev": 72,
+      "chg": 15,
+      "pct": 21,
+      "rank_chg": 0
     },
     {
-      "from": "TYO",
-      "to": "PUS",
-      "country": "KR",
-      "bl": 129,
-      "teu": 187
+      "rank": 5,
+      "code": "ID",
+      "name": "Indonesia",
+      "name_ja": "インドネシア",
+      "name_ko": "인도네시아",
+      "count": 73,
+      "prev": 48,
+      "chg": 25,
+      "pct": 52,
+      "rank_chg": 1
     },
     {
-      "from": "MAI",
-      "to": "PUS",
-      "country": "KR",
-      "bl": 22,
-      "teu": 169
+      "rank": 6,
+      "code": "HK",
+      "name": "Hong Kong",
+      "name_ja": "香港",
+      "name_ko": "홍콩",
+      "count": 57,
+      "prev": 44,
+      "chg": 13,
+      "pct": 30,
+      "rank_chg": 1
     },
     {
-      "from": "YOK",
-      "to": "PUS",
-      "country": "KR",
-      "bl": 109,
-      "teu": 148
+      "rank": 7,
+      "code": "MY",
+      "name": "Malaysia",
+      "name_ja": "マレーシア",
+      "name_ko": "말레이시아",
+      "count": 56,
+      "prev": 71,
+      "chg": -15,
+      "pct": -21,
+      "rank_chg": -2
     },
     {
-      "from": "TMK",
-      "to": "INC",
-      "country": "KR",
-      "bl": 48,
-      "teu": 146
-    },
-    {
-      "from": "OSA",
-      "to": "MUN",
-      "country": "IN",
-      "bl": 23,
-      "teu": 142
-    },
-    {
-      "from": "MAI",
-      "to": "TAO",
-      "country": "CN",
-      "bl": 5,
-      "teu": 139
+      "rank": 8,
+      "code": "SG",
+      "name": "Singapore",
+      "name_ja": "シンガポール",
+      "name_ko": "싱가포르",
+      "count": 20,
+      "prev": 12,
+      "chg": 8,
+      "pct": 67,
+      "rank_chg": 0
     }
   ],
-  "to_japan": [
+  "hot_ports": [
     {
-      "from": "PUS",
-      "to": "TYO",
-      "country": "KR",
-      "bl": 492,
-      "teu": 743
+      "port": "LCH",
+      "country": "TH",
+      "count": 49,
+      "prev": 18,
+      "chg": 31,
+      "pct": 172
     },
     {
-      "from": "PUS",
-      "to": "NGO",
-      "country": "KR",
-      "bl": 242,
-      "teu": 403
-    },
-    {
-      "from": "MNL",
-      "to": "ISI",
-      "country": "PH",
-      "bl": 30,
-      "teu": 380
-    },
-    {
-      "from": "PUS",
-      "to": "SMZ",
-      "country": "KR",
-      "bl": 172,
-      "teu": 360
-    },
-    {
-      "from": "PUS",
-      "to": "YOK",
-      "country": "KR",
-      "bl": 208,
-      "teu": 313
-    },
-    {
-      "from": "SUB",
-      "to": "SDJ",
-      "country": "ID",
-      "bl": 88,
-      "teu": 306
-    },
-    {
-      "from": "SHA",
-      "to": "SDJ",
+      "port": "HUA",
       "country": "CN",
-      "bl": 180,
-      "teu": 292
+      "count": 15,
+      "prev": 7,
+      "chg": 8,
+      "pct": 114
     },
     {
-      "from": "PUS",
-      "to": "OSA",
-      "country": "KR",
-      "bl": 197,
-      "teu": 286
+      "port": "TAO",
+      "country": "CN",
+      "count": 50,
+      "prev": 24,
+      "chg": 26,
+      "pct": 108
     },
     {
-      "from": "PUS",
-      "to": "UKB",
-      "country": "KR",
-      "bl": 159,
-      "teu": 264
+      "port": "LKB",
+      "country": "TH",
+      "count": 12,
+      "prev": 6,
+      "chg": 6,
+      "pct": 100
     },
     {
-      "from": "MNL",
-      "to": "CHB",
-      "country": "PH",
-      "bl": 6,
-      "teu": 260
+      "port": "DLC",
+      "country": "CN",
+      "count": 23,
+      "prev": 12,
+      "chg": 11,
+      "pct": 92
+    },
+    {
+      "port": "MAA",
+      "country": "IN",
+      "count": 50,
+      "prev": 30,
+      "chg": 20,
+      "pct": 67
+    },
+    {
+      "port": "SIN",
+      "country": "SG",
+      "count": 20,
+      "prev": 12,
+      "chg": 8,
+      "pct": 67
+    },
+    {
+      "port": "JKT",
+      "country": "ID",
+      "count": 66,
+      "prev": 40,
+      "chg": 26,
+      "pct": 65
     }
   ]
 }

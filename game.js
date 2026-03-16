@@ -5931,24 +5931,16 @@ const Game = {
         box.appendChild(t);
         setTimeout(() => t.remove(), 3000);
     },
-    // ==================== TREND BOARD (Oracle Real Data) ====================
+    // ==================== TREND BOARD (Stock Ticker Style) ====================
     _trendData: null,
     _promoIdx: 0,
+    _trendView: 'country', // 'country' or 'hot'
 
     async renderTrendBoard() {
         const board = document.getElementById('trend-board');
         if (!board) return;
 
-        // Fixed strategic promo messages (rotate every render)
-        const promos = [
-            { tag: 'HOT', msg: CURRENT_LANG === 'ja' ? '🇯🇵→🇹🇭 日本発タイ向け 集荷強化中！運賃お問い合わせ歓迎' : '🇯🇵→🇹🇭 일본발 태국향 집하 강화중! 운임 문의 환영', highlight: true },
-            { tag: 'NEW', msg: CURRENT_LANG === 'ja' ? '🇯🇵→🇮🇳 日本発インド向け 新サービス開始！チェンナイ・ムンバイ直航' : '🇯🇵→🇮🇳 일본발 인도향 신규 서비스 개시! 첸나이·뭄바이 직항', highlight: true },
-            { tag: 'KMTC', msg: CURRENT_LANG === 'ja' ? '📦 小口貨物も大歓迎 — LCL/FCL対応。まずはお見積りを！' : '📦 소량 화물도 대환영 — LCL/FCL 대응. 먼저 견적을 요청하세요!', highlight: false },
-            { tag: 'SPEED', msg: CURRENT_LANG === 'ja' ? '⚡ 韓国向け最速 — 釜山ダイレクト週3便。リードタイム業界最短' : '⚡ 한국향 최속 — 부산 다이렉트 주3편. 리드타임 업계 최단', highlight: false },
-            { tag: 'ECO', msg: CURRENT_LANG === 'ja' ? '🌱 KMTC Green Shipping — CO2排出量30%削減達成。ESG対応も万全' : '🌱 KMTC Green Shipping — CO2 배출 30% 감축. ESG 대응도 만전', highlight: false },
-        ];
-
-        // Load Oracle data (fetch once, cache)
+        // Load data (fetch once, cache)
         if (!this._trendData) {
             try {
                 const resp = await fetch('ticker_data.json');
@@ -5958,33 +5950,79 @@ const Game = {
 
         const data = this._trendData;
         const isJa = CURRENT_LANG === 'ja';
-
-        // Country name mapping
-        const ctryName = { KR: isJa ? '韓国' : '한국', CN: isJa ? '中国' : '중국', JP: isJa ? '日本' : '일본', TH: isJa ? 'タイ' : '태국', VN: isJa ? 'ベトナム' : '베트남', IN: isJa ? 'インド' : '인도', ID: isJa ? 'インドネシア' : '인도네시아', PH: isJa ? 'フィリピン' : '필리핀', MY: isJa ? 'マレーシア' : '말레이시아' };
-
-        // Render trend list
         const listEl = document.getElementById('trend-list');
-        if (listEl && data) {
-            const routes = data.from_japan.slice(0, 5);
-            const titleEl = document.getElementById('trend-title');
-            if (titleEl) titleEl.textContent = isJa ? '🔥 日本発 人気区間 TOP5' : '🔥 일본발 인기 구간 TOP5';
-            const updEl = document.getElementById('trend-updated');
-            if (updEl) updEl.textContent = data.updated || '';
+        const titleEl = document.getElementById('trend-title');
+        const updEl = document.getElementById('trend-updated');
 
-            listEl.innerHTML = routes.map((r, i) => {
-                const rankCls = i < 3 ? ` r${i+1}` : '';
-                const flag = { KR:'🇰🇷', CN:'🇨🇳', TH:'🇹🇭', VN:'🇻🇳', IN:'🇮🇳', ID:'🇮🇩', PH:'🇵🇭', MY:'🇲🇾' }[r.country] || '🌏';
-                return `<div class="trend-row">
-                    <span class="trend-rank${rankCls}">${i+1}</span>
-                    <span class="trend-route">${r.from} <span class="arrow">→</span> ${r.to} ${flag}</span>
-                    <span class="trend-teu">${r.teu} TEU</span>
-                </div>`;
-            }).join('');
-        } else if (listEl) {
-            listEl.innerHTML = `<div style="padding:8px;font-size:10px;color:var(--t3);text-align:center">${isJa ? 'データ読込中...' : '데이터 로딩중...'}</div>`;
+        if (!data || !listEl) {
+            if (listEl) listEl.innerHTML = `<div style="padding:8px;font-size:10px;color:var(--t3);text-align:center">${isJa ? 'データ読込中...' : '데이터 로딩중...'}</div>`;
+            setTimeout(() => this.renderTrendBoard(), 30000);
+            return;
         }
 
-        // Render promo (rotate)
+        // Alternate between country ranking and hot ports every 15 seconds
+        const showCountry = this._trendView === 'country';
+
+        if (showCountry && data.country_ranking) {
+            // === Stock Ticker: Country Ranking ===
+            if (titleEl) titleEl.textContent = isJa ? '📊 仕向国別 照会ランキング' : '📊 도착국별 조회 랭킹';
+            if (updEl) updEl.textContent = data.period_label || '';
+
+            listEl.innerHTML = data.country_ranking.map((c, i) => {
+                const rankCls = i < 3 ? ` r${i+1}` : '';
+                const name = isJa ? c.name_ja : c.name_ko;
+                const flag = {CN:'🇨🇳',IN:'🇮🇳',VN:'🇻🇳',TH:'🇹🇭',ID:'🇮🇩',HK:'🇭🇰',MY:'🇲🇾',SG:'🇸🇬'}[c.code] || '🌏';
+
+                // Week-over-week change arrow
+                let chgHtml = '';
+                if (c.pct > 0) chgHtml = `<span style="color:var(--green);font-size:10px;font-weight:700">▲${c.pct}%</span>`;
+                else if (c.pct < 0) chgHtml = `<span style="color:var(--red);font-size:10px;font-weight:700">▼${Math.abs(c.pct)}%</span>`;
+                else chgHtml = `<span style="color:var(--yellow);font-size:10px">-</span>`;
+
+                // Rank change badge
+                let rankBadge = '';
+                if (c.rank_chg > 0) rankBadge = `<span style="color:var(--green);font-size:9px;margin-left:3px">▲${c.rank_chg}</span>`;
+                else if (c.rank_chg < 0) rankBadge = `<span style="color:var(--red);font-size:9px;margin-left:3px">▼${Math.abs(c.rank_chg)}</span>`;
+
+                return `<div class="trend-row" style="border-left-color:${i<3 ? ['#FFD700','#C0C0C0','#CD7F32'][i] : 'transparent'}">
+                    <span class="trend-rank${rankCls}">${c.rank}</span>
+                    <span class="trend-route">${flag} ${name}${rankBadge}</span>
+                    <span class="trend-teu">${c.count}${isJa ? '件' : '건'}</span>
+                    <span style="min-width:48px;text-align:right">${chgHtml}</span>
+                </div>`;
+            }).join('');
+        } else if (data.hot_ports && data.hot_ports.length > 0) {
+            // === Hot Ports: Interest Surge ===
+            if (titleEl) titleEl.textContent = isJa ? '🔥 注目急上昇 仕向地' : '🔥 관심 급상승 도착지';
+            if (updEl) updEl.textContent = isJa ? '前週比' : '전주비';
+
+            listEl.innerHTML = data.hot_ports.map((p, i) => {
+                const rankCls = i < 3 ? ` r${i+1}` : '';
+                const flag = {CN:'🇨🇳',IN:'🇮🇳',VN:'🇻🇳',TH:'🇹🇭',ID:'🇮🇩',HK:'🇭🇰',MY:'🇲🇾',SG:'🇸🇬'}[p.country] || '🌏';
+                const ctryName = isJa
+                    ? {CN:'中国',IN:'インド',VN:'ベトナム',TH:'タイ',ID:'インドネシア',HK:'香港',MY:'マレーシア',SG:'シンガポール'}[p.country]
+                    : {CN:'중국',IN:'인도',VN:'베트남',TH:'태국',ID:'인도네시아',HK:'홍콩',MY:'말레이시아',SG:'싱가포르'}[p.country];
+
+                return `<div class="trend-row" style="border-left-color:var(--green)">
+                    <span class="trend-rank${rankCls}">${i+1}</span>
+                    <span class="trend-route">${flag} ${p.port} <span style="font-size:9px;color:var(--t3)">${ctryName}</span></span>
+                    <span class="trend-teu">${p.prev}→${p.count}</span>
+                    <span style="min-width:48px;text-align:right;color:var(--green);font-size:10px;font-weight:700">▲${p.pct}%</span>
+                </div>`;
+            }).join('');
+        }
+
+        // Toggle view + rotate promo
+        this._trendView = showCountry ? 'hot' : 'country';
+
+        // Fixed strategic promo messages (rotate)
+        const promos = [
+            { tag: 'HOT', msg: isJa ? '🇯🇵→🇹🇭 日本発タイ向け 集荷強化中！運賃お問い合わせ歓迎' : '🇯🇵→🇹🇭 일본발 태국향 집하 강화중! 운임 문의 환영', highlight: true },
+            { tag: 'NEW', msg: isJa ? '🇯🇵→🇮🇳 日本発インド向け 新サービス開始！チェンナイ・ムンバイ直航' : '🇯🇵→🇮🇳 일본발 인도향 신규 서비스! 첸나이·뭄바이 직항', highlight: true },
+            { tag: 'KMTC', msg: isJa ? '📦 小口貨物も大歓迎 — LCL/FCL対応。まずはお見積りを！' : '📦 소량 화물도 대환영 — LCL/FCL 대응. 견적 요청하세요!', highlight: false },
+            { tag: 'SPEED', msg: isJa ? '⚡ 韓国向け最速 — 釜山ダイレクト週３便' : '⚡ 한국향 최속 — 부산 다이렉트 주3편', highlight: false },
+            { tag: 'ECO', msg: isJa ? '🌱 KMTC Green Shipping — CO2排出量30%削減達成' : '🌱 KMTC Green Shipping — CO2 배출 30% 감축 달성', highlight: false },
+        ];
         const promoEl = document.getElementById('trend-promo');
         if (promoEl) {
             const p = promos[this._promoIdx % promos.length];
@@ -5995,8 +6033,8 @@ const Game = {
             this._promoIdx++;
         }
 
-        // Refresh every 60 seconds (rotate promo + re-render)
-        setTimeout(() => this.renderTrendBoard(), 60000);
+        // Refresh every 15 seconds (alternate views)
+        setTimeout(() => this.renderTrendBoard(), 15000);
     },
 
 };

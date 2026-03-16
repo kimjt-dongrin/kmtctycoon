@@ -16,8 +16,8 @@ const ROUTES = [
         boundLabels: { WB: '한국→중국', EB: '중국→한국', WBja: '韓国→中国', EBja: '中国→韓国' },
         salesPorts: {
             PUS: { sellTo: ['NBO', 'SHA'] },
-            NBO: { sellTo: ['PUS', 'SHA'] },
-            SHA: { sellTo: ['PUS', 'NBO'] },
+            NBO: { sellTo: ['PUS'] },
+            SHA: { sellTo: ['PUS'] },
         },
         legs: [
             { from: 'PUS', to: 'NBO', seaDays: 2, bound: 'WB' },
@@ -74,8 +74,8 @@ const NEW_ROUTE_PACKAGES = [
         boundLabels: { WB: '한국→중국', EB: '중국→한국', WBja: '韓国→中国', EBja: '中国→韓国' },
         salesPorts: {
             PUS: { sellTo: ['NBO', 'SHA'] },
-            NBO: { sellTo: ['PUS', 'SHA'] },
-            SHA: { sellTo: ['PUS', 'NBO'] },
+            NBO: { sellTo: ['PUS'] },
+            SHA: { sellTo: ['PUS'] },
         },
         legs: [
             { from: 'PUS', to: 'NBO', seaDays: 2, bound: 'WB' },
@@ -139,8 +139,8 @@ const NEW_ROUTE_PACKAGES = [
         boundLabels: { SB: '한국→베트남', NB: '베트남→한국', SBja: '韓国→ベトナム', NBja: 'ベトナム→韓国' },
         salesPorts: {
             PUS: { sellTo: ['HCM', 'HPH'] },
-            HCM: { sellTo: ['PUS', 'HPH'] },
-            HPH: { sellTo: ['PUS', 'HCM'] },
+            HCM: { sellTo: ['PUS'] },
+            HPH: { sellTo: ['PUS'] },
         },
         legs: [
             { from: 'PUS', to: 'HCM', seaDays: 5, bound: 'SB' },
@@ -169,8 +169,8 @@ const NEW_ROUTE_PACKAGES = [
         boundLabels: { SB: '한국→태국', NB: '태국→한국', SBja: '韓国→タイ', NBja: 'タイ→韓国' },
         salesPorts: {
             PUS: { sellTo: ['LCB', 'BKK'] },
-            LCB: { sellTo: ['PUS', 'BKK'] },
-            BKK: { sellTo: ['PUS', 'LCB'] },
+            LCB: { sellTo: ['PUS'] },
+            BKK: { sellTo: ['PUS'] },
         },
         legs: [
             { from: 'PUS', to: 'LCB', seaDays: 6, bound: 'SB' },
@@ -198,8 +198,8 @@ const NEW_ROUTE_PACKAGES = [
         boundLabels: { SB: '한국→말레이시아', NB: '말레이시아→한국', SBja: '韓国→マレーシア', NBja: 'マレーシア→韓国' },
         salesPorts: {
             PUS: { sellTo: ['PKL', 'PEN'] },
-            PKL: { sellTo: ['PUS', 'PEN'] },
-            PEN: { sellTo: ['PUS', 'PKL'] },
+            PKL: { sellTo: ['PUS'] },
+            PEN: { sellTo: ['PUS'] },
         },
         legs: [
             { from: 'PUS', to: 'PKL', seaDays: 7, bound: 'SB' },
@@ -227,8 +227,8 @@ const NEW_ROUTE_PACKAGES = [
         boundLabels: { WB: '한국→인도', EB: '인도→한국', WBja: '韓国→インド', EBja: 'インド→韓国' },
         salesPorts: {
             PUS: { sellTo: ['MAA', 'BOM'] },
-            MAA: { sellTo: ['PUS', 'BOM'] },
-            BOM: { sellTo: ['PUS', 'MAA'] },
+            MAA: { sellTo: ['PUS'] },
+            BOM: { sellTo: ['PUS'] },
         },
         legs: [
             { from: 'PUS', to: 'MAA', seaDays: 10, bound: 'WB' },
@@ -342,8 +342,8 @@ const SLOT_CHARTERS = [
 const BASE_RATES = {
     // KCS (한중) - 100TEU, 비용 ~$33K/항차, 적재율 65% = $33K 수익 → 손익분기
     'PUS-NBO': { '20': 600, '40': 1100 }, 'PUS-SHA': { '20': 550, '40': 1000 },
-    'NBO-PUS': { '20': 400, '40': 750 }, 'NBO-SHA': { '20': 300, '40': 550 },
-    'SHA-PUS': { '20': 350, '40': 650 }, 'SHA-NBO': { '20': 300, '40': 550 },
+    'NBO-PUS': { '20': 400, '40': 750 },
+    'SHA-PUS': { '20': 350, '40': 650 },
     // KJS (한일) - 200TEU, 비용 ~$55K/항차 (14일), 적재율 60% = $55K
     'USN-TYO': { '20': 750, '40': 1400 }, 'USN-YOK': { '20': 700, '40': 1350 },
     'USN-CHB': { '20': 680, '40': 1300 }, 'PUS-TYO': { '20': 720, '40': 1350 },
@@ -354,23 +354,18 @@ const BASE_RATES = {
     // KVS (한베트남) 슬롯차터
     'PUS-HCM': { '20': 500, '40': 950 }, 'PUS-HPH': { '20': 480, '40': 900 },
     'HCM-PUS': { '20': 350, '40': 650 }, 'HPH-PUS': { '20': 320, '40': 600 },
-    'HCM-HPH': { '20': 180, '40': 340 }, 'HPH-HCM': { '20': 180, '40': 340 },
     // KTS (한태국) 슬롯차터
     'PUS-LCB': { '20': 550, '40': 1050 }, 'PUS-BKK': { '20': 580, '40': 1100 },
     'LCB-PUS': { '20': 380, '40': 720 }, 'BKK-PUS': { '20': 400, '40': 750 },
-    'LCB-BKK': { '20': 150, '40': 280 }, 'BKK-LCB': { '20': 150, '40': 280 },
     // KIS (한인니) 슬롯차터
     'PUS-JKT': { '20': 620, '40': 1200 }, 'PUS-SBY': { '20': 600, '40': 1150 },
     'JKT-PUS': { '20': 420, '40': 800 }, 'SBY-PUS': { '20': 400, '40': 760 },
-    'JKT-SBY': { '20': 180, '40': 340 }, 'SBY-JKT': { '20': 180, '40': 340 },
     // KMS (Korea-Malaysia) rates
     'PUS-PKL': { '20': 650, '40': 1250 }, 'PUS-PEN': { '20': 630, '40': 1200 },
     'PKL-PUS': { '20': 450, '40': 860 }, 'PEN-PUS': { '20': 430, '40': 820 },
-    'PKL-PEN': { '20': 200, '40': 380 }, 'PEN-PKL': { '20': 200, '40': 380 },
     // KIS (Korea-India) rates
     'PUS-MAA': { '20': 800, '40': 1550 }, 'PUS-BOM': { '20': 850, '40': 1650 },
     'MAA-PUS': { '20': 550, '40': 1050 }, 'BOM-PUS': { '20': 580, '40': 1100 },
-    'MAA-BOM': { '20': 250, '40': 480 }, 'BOM-MAA': { '20': 250, '40': 480 },
 };
 
 // Customers - difficulty ⭐1~4, higher = harder to win

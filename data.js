@@ -25,8 +25,8 @@ const ROUTES = [
             { from: 'SHA', to: 'PUS', seaDays: 2, bound: 'EB' },
         ],
         vesselSize: 100, rotationDays: 7,
-        investmentCost: 500000, weeklyFixedCost: 15000,
-        fuelCostPerDay: 2000, portFeesPerCall: 3000,
+        investmentCost: 500000, weeklyFixedCost: 10000,
+        fuelCostPerDay: 1500, portFeesPerCall: 3000,
         difficulty: '쉬움', difficultyJa: '易しい', color: '#4CAF50', unlockRevenue: 0,
     },
     {
@@ -54,8 +54,8 @@ const ROUTES = [
             { from: 'CHB', to: 'USN', seaDays: 2, bound: 'WB' },
         ],
         vesselSize: 200, rotationDays: 14,
-        investmentCost: 1200000, weeklyFixedCost: 25000,
-        fuelCostPerDay: 2500, portFeesPerCall: 3500,
+        investmentCost: 1200000, weeklyFixedCost: 18000,
+        fuelCostPerDay: 2000, portFeesPerCall: 3500,
         difficulty: '보통', difficultyJa: '普通', color: '#FF9800', unlockRevenue: 0,
     },
 ];
@@ -83,7 +83,7 @@ const NEW_ROUTE_PACKAGES = [
             { from: 'SHA', to: 'PUS', seaDays: 2, bound: 'EB' },
         ],
         vesselSize: 150, rotationDays: 7,
-        fuelCostPerDay: 2000, portFeesPerCall: 3000, weeklyFixedCost: 15000,
+        fuelCostPerDay: 1500, portFeesPerCall: 3000, weeklyFixedCost: 10000,
         color: '#4CAF50', difficulty: '쉬움', difficultyJa: '易しい',
         unlockRevenue: 200000, // $200K — 가장 낮은 허들
         shipCount: 1, shipCostEach: 600000,
@@ -117,7 +117,7 @@ const NEW_ROUTE_PACKAGES = [
             { from: 'CHB', to: 'USN', seaDays: 2, bound: 'WB' },
         ],
         vesselSize: 250, rotationDays: 14,
-        fuelCostPerDay: 2500, portFeesPerCall: 3500, weeklyFixedCost: 25000,
+        fuelCostPerDay: 2000, portFeesPerCall: 3500, weeklyFixedCost: 18000,
         color: '#FF9800', difficulty: '쉬움', difficultyJa: '易しい',
         unlockRevenue: 200000, // $200K — 가장 낮은 허들
         shipCount: 1, shipCostEach: 900000,
@@ -341,16 +341,16 @@ const SLOT_CHARTERS = [
 // Freight rates per container
 const BASE_RATES = {
     // KCS (한중) - 100TEU, 비용 ~$33K/항차, 적재율 65% = $33K 수익 → 손익분기
-    'PUS-NBO': { '20': 600, '40': 1100 }, 'PUS-SHA': { '20': 550, '40': 1000 },
-    'NBO-PUS': { '20': 400, '40': 750 },
-    'SHA-PUS': { '20': 350, '40': 650 },
+    'PUS-NBO': { '20': 700, '40': 1300 }, 'PUS-SHA': { '20': 650, '40': 1200 },
+    'NBO-PUS': { '20': 500, '40': 950 },
+    'SHA-PUS': { '20': 450, '40': 850 },
     // KJS (한일) - 200TEU, 비용 ~$55K/항차 (14일), 적재율 60% = $55K
-    'USN-TYO': { '20': 750, '40': 1400 }, 'USN-YOK': { '20': 700, '40': 1350 },
-    'USN-CHB': { '20': 680, '40': 1300 }, 'PUS-TYO': { '20': 720, '40': 1350 },
-    'PUS-YOK': { '20': 680, '40': 1300 }, 'PUS-CHB': { '20': 650, '40': 1250 },
-    'TYO-PUS': { '20': 450, '40': 850 }, 'TYO-USN': { '20': 420, '40': 800 },
-    'YOK-PUS': { '20': 420, '40': 800 }, 'YOK-USN': { '20': 400, '40': 750 },
-    'CHB-PUS': { '20': 380, '40': 720 }, 'CHB-USN': { '20': 350, '40': 680 },
+    'USN-TYO': { '20': 850, '40': 1600 }, 'USN-YOK': { '20': 800, '40': 1550 },
+    'USN-CHB': { '20': 780, '40': 1500 }, 'PUS-TYO': { '20': 820, '40': 1550 },
+    'PUS-YOK': { '20': 780, '40': 1500 }, 'PUS-CHB': { '20': 750, '40': 1450 },
+    'TYO-PUS': { '20': 550, '40': 1050 }, 'TYO-USN': { '20': 520, '40': 1000 },
+    'YOK-PUS': { '20': 520, '40': 1000 }, 'YOK-USN': { '20': 500, '40': 950 },
+    'CHB-PUS': { '20': 480, '40': 920 }, 'CHB-USN': { '20': 450, '40': 880 },
     // KVS (한베트남) 슬롯차터
     'PUS-HCM': { '20': 500, '40': 950 }, 'PUS-HPH': { '20': 480, '40': 900 },
     'HCM-PUS': { '20': 350, '40': 650 }, 'HPH-PUS': { '20': 320, '40': 600 },

@@ -189,8 +189,8 @@ const Game = {
 
         this.state = {
             co, coId, ceo, vessel, route: r,
-            cash: Math.round(r.investmentCost * 0.5),
-            debt: Math.round(r.investmentCost * 0.5),
+            cash: Math.round(r.investmentCost * 0.7),
+            debt: Math.round(r.investmentCost * 0.3),
             gameDay: 1, gameHour: 0, speed: 1, startedAt: Date.now(),
             ship: { capacity: r.vesselSize, condition: 100, fuel: 100 },
             captain: { ...STARTING_CAPTAIN },
@@ -2512,8 +2512,8 @@ const Game = {
         s.stats.totExp += fixedCost;
 
         // Debt interest + repayment
-        const interest = Math.round(s.debt * 0.005);
-        const repay = Math.min(s.debt, Math.round(r.investmentCost * 0.012));
+        const interest = Math.round(s.debt * 0.003);
+        const repay = Math.min(s.debt, Math.round(r.investmentCost * 0.008));
         s.cash -= interest + repay;
         s.debt = Math.max(0, s.debt - repay);
         v.voyExp += interest + repay;

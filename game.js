@@ -2986,12 +2986,21 @@ const Game = {
                 const checked = c.assignedSales === st.id;
                 if (checked) assignedCount++;
                 const otherSP = c.assignedSales && c.assignedSales !== st.id ? s.salesTeam.find(x => x.id === c.assignedSales) : null;
-                const otherLabel = otherSP ? `<span style="font-size:9px;color:var(--t3)"> (→${otherSP.name.split(' ')[0]})</span>` : '';
-                custCheckHtml += `<label style="display:flex;align-items:center;gap:6px;padding:4px 6px;margin:1px 0;border-radius:4px;cursor:pointer;font-size:11px;background:${checked ? 'rgba(0,84,166,.12)' : 'transparent'};border:1px solid ${checked ? 'var(--blue)' : 'transparent'}" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background='${checked ? 'rgba(0,84,166,.12)' : 'transparent'}'">
-                    <input type="checkbox" ${checked ? 'checked' : ''} onchange="Game.toggleCustAssign('${c.id}','${port}','${st.id}',this.checked)" style="accent-color:var(--blue)">
-                    <span>${c.icon}</span>
-                    <span style="flex:1">${D(c,'name')} <span style="color:var(--t3);font-size:9px">${'⭐'.repeat(c.difficulty)}</span>${otherLabel}</span>
-                    <span style="font-size:10px;color:${c.share > 30 ? 'var(--green)' : 'var(--t3)'}">${Math.round(c.share)}%</span>
+                const isMine = checked;
+                const isOther = !!otherSP;
+                const bgColor = isMine ? 'rgba(0,84,166,.15)' : isOther ? 'rgba(255,107,53,.08)' : 'transparent';
+                const borderClr = isMine ? 'var(--blue)' : isOther ? 'rgba(255,107,53,.3)' : 'transparent';
+                const otherBadge = otherSP ? `<span style="font-size:8px;background:rgba(255,107,53,.2);color:var(--accent);padding:1px 5px;border-radius:3px;white-space:nowrap">${otherSP.avatar} ${otherSP.name.split('(')[0].trim().split(' ').pop()}</span>` : '';
+                const freeBadge = !isMine && !isOther ? `<span style="font-size:8px;background:rgba(76,175,80,.15);color:var(--green);padding:1px 5px;border-radius:3px">FREE</span>` : '';
+                custCheckHtml += `<label style="display:flex;align-items:center;gap:6px;padding:5px 8px;margin:2px 0;border-radius:6px;cursor:pointer;font-size:11px;background:${bgColor};border:1px solid ${borderClr}">
+                    <input type="checkbox" ${checked ? 'checked' : ''} onchange="Game.toggleCustAssign('${c.id}','${port}','${st.id}',this.checked)" style="accent-color:var(--blue);width:16px;height:16px">
+                    <span style="font-size:14px">${c.icon}</span>
+                    <span style="flex:1;line-height:1.3">
+                        <span style="${isOther ? 'opacity:.6' : ''}">${D(c,'name')}</span>
+                        <span style="color:var(--t3);font-size:9px">${'⭐'.repeat(c.difficulty)}</span>
+                        ${otherBadge}${freeBadge}
+                    </span>
+                    <span style="font-size:10px;font-weight:600;color:${c.share > 50 ? 'var(--green)' : c.share > 20 ? 'var(--yellow)' : 'var(--t3)'}">${Math.round(c.share)}%</span>
                 </label>`;
             });
         });

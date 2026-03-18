@@ -929,6 +929,13 @@ const Game = {
             });
         }
 
+        // Priority: if this salesperson has assigned customers, target them first
+        const assigned = allCusts.filter(ac => ac.cust.assignedSales === st.id);
+        if (assigned.length > 0 && Math.random() < 0.7) {
+            // 70% chance to work on assigned customer
+            return assigned[Math.floor(Math.random() * assigned.length)];
+        }
+
         // Pick from top 3 with some randomness
         const top = allCusts.slice(0, Math.min(3, allCusts.length));
         return top[Math.floor(Math.random() * top.length)];
@@ -3086,7 +3093,7 @@ const Game = {
                     <div class="cust-icon">${c.icon}</div>
                     <div class="cust-info">
                         <div class="cust-name">${D(c,'name')} <span style="font-size:10px;color:var(--t3)">${D(c,'type')}</span>${hasBoost ? ` <span style="font-size:10px;color:var(--accent)">${T('cust.boost')}</span>` : ''}${erosionBadge}</div>
-                        <div class="cust-detail">${diffStars} | ${T('cust.maxVol')} 20'×${c.maxVol20} 40'×${c.maxVol40} ${!canAccess ? '| ' + T('cust.locked') : ''}</div>
+                        <div class="cust-detail">${diffStars} | ${T('cust.maxVol')} 20'×${c.maxVol20} 40'×${c.maxVol40} ${!canAccess ? '| ' + T('cust.locked') : ''}${c.assignedSales ? ' | 👤' + (s.salesTeam.find(st=>st.id===c.assignedSales)?.name?.split(' ')[0] || '') : ''}</div>
                     </div>
                     <div class="cust-share">
                         <div class="cust-share-val" style="color:${shareColor}">${Math.round(c.share)}%</div>
@@ -3264,6 +3271,14 @@ const Game = {
             ${!canAccess ? `<div style="color:var(--red);font-size:11px;margin-bottom:8px">${T('cust.lockedMsg')}</div>` : ''}
             ${erosionHtml}
             ${boostHtml}
+            <div style="margin-top:10px;margin-bottom:10px">
+                <div style="font-size:12px;font-weight:600;margin-bottom:6px">${CURRENT_LANG === 'ja' ? '👤 担当営業マン' : '👤 담당 영업사원'}</div>
+                <select onchange="Game.assignCustSales('${c.id}','${port}',this.value)" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--t1);font-size:12px">
+                    <option value="">${CURRENT_LANG === 'ja' ? '— 自動（未指定）' : '— 자동 (미지정)'}</option>
+                    ${s.salesTeam.map(st => `<option value="${st.id}" ${c.assignedSales === st.id ? 'selected' : ''}>${st.avatar} ${st.name} ${st.isAI ? '🤖' : ''}</option>`).join('')}
+                </select>
+                ${c.assignedSales ? `<div style="font-size:9px;color:var(--accent);margin-top:3px">${CURRENT_LANG === 'ja' ? '✅ この荷主は指定営業マンが優先的に担当します' : '✅ 이 화주는 지정된 영업사원이 우선 담당합니다'}</div>` : ''}
+            </div>
             <div style="margin-top:10px"><div style="font-size:12px;font-weight:600;margin-bottom:6px">${T('cust.boosters')}</div>${boosters}</div>`;
 
         document.getElementById('assign-title').textContent = `${c.icon} ${D(c,'name')}`;
@@ -3299,6 +3314,17 @@ const Game = {
         this.addFeed(T('cust.boostFeed', c.name, bst.name, bst.cost.toLocaleString()), 'booking');
         this.updateHUD();
         this.showCustDetail(custId, port); // refresh modal
+    },
+
+    assignCustSales(custId, port, salesId) {
+        const s = this.state;
+        const c = s.custs[port]?.find(x => x.id === custId);
+        if (!c) return;
+        c.assignedSales = salesId || null;
+        const spName = salesId ? s.salesTeam.find(st => st.id === salesId)?.name || '' : '';
+        if (salesId) {
+            this.toast(`${c.icon} ${D(c,'name')} → ${spName}`, 'ok');
+        }
     },
 
     renderContainers() {

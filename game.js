@@ -2963,17 +2963,38 @@ const Game = {
         if (!st) return;
         const t = st.traits || {};
         const stars = '⭐'.repeat(st.skill) + '☆'.repeat(5 - st.skill);
+        const isJa = CURRENT_LANG === 'ja';
 
-        // Find original data for strength/weakness
         const orig = [...(typeof ALL_SALES_CHARACTERS !== 'undefined' ? ALL_SALES_CHARACTERS : []), ...RECRUIT_POOL].find(x => x.id === stId);
-        const strength = st.strength || orig?.strength || T('common.balanced').split('、')[0] || T('common.balanced');
+        const strength = st.strength || orig?.strength || '';
         const weakness = st.weakness || orig?.weakness || '';
 
-        // Activity stats
         const logs = s.activityLog.filter(l => l.spName === st.name);
         const total = logs.length;
         const successes = logs.filter(l => l.success).length;
         const totalRev = logs.reduce((sum, l) => sum + (l.revenue || 0), 0);
+
+        // Build customer assignment checklist
+        let custCheckHtml = '';
+        const allPorts = Object.keys(s.custs);
+        let assignedCount = 0;
+        allPorts.forEach(port => {
+            const portCusts = (s.custs[port] || []).filter(c => c.difficulty <= (s.infra.training + 1 + ((s.infra.systems || s.infra.it || 0) >= 2 ? 1 : 0)));
+            if (portCusts.length === 0) return;
+            custCheckHtml += `<div style="font-size:10px;color:var(--accent);font-weight:700;margin:6px 0 3px;padding-top:4px;border-top:1px solid var(--border)">📍 ${this.getPortName(port)}</div>`;
+            portCusts.forEach(c => {
+                const checked = c.assignedSales === st.id;
+                if (checked) assignedCount++;
+                const otherSP = c.assignedSales && c.assignedSales !== st.id ? s.salesTeam.find(x => x.id === c.assignedSales) : null;
+                const otherLabel = otherSP ? `<span style="font-size:9px;color:var(--t3)"> (→${otherSP.name.split(' ')[0]})</span>` : '';
+                custCheckHtml += `<label style="display:flex;align-items:center;gap:6px;padding:4px 6px;margin:1px 0;border-radius:4px;cursor:pointer;font-size:11px;background:${checked ? 'rgba(0,84,166,.12)' : 'transparent'};border:1px solid ${checked ? 'var(--blue)' : 'transparent'}" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background='${checked ? 'rgba(0,84,166,.12)' : 'transparent'}'">
+                    <input type="checkbox" ${checked ? 'checked' : ''} onchange="Game.toggleCustAssign('${c.id}','${port}','${st.id}',this.checked)" style="accent-color:var(--blue)">
+                    <span>${c.icon}</span>
+                    <span style="flex:1">${D(c,'name')} <span style="color:var(--t3);font-size:9px">${'⭐'.repeat(c.difficulty)}</span>${otherLabel}</span>
+                    <span style="font-size:10px;color:${c.share > 30 ? 'var(--green)' : 'var(--t3)'}">${Math.round(c.share)}%</span>
+                </label>`;
+            });
+        });
 
         let html = `<div class="sp-detail">
             <div class="sp-detail-header">
@@ -2993,19 +3014,29 @@ const Game = {
                         <div style="height:6px;background:var(--bg);border-radius:3px;overflow:hidden">
                             <div class="trait-fill" style="width:${val * 20}%"></div>
                         </div>
-                        <div style="font-size:9px;color:var(--t3);margin-top:1px">${D(info,'desc')}</div>
                     </div>`;
                 }).join('')}
             </div>
             <div class="sp-sw str">💪 <strong>${T('sales.strengthLabel')}</strong> ${strength}</div>
             <div class="sp-sw wk">⚠️ <strong>${T('sales.weaknessLabel')}</strong> ${weakness}</div>
-            <div style="font-size:11px;color:var(--t2);margin-top:10px">${T('sales.performance')}</div>
-            <div style="display:flex;gap:12px;font-size:12px;margin-top:4px">
+            <div style="display:flex;gap:12px;font-size:12px;margin-top:8px">
                 <span>${total}${T('fin.cases')}</span>
                 <span style="color:var(--green)">${T('fin.successRate')} ${successes}${T('fin.cases')} (${total > 0 ? Math.round(successes/total*100) : 0}%)</span>
                 <span>${T('sales.booked')} $${totalRev.toLocaleString()}</span>
             </div>
-            <div class="sp-rename">
+
+            <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                    <span style="font-size:12px;font-weight:700">📋 ${isJa ? '担当荷主' : '담당 화주'} (${assignedCount})</span>
+                    <button class="btn-sm" onclick="Game.clearAllCustAssign('${st.id}')" style="font-size:9px;padding:2px 8px">${isJa ? '全解除' : '전체 해제'}</button>
+                </div>
+                <div style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:4px">
+                    ${custCheckHtml}
+                </div>
+                <div style="font-size:9px;color:var(--t3);margin-top:3px">${isJa ? '✅ チェックした荷主を優先的に営業します（70%確率）' : '✅ 체크한 화주를 우선적으로 영업합니다 (70% 확률)'}</div>
+            </div>
+
+            <div class="sp-rename" style="margin-top:8px">
                 <input id="sp-rename-input" value="${st.name}" maxlength="10" placeholder="${T('sales.renamePH')}">
                 <button class="btn-sm" onclick="Game.renameSales('${st.id}')">${T('common.change')}</button>
             </div>
@@ -3030,6 +3061,29 @@ const Game = {
         this.openModal('modal-assign');
     },
 
+    toggleCustAssign(custId, port, salesId, checked) {
+        const s = this.state;
+        const c = s.custs[port]?.find(x => x.id === custId);
+        if (!c) return;
+        if (checked) {
+            c.assignedSales = salesId;
+        } else {
+            if (c.assignedSales === salesId) c.assignedSales = null;
+        }
+        // Refresh the modal
+        this.showSalesDetail(salesId);
+    },
+
+    clearAllCustAssign(salesId) {
+        const s = this.state;
+        for (const port in s.custs) {
+            s.custs[port].forEach(c => {
+                if (c.assignedSales === salesId) c.assignedSales = null;
+            });
+        }
+        this.showSalesDetail(salesId);
+        this.toast(CURRENT_LANG === 'ja' ? '担当荷主を全解除しました' : '담당 화주를 전체 해제했습니다', 'ok');
+    },
     renameSales(stId) {
         const st = this.state.salesTeam.find(t => t.id === stId);
         if (!st) return;

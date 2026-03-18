@@ -152,10 +152,14 @@ const Game = {
             return;
         }
 
-        // Containers: all at home port initially
+        // Containers: distribute across all ports (foreign ports get some initial stock)
         const ctr = {};
-        r.ports.forEach(p => { ctr[p] = { '20': 0, '40': 0 }; });
-        ctr[r.ports[0]] = { '20': 50, '40': 50 };
+        const perPort20 = Math.floor(40 / r.ports.length);
+        const perPort40 = Math.floor(40 / r.ports.length);
+        r.ports.forEach(p => { ctr[p] = { '20': perPort20, '40': perPort40 }; });
+        // Home port gets extra
+        ctr[r.ports[0]]['20'] += 20;
+        ctr[r.ports[0]]['40'] += 20;
 
         // Deep copy customers
         const custs = {};
@@ -307,6 +311,21 @@ const Game = {
             st.stamina = Math.min(100, st.stamina + 5 + vit * 2); // vit1→7, vit3→11, vit5→15
         });
         this.scheduleVacations();
+
+        // Auto-balance containers: foreign ports get minimum containers from "virtual pool"
+        // This simulates containers arriving from other services/feeder vessels
+        r.ports.forEach(p => {
+            if (p === r.ports[0]) return; // skip home port
+            if (!s.ctr[p]) s.ctr[p] = { '20': 0, '40': 0 };
+            const total = s.ctr[p]['20'] + s.ctr[p]['40'];
+            if (total < 5) {
+                // Drip-feed: add 1-2 containers per day if below minimum
+                const add20 = Math.random() < 0.6 ? 1 : 0;
+                const add40 = Math.random() < 0.4 ? 1 : 0;
+                s.ctr[p]['20'] += add20;
+                s.ctr[p]['40'] += add40;
+            }
+        });
 
         // Tick down customer boosts
         for (const port in s.custs) {
@@ -4766,6 +4785,94 @@ const Game = {
         document.getElementById('finance-view').innerHTML = html;
     },
 
+    // ==================== SALES PERFORMANCE REPORT ====================
+    renderSalesReport() {
+        const s = this.state;
+        const isJa = CURRENT_LANG === 'ja';
+
+        // Calculate per-salesperson stats
+        const spStats = s.salesTeam.map(st => {
+            const teu = st.totalTEU || 0;
+            const bookings = st.totalBookings || 0;
+            const avgTEU = bookings > 0 ? Math.round(teu / bookings) : 0;
+            return { ...st, teu, bookings, avgTEU };
+        });
+        spStats.sort((a, b) => b.teu - a.teu);
+
+        // Weekly TEU (from activity log last 7 days)
+        const weekStart = s.gameDay - 7;
+        const weekLogs = s.activityLog.filter(l => l.day >= weekStart && l.success && l.revenue > 0);
+        const weekBySP = {};
+        weekLogs.forEach(l => {
+            if (!weekBySP[l.spName]) weekBySP[l.spName] = { count: 0, rev: 0 };
+            weekBySP[l.spName].count++;
+            weekBySP[l.spName].rev += l.revenue || 0;
+        });
+
+        let html = `<div style="margin-bottom:16px">
+            <h4 style="font-size:14px;margin-bottom:4px">\u{1F4CA} ${isJa ? '\u55B6\u696D\u5B9F\u7E3E\u30EC\u30DD\u30FC\u30C8' : '\uC601\uC5C5 \uC2E4\uC801 \uBCF4\uACE0\uC11C'}</h4>
+            <div style="font-size:10px;color:var(--t3)">D+${s.gameDay} | ${isJa ? '\u5168\u671F\u9593\u7D2F\u8A08 + \u76F4\u8FD17\u65E5\u9593' : '\uC804\uCCB4 \uB204\uC801 + \uCD5C\uADFC 7\uC77C\uAC04'}</div>
+        </div>`;
+
+        // Summary table
+        html += `<div style="overflow-x:auto;margin-bottom:12px">
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead>
+                <tr style="background:var(--card2);border-bottom:2px solid var(--border)">
+                    <th style="padding:6px 4px;text-align:left">${isJa ? '\u9806\u4F4D' : '\uC21C\uC704'}</th>
+                    <th style="padding:6px 4px;text-align:left">${isJa ? '\u55B6\u696D\u62C5\u5F53' : '\uC601\uC5C5\uC0AC\uC6D0'}</th>
+                    <th style="padding:6px 4px;text-align:right">${isJa ? '\u7D2F\u8A08TEU' : '\uB204\uC801TEU'}</th>
+                    <th style="padding:6px 4px;text-align:right">${isJa ? '\u4EF6\u6570' : '\uAC74\uC218'}</th>
+                    <th style="padding:6px 4px;text-align:right">${isJa ? '\u5E73\u5747' : '\uD3C9\uADE0'}</th>
+                    <th style="padding:6px 4px;text-align:right">${isJa ? '\u4ECA\u9031' : '\uC774\uBC88\uC8FC'}</th>
+                    <th style="padding:6px 4px;text-align:right">${isJa ? '\u4ECA\u9031\u58F2\u4E0A' : '\uC8FC\uAC04\uB9E4\uCD9C'}</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+        spStats.forEach((st, i) => {
+            const medal = i === 0 ? '\u{1F947}' : i === 1 ? '\u{1F948}' : i === 2 ? '\u{1F949}' : `${i+1}`;
+            const week = weekBySP[st.name] || { count: 0, rev: 0 };
+            const isAI = st.isAI ? ' \u{1F916}' : '';
+            const vacLabel = st.activity === 'vacation' ? ` <span style="color:var(--yellow);font-size:9px">\u{1F3D6}\uFE0F</span>` : '';
+            html += `<tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:5px 4px;text-align:center;font-size:12px">${medal}</td>
+                <td style="padding:5px 4px">${st.avatar} ${st.name}${isAI}${vacLabel}</td>
+                <td style="padding:5px 4px;text-align:right;font-weight:700;color:var(--green)">${st.teu}</td>
+                <td style="padding:5px 4px;text-align:right">${st.bookings}</td>
+                <td style="padding:5px 4px;text-align:right;color:var(--t2)">${st.avgTEU}</td>
+                <td style="padding:5px 4px;text-align:right;color:var(--accent)">${week.count}</td>
+                <td style="padding:5px 4px;text-align:right;color:var(--green)">$${week.rev.toLocaleString()}</td>
+            </tr>`;
+        });
+
+        html += `</tbody></table></div>`;
+
+        // Team total
+        const totalTEU = spStats.reduce((s, st) => s + st.teu, 0);
+        const totalWeekRev = Object.values(weekBySP).reduce((s, w) => s + w.rev, 0);
+        const totalWeekCount = Object.values(weekBySP).reduce((s, w) => s + w.count, 0);
+        html += `<div style="background:var(--card2);border-radius:8px;padding:10px;margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;font-size:11px">
+            <div><div style="font-size:16px;font-weight:700;color:var(--green)">${totalTEU}</div><div style="color:var(--t3)">${isJa ? '\u7D2F\u8A08TEU' : '\uB204\uC801 TEU'}</div></div>
+            <div><div style="font-size:16px;font-weight:700;color:var(--accent)">${totalWeekCount}</div><div style="color:var(--t3)">${isJa ? '\u4ECA\u9031\u6210\u7D04' : '\uC774\uBC88\uC8FC \uC131\uC57D'}</div></div>
+            <div><div style="font-size:16px;font-weight:700;color:var(--green)">$${totalWeekRev.toLocaleString()}</div><div style="color:var(--t3)">${isJa ? '\u4ECA\u9031\u58F2\u4E0A' : '\uC8FC\uAC04 \uB9E4\uCD9C'}</div></div>
+        </div>`;
+
+        // Recent bookings
+        const recentBookings = s.bookings.filter(b => !b.delivered).slice(-10);
+        if (recentBookings.length > 0) {
+            html += `<h4 style="font-size:12px;margin-bottom:6px;color:var(--t2)">${isJa ? '\u{1F4CB} \u6700\u65B0\u30D6\u30C3\u30AD\u30F3\u30B0' : '\u{1F4CB} \uCD5C\uADFC \uBD80\uD0B9'}</h4>`;
+            [...recentBookings].reverse().forEach(b => {
+                html += `<div style="display:flex;justify-content:space-between;font-size:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+                    <span>${b.custIcon} ${b.custName} ${b.leg}</span>
+                    <span style="color:var(--green)">${b.q20 + b.q40 * 2}TEU $${b.revenue.toLocaleString()}</span>
+                </div>`;
+            });
+        }
+
+        return html;
+    },
+
     renderActivityReport() {
         const s = this.state;
         const logs = [...s.activityLog].reverse();
@@ -4840,7 +4947,7 @@ const Game = {
             });
         }
 
-        document.getElementById('report-view').innerHTML = html;
+        document.getElementById('report-view').innerHTML = this.renderSalesReport() + `<hr style="border:none;border-top:1px solid var(--border);margin:16px 0">` + html;
     },
 
     // ==================== UI UPDATES ====================

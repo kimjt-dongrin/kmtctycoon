@@ -3027,7 +3027,7 @@ const Game = {
 
             <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                    <span style="font-size:12px;font-weight:700">📋 ${isJa ? '担当荷主' : '담당 화주'} (${assignedCount})</span>
+                    <span style="font-size:12px;font-weight:700">📋 ${isJa ? '担当荷主' : '담당 화주'} (<span data-assign-count>${assignedCount}</span>)</span>
                     <button class="btn-sm" onclick="Game.clearAllCustAssign('${st.id}')" style="font-size:9px;padding:2px 8px">${isJa ? '全解除' : '전체 해제'}</button>
                 </div>
                 <div style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:4px">
@@ -3070,8 +3070,12 @@ const Game = {
         } else {
             if (c.assignedSales === salesId) c.assignedSales = null;
         }
-        // Refresh the modal
-        this.showSalesDetail(salesId);
+        // Update count without re-rendering (preserve scroll)
+        const countEl = document.querySelector('[data-assign-count]');
+        if (countEl) {
+            const cnt = Object.values(s.custs).flat().filter(x => x.assignedSales === salesId).length;
+            countEl.textContent = cnt;
+        }
     },
 
     clearAllCustAssign(salesId) {

@@ -803,6 +803,19 @@ const Game = {
         if (cust.boosts) {
             cust.boosts.forEach(b => { if (b.daysLeft > 0 && b.successBoost) rate += b.successBoost; });
         }
+        // Shipper-salesperson compatibility (personality match)
+        if (cust && st.traits) {
+            // Size-based: VIP Handler loves large, Pioneer loves small
+            if (cust.size === 'large' && st.traits.negotiation >= 4) rate += 0.05;
+            if (cust.size === 'small' && st.traits.faceToFace >= 3) rate += 0.05;
+            // Difficulty match: high-skill salespeople handle tough clients better
+            if (cust.difficulty >= 4 && st.skill >= 4) rate += 0.08;
+            if (cust.difficulty >= 4 && st.skill <= 2) rate -= 0.10;
+            // Digital affinity: some customers prefer digital communication
+            if (act.id === 'email' && cust.difficulty <= 2 && st.traits.digital >= 3) rate += 0.06;
+            // Relationship affinity: loyal customers respond better to relationship-focused salespeople
+            if (cust.loyalty >= 50 && st.traits.relationship >= 4) rate += 0.06;
+        }
         return Math.min(0.95, Math.max(0.05, rate));
     },
 
@@ -1224,6 +1237,14 @@ const Game = {
             custId: cust.id, custName: D(cust,'name'), custIcon: cust.icon,
             leg, port, q20: avail20, q40: avail40, r20, r40, revenue, delivered: false,
         });
+
+        // Track per-salesperson TEU
+        if (salesperson) {
+            if (!salesperson.totalTEU) salesperson.totalTEU = 0;
+            if (!salesperson.totalBookings) salesperson.totalBookings = 0;
+            salesperson.totalTEU += avail20 + avail40 * 2;
+            salesperson.totalBookings++;
+        }
 
         s.ctr[port]['20'] -= avail20;
         s.ctr[port]['40'] -= avail40;
@@ -2842,7 +2863,7 @@ const Game = {
                     <div class="sales-stats">
                         <span>💰 $${st.salary}/${T('common.month')}</span>
                         <span>⚡ ${Math.round(st.stamina)}%</span>
-                        <span>📊 EXP ${st.exp}</span>
+                        <span>📊 ${st.exp}XP | 📦 ${st.totalTEU || 0}TEU</span>
                     </div>
                     <div class="trait-mini">
                         <span data-tip="${T('sales.negotiationTip')}">🤝${t.negotiation||0}</span>
@@ -2934,7 +2955,7 @@ const Game = {
                 <div>
                     <div style="font-size:16px;font-weight:700">${st.name} <span style="font-size:12px">${stars}</span></div>
                     <div style="font-size:11px;color:var(--t2)">${st.desc || orig?.desc || ''}</div>
-                    <div style="font-size:11px;color:var(--t3);margin-top:2px">💰 $${st.salary}/${T('common.month')} | ⚡ ${T('common.stamina')} ${Math.round(st.stamina)}% | 📊 EXP ${st.exp}</div>
+                    <div style="font-size:11px;color:var(--t3);margin-top:2px">💰 $${st.salary}/${T('common.month')} | ⚡ ${Math.round(st.stamina)}% | 📊 ${st.exp}XP | 📦 ${st.totalTEU || 0}TEU</div>
                 </div>
             </div>
             <div style="font-size:11px;color:var(--t2);margin-bottom:4px">${T('sales.stats')}</div>
